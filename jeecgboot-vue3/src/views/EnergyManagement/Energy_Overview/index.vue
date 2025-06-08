@@ -12,6 +12,9 @@
         :format="dateFormat"
         class="w-40"
       />
+      <a-space >
+            <a-button type="primary" @click="handleSearch">查询</a-button>
+          </a-space>
     </div>
 
     <!-- 主要内容网格 -->
@@ -38,48 +41,38 @@
         <EnergyDistributionPie :chartData="energyDistributionData" />
       </a-card>
 
-      <!-- 区域能源分布 -->
-      <a-card title="各区域能源占比" :bordered="false">
+      <!-- 能源分布 -->
+      <a-card title="能源分布" :bordered="false">
         <template #extra>
-          <a-space>
-            <a-button type="primary">综合能耗</a-button>
-            <a-button>成本</a-button>
-          </a-space>
-        </template>
-        <AreaEnergyPie :chartData="areaEnergyData" />
-      </a-card>
-
-      <!-- 能源转换 -->
-      <a-card title="能源转换" :bordered="false">
-        <template #extra>
-          <a-space>
-            <a-select v-model:value="selectedArea" class="w-32">
-              <a-select-option value="all">全部电站</a-select-option>
-              <a-select-option value="station1">电站1</a-select-option>
-            </a-select>
+          
+            <!--<a-select v-model:value="selectedArea" class="w-32">
+              <a-select-option value="station1">按部门（用电）</a-select-option>
+              <a-select-option value="station2">按线路（用电）</a-select-option>
+            </a-select>-->
+           
+            
+          
+            <a-space>
+            <j-dict-select-tag v-model:value="selectedArea" dictCode="dimensionCode" placeholder="维度类型"  allow-clear style="width: 150px;"  />
             <a-select v-model:value="selectedMetric" class="w-40">
-              <a-select-option value="efficiency">转换效率</a-select-option>
-              <a-select-option value="consumption">能耗</a-select-option>
+              <a-select-option value="efficiency">全厂总电表（按部门）</a-select-option>
+              <a-select-option value="consumption">注塑部门</a-select-option>
             </a-select>
           </a-space>
         </template>
         <EnergyConsumptionLine :chartData="energyConversionData" />
       </a-card>
 
-      <!-- 能源趋势 -->
-      <a-card title="综合能源累计查询" :bordered="false">
-        <EnergyTrendChart :chartData="energyTrendData" />
+      <!-- 区域能源分布 -->
+      <a-card title="各区域能源占比" :bordered="false">
+        <AreaEnergyPie :chartData="areaEnergyData" />
       </a-card>
 
-      <!-- 能源统计 -->
-      <a-card title="耗损查询" :bordered="false">
-        <template #extra>
-          <a-select v-model:value="selectedEnergyType" class="w-32">
-            <a-select-option value="electric">电能</a-select-option>
-            <a-select-option value="water">水能</a-select-option>
-          </a-select>
-        </template>
-        <EnergyStatistics :data="energyStatsData" />
+      
+
+      <!-- 能源趋势 -->
+      <a-card title="能源趋势查询" :bordered="false" class="col-span-2">
+        <EnergyTrendChart :chartData="energyTrendData" />
       </a-card>
     </div>
   </div>
@@ -94,14 +87,15 @@ import EnergyDistributionPie from './components/EnergyDistributionPie.vue';
 import AreaEnergyPie from './components/AreaEnergyPie.vue';
 import EnergyConsumptionLine from './components/EnergyConsumptionLine.vue';
 import EnergyTrendChart from './components/EnergyTrendChart.vue';
-import EnergyStatistics from './components/EnergyStatistics.vue';
+
+//新增加20250210
+import JDictSelectTag from '/@/components/Form/src/jeecg/components/JDictSelectTag.vue';
 
 // 状态管理
 const timeUnit = ref<'day' | 'month' | 'year'>('day');
 const selectedDate = ref<Dayjs>();
-const selectedArea = ref<string>('all');
+const selectedArea = ref<string>('维度类型');
 const selectedMetric = ref<string>('efficiency');
-const selectedEnergyType = ref<string>('electric');
 
 // 根据时间单位的日期选择器格式
 const dateFormat = computed(() => {
@@ -116,6 +110,15 @@ const dateFormat = computed(() => {
       return 'YYYY-MM-DD';
   }
 });
+
+// 处理查询
+const handleSearch = () => {
+  console.log('查询条件：');
+  // TODO: 实现查询逻辑
+};
+
+
+
 
 // 模拟数据 - 实际实现中这些数据会来自API调用
 const energyTimeData = ref({
@@ -151,11 +154,7 @@ const energyTrendData = ref({
   data: [1500, 1600, 1700, 1800, 1650, 1750, 1850, 1800, 1700, 1400, 1800, 1900]
 });
 
-const energyStatsData = ref({
-  consumption: 51.86,
-  generation: 3991.8,
-  efficiency: 0.08
-});
+
 
 // 生命周期钩子
 onMounted(() => {
