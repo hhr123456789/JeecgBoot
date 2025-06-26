@@ -1,127 +1,60 @@
 <template>
-  <div class="real-time-monitor">
-    <a-table
-      :columns="columns"
-      :data-source="monitorData.list"
-      :pagination="false"
-      size="middle"
+  <div class="real-time-monitor grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div
+      v-for="(item, idx) in monitorData.list"
+      :key="idx"
+      class="bg-white rounded-lg shadow-sm p-4 flex flex-col"
+      tabindex="0"
+      :aria-label="item.deviceName + '监控卡片'"
     >
-      <!-- 设备名称 -->
-      <template #deviceName="{ text }">
-        <span>{{ text }}</span>
-      </template>
-      
-      <!-- 运行状态 -->
-      <template #status="{ text }">
-        <a-tag :color="getStatusColor(text)">
-          {{ getStatusText(text) }}
-        </a-tag>
-      </template>
-
-      <!-- 功率/能耗/运行时长 -->
-      <template #power="{ text }">
-        <span>{{ text.toFixed(1) }} kW</span>
-      </template>
-      <template #energy="{ text }">
-        <span>{{ text.toFixed(1) }} kWh</span>
-      </template>
-      <template #runtime="{ text }">
-        <span>{{ text.toFixed(1) }} h</span>
-      </template>
-    </a-table>
+      <!-- 设备名称和状态 -->
+      <div class="flex items-center mb-2">
+        <span class="w-6 h-6 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mr-2 text-base font-bold">{{ idx + 1 }}</span>
+        <span class="font-medium text-gray-800 flex-1 truncate">{{ item.deviceName }}</span>
+      </div>
+      <div class="flex items-center mb-2">
+        <span class="text-xs text-gray-500 mr-2">负荷状态</span>
+        <span class="text-xs text-green-600 font-medium">正常</span>
+      </div>
+      <!-- 负荷率及进度条 -->
+      <div class="flex items-center mb-1">
+        <span class="text-xs text-gray-500 mr-2">负荷率</span>
+        <span class="text-xs text-blue-600 font-medium">{{ item.loadRate ?? '35.44' }}%</span>
+      </div>
+      <div class="w-full h-2 bg-gray-200 rounded overflow-hidden mb-2">
+        <div class="h-2 bg-blue-500" :style="{ width: (item.loadRate ?? 35.44) + '%' }"></div>
+      </div>
+      <!-- 数据两行两列紧凑排列，字段名+冒号+数值+单位一行 -->
+      <div class="flex text-xs text-gray-500 mb-1">
+        <span class="mr-8">Ia：<span class="font-semibold text-base text-gray-800">{{ item.Ia ?? '-' }}</span> A</span>
+        <span>Ib：<span class="font-semibold text-base text-gray-800">{{ item.Ib ?? '-' }}</span> A</span>
+      </div>
+      <div class="flex text-xs text-gray-500">
+        <span class="mr-8">Ic：<span class="font-semibold text-base text-gray-800">{{ item.Ic ?? '-' }}</span> A</span>
+        <span>COS：<span class="font-semibold text-base text-gray-800">{{ item.COS ?? '-' }}</span></span>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
-import type { TableColumnsType } from 'ant-design-vue';
-
-// 定义props
+// 生产线用电表监控卡片式布局，两行两列数据展示，字段名+冒号+数值+单位一行
 const props = defineProps<{
   monitorData: {
-    list: {
+    list: Array<{
       deviceName: string;
-      status: string;
-      power: number;
-      energy: number;
-      runtime: number;
-    }[];
+      Ia?: number;
+      Ib?: number;
+      Ic?: number;
+      COS?: number;
+      loadRate?: number;
+    }>;
   };
 }>();
-
-// 表格列定义
-const columns: TableColumnsType = [
-  {
-    title: '设备名称',
-    dataIndex: 'deviceName',
-    width: 180,
-    align: 'left',
-    slots: { customRender: 'deviceName' }
-  },
-  {
-    title: '运行状态',
-    dataIndex: 'status',
-    width: 120,
-    align: 'center',
-    slots: { customRender: 'status' }
-  },
-  {
-    title: '实时功率(kW)',
-    dataIndex: 'power',
-    width: 150,
-    align: 'right',
-    slots: { customRender: 'power' }
-  },
-  {
-    title: '累计能耗(kWh)',
-    dataIndex: 'energy',
-    width: 150,
-    align: 'right',
-    slots: { customRender: 'energy' }
-  },
-  {
-    title: '运行时长(h)',
-    dataIndex: 'runtime',
-    width: 150,
-    align: 'right',
-    slots: { customRender: 'runtime' }
-  }
-];
-
-// 获取状态颜色
-const getStatusColor = (status: string) => {
-  const colorMap: Record<string, string> = {
-    running: 'success',
-    stopped: 'default',
-    fault: 'error'
-  };
-  return colorMap[status] || 'default';
-};
-
-// 获取状态文本
-const getStatusText = (status: string) => {
-  const textMap: Record<string, string> = {
-    running: '运行中',
-    stopped: '已停止',
-    fault: '故障'
-  };
-  return textMap[status] || status;
-};
 </script>
 
 <style scoped>
-/* ��格样式调整 */
-:deep(.ant-table-thead > tr > th) {
-  @apply text-center bg-gray-50;
-  padding: 12px 16px;
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  padding: 12px 16px;
-}
-
-/* 数值类型的单元格样式 */
-:deep(.ant-table-tbody > tr > td.ant-table-cell-right) {
-  @apply font-mono;
+.real-time-monitor {
+  /* 响应式卡片布局 */
 }
 </style> 
