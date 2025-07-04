@@ -8,14 +8,23 @@
         <artifactId>jeecg-boot-parent</artifactId>
         <version>3.7.2</version>
     </parent>
-
-    <groupId>org.jeecg.modules.energy</groupId>
     <artifactId>jeecg-module-energy</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>org.jeecgframework.boot</groupId>
+            <artifactId>jeecg-boot-base-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jeecgframework.boot</groupId>
+            <artifactId>jeecg-system-biz</artifactId>
+        </dependency>
 
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    </dependencies>
+
+
+
+
+
+
 
 </project>

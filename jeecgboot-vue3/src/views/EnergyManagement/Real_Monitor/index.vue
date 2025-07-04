@@ -1,24 +1,46 @@
 <template>
   <div class="flex h-full">
     <!-- 左侧树形菜单 -->
-    <div class="w-64 bg-white p-2 mr-2 rounded overflow-auto">
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="请输入搜索内容"
-        class="mb-2"
-      />
-      <a-tree
-        v-model:expandedKeys="expandedKeys"
-        v-model:selectedKeys="selectedKeys"
-        :tree-data="treeData"
-        @select="handleSelect"
-      />
+    <div class="w-80 bg-white p-2 mr-2 rounded overflow-auto mt-4" style="width:310px;">
+      <a-col :xl="6" :lg="8" :md="10" :sm="24" style="flex: 1;height: 100%;background-color: white;padding-left: 10px;">
+      <a-tabs defaultActiveKey="dz-info" @change="handleTabChange" style="height: 100%;width:300px;">
+          <a-tab-pane tab="按部门（用电）" key="info1" forceRender>
+           <a-card :bordered="false" style="height: 100%">
+            <DimensionTree @select="onDepartTreeSelect" :nowtype="1" style="margin-top:-20px ;" />
+            </a-card>
+          </a-tab-pane>
+         <a-tab-pane tab="按线路（用电）" key="info2">
+            <a-card :bordered="false" style="height: 100%">
+            <DimensionTree @select="onDepartTreeSelect" :nowtype="2" style="margin-top:-20px ;" />
+            </a-card>
+          </a-tab-pane>
+          <a-tab-pane tab="天然气" key="info3"    >
+            <a-card :bordered="false" style="height: 100%">
+            <DimensionTree @select="onDepartTreeSelect" nowtype="3" style="margin-top:-20px ;" />
+            </a-card>
+          </a-tab-pane>
+          <a-tab-pane tab="压缩空气" key="info4"    >
+            <a-card :bordered="false" style="height: 100%">
+            <DimensionTree @select="onDepartTreeSelect" nowtype="4" style="margin-top:-20px ;" />
+            </a-card>
+          </a-tab-pane>
+          <a-tab-pane tab="企业用水" key="info5"    >
+            <a-card :bordered="false" style="height: 100%">
+            <DimensionTree @select="onDepartTreeSelect" nowtype="5" style="margin-top:-20px ;" />
+            </a-card>
+          </a-tab-pane>
+          
+        </a-tabs>
+    </a-col>
+
+
     </div>
 
     <!-- 右侧内容区域 -->
     <div class="flex-1">
       <div class="real-data-monitor-container p-4">
         <!-- 顶部导航栏 -->
+         <!--
         <div class="mb-4">
           <a-tabs v-model:activeKey="activeTab">
             <a-tab-pane key="1" tab="全厂用电"></a-tab-pane>
@@ -27,6 +49,7 @@
             <a-tab-pane key="4" tab="全厂用缩空气"></a-tab-pane>
           </a-tabs>
         </div>
+        -->
 
         <!-- 主要内容区域 -->
         <div class="grid grid-cols-2 gap-2">
@@ -51,6 +74,10 @@
                   </div>
                 </div>
                 <span class="text-xs text-gray-600">63.10%</span>
+              </div>
+              <div class="flex items-center text-sm">
+                <span class="text-gray-600 w-16">采集时间</span>
+                <span class="text-green-500">2025-07-04 10:00:00</span>
               </div>
               <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
                 <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
@@ -107,6 +134,10 @@
                 </div>
                 <span class="text-xs text-gray-600">63.10%</span>
               </div>
+              <div class="flex items-center text-sm">
+                <span class="text-gray-600 w-16">采集时间</span>
+                <span class="text-green-500">2025-07-04 10:00:00</span>
+              </div>
               <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
                 <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
                 <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
@@ -161,6 +192,10 @@
                   </div>
                 </div>
                 <span class="text-xs text-gray-600">63.10%</span>
+              </div>
+              <div class="flex items-center text-sm">
+                <span class="text-gray-600 w-16">采集时间</span>
+                <span class="text-green-500">2025-07-04 10:00:00</span>
               </div>
               <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
                 <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
@@ -217,6 +252,10 @@
                 </div>
                 <span class="text-xs text-gray-600">63.10%</span>
               </div>
+              <div class="flex items-center text-sm">
+                <span class="text-gray-600 w-16">采集时间</span>
+                <span class="text-green-500">2025-07-04 10:00:00</span>
+              </div>
               <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
                 <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
                 <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
@@ -272,6 +311,10 @@
                 </div>
                 <span class="text-xs text-gray-600">63.10%</span>
               </div>
+              <div class="flex items-center text-sm">
+                <span class="text-gray-600 w-16">采集时间</span>
+                <span class="text-green-500">2025-07-04 10:00:00</span>
+              </div>
               <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
                 <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
                 <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
@@ -311,11 +354,73 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import {provide,ref, onMounted, onUnmounted,nextTick  } from 'vue';
 import RealTimeChart from './components/RealTimeChart.vue';
 import HistoryChart from './components/HistoryChart.vue';
 import ProductionParamsChart from './components/ProductionParamsChart.vue';
-import type { TreeDataItem } from 'ant-design-vue/es/tree/Tree';
+import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
+
+
+// 定义 currentWname 变量
+  const currentWname = ref('');
+//定义切换树变量
+const selecttag = ref('');
+//切换树到默认第一个tab
+handleTabChange("info1"); 
+
+
+// 新增 handleTabChange 方法
+function handleTabChange(key) {
+  //debugger;
+  // 检查当前选中的key（'info1'或'info2'）
+  if (key === 'info1') {
+    // 触发 onDepartTreeSelect 并传递tab1默认数据
+    deafulDepartTreeSelect('A10003A06A01');
+    selecttag.value='1';
+  } else if (key === 'info2') {
+    // 触发 onDepartTreeSelect 并传递tab2默认数据
+    deafulDepartTreeSelect('A10004A01A01');
+    selecttag.value='2';
+  }else if (key === 'info3') {
+    // 触发 onDepartTreeSelect 并传递tab3默认数据
+    deafulDepartTreeSelect('A10005A01A01');
+    selecttag.value='3';
+  }else if (key === 'info4') {
+    // 触发 onDepartTreeSelect 并传递tab4默认数据
+    deafulDepartTreeSelect('A10006A01A01');
+    selecttag.value='4';
+  }else if (key === 'info5') {
+    // 触发 onDepartTreeSelect 并传递tab5默认数据
+    deafulDepartTreeSelect('A10007A01A01');
+    selecttag.value='5';
+  }
+}
+
+
+ // 左侧树选择后触发
+ function onDepartTreeSelect(data) {
+    //console.log("michael111");
+    //console.log(data);
+    //console.log(data[0]);
+    // 检查data是否为数组且不为空
+    if (Array.isArray(data) && data.length > 0) {
+      // 使用map提取每个对象的'departName'，然后用join连接成字符串
+      const orgCodestr = data.map(item => item.orgCode).join(',');
+      //console.log(orgCodestr);
+
+      // 更新changeIframeSrc
+       //changeIframeSrc(orgCodestr);
+    } else {
+      console.log("没有选中任何项目");
+      // 处理没有选中任何项目的情况
+    }
+    //changeIframeSrc(data[0]["departName"]);
+    //DepartData.value = data;
+  }
+
+  function deafulDepartTreeSelect(Wname){
+    console.log(Wname);
+  }
 
 interface CurrentData {
   total: number;
@@ -324,60 +429,9 @@ interface CurrentData {
   l3: number;
 }
 
-// 搜索文本
-const searchText = ref('');
 
-// 树形菜单展开和选中状态
-const expandedKeys = ref<string[]>(['1']);
-const selectedKeys = ref<string[]>(['1-1']);
 
-// 树形菜单数据
-const treeData = ref<TreeDataItem[]>([
-  {
-    title: '1#车间',
-    key: '1',
-    children: [
-      {
-        title: '1#车间1#生产线',
-        key: '1-1',
-      },
-      {
-        title: '1#车间3#生产线',
-        key: '1-3',
-      }
-    ]
-  },
-  {
-    title: '2#车间',
-    key: '2',
-    children: [
-      {
-        title: '2#车间用电表',
-        key: '2-1',
-      }
-    ]
-  },
-  {
-    title: '3#车间',
-    key: '3',
-    children: [
-      {
-        title: '3#车间用电表',
-        key: '3-1',
-      }
-    ]
-  },
-  {
-    title: '4#车间',
-    key: '4',
-    children: [
-      {
-        title: '4#车间用电表',
-        key: '4-1',
-      }
-    ]
-  }
-]);
+
 
 // 当前激活的标签页
 const activeTab = ref('1');
@@ -578,4 +632,5 @@ onUnmounted(() => {
 .data-row span {
   color: #374151;
 }
-</style> 
+</style>
+

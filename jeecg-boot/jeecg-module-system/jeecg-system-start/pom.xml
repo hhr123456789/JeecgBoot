@@ -24,6 +24,14 @@
             <artifactId>jeecg-module-demo</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
+
+        <!-- 能源系统模块 -->
+        <dependency>
+            <groupId>org.jeecgframework.boot</groupId>
+            <artifactId>jeecg-module-energy</artifactId>
+            <version>${jeecgboot.version}</version>
+        </dependency>
+
         
         <!-- flyway 数据库自动升级 -->
         <dependency>
