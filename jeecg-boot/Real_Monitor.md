@@ -1,48 +1,9 @@
 # 实时数据监控接口设计
 
-## 1. 获取维度树接口
+## 1. 获取实时监控数据接口
 
 ### 接口信息
-- **URL**: `/ems/monitor/getDimensionTree`
-- **Method**: GET
-- **功能**: 获取左侧维度树数据
-
-### 请求参数
-| 参数名 | 类型 | 必填 | 说明 |
-|-------|-----|------|------|
-| nowtype | Integer | 是 | 维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水) |
-
-### 响应结果
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "result": [
-    {
-      "id": "6d35e179cd814e3299bd588ea7daed3f",
-      "key": "6d35e179cd814e3299bd588ea7daed3f",
-      "title": "深圳市远景易云科技有限公司",
-      "value": "6d35e179cd814e3299bd588ea7daed3f",
-      "orgCode": "A02",
-      "children": [
-        {
-          "id": "5159cde220114246b045e574adceafe9",
-          "key": "5159cde220114246b045e574adceafe9",
-          "title": "按部门（电）",
-          "value": "5159cde220114246b045e574adceafe9",
-          "orgCode": "A02A02",
-          "children": [...]
-        }
-      ]
-    }
-  ]
-}
-```
-
-## 2. 获取实时监控数据接口
-
-### 接口信息
-- **URL**: `/ems/monitor/getRealTimeData`
+- **URL**: `/energy/monitor/getRealTimeData`
 - **Method**: GET
 - **功能**: 获取右侧实时监控数据
 
@@ -53,6 +14,8 @@
 | nowtype | Integer | 是 | 维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水) |
 
 ### 响应结果
+
+#### 电力数据响应格式 (nowtype=1或2)
 ```json
 {
   "code": 200,
@@ -82,28 +45,90 @@
       "KWH": 1256.78,
       "KVARH": 605.42,
       "dailyPower": 125.67,
-      "rated_power": 1000.00
+      "rated_power": 1000.00,
+      "energy_type": 1
     }
   ]
 }
 ```
 
-## 3. 接口实现逻辑
+#### 天然气/压缩空气/用水数据响应格式 (nowtype=3/4/5)
+```json
+{
+  "code": 200,
+  "message": "操作成功",
+  "result": [
+    {
+      "module_name": "天然气表1#",
+      "module_id": "yj0004_1",
+      "equ_energy_dt": "2025-07-04 16:30:45",
+      "energy_temperature": 25.6,
+      "energy_pressure": 0.8,
+      "energy_winkvalue": 2.345,
+      "energy_accumulatevalue": 1256.78,
+      "dailyPower": 125.67,
+      "rated_power": 1.00,
+      "energy_type": 8
+    }
+  ]
+}
+```
 
-### 负荷状态计算
+## 2. 接口实现逻辑
+
+### 处理流程
+1. 根据部门编码(orgCode)查询对应的部门ID
+2. 使用部门ID查询关联的仪表列表
+3. 根据能源类型(nowtype)获取不同的实时数据
+4. 计算负荷状态和负荷率
+5. 返回结果
+
+### 部门编码转换为部门ID
+```java
+/**
+ * 根据部门编码获取部门ID
+ * @param orgCode 部门编码
+ * @return 部门ID
+ */
+private String getDepartIdByOrgCode(String orgCode) {
+    try {
+        // 直接根据部门编码查询部门信息
+        QueryWrapper<SysDepart> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("org_code", orgCode);
+        SysDepart depart = sysDepartService.getOne(queryWrapper);
+        
+        if(depart != null) {
+            return depart.getId();
+        }
+        
+        // 如果直接查询不到，尝试其他方法
+        JSONObject departInfo = sysDepartService.queryAllParentIdByOrgCode(orgCode);
+        if(departInfo != null && departInfo.containsKey("departId")) {
+            return departInfo.getString("departId");
+        }
+        
+        return null;
+    } catch (Exception e) {
+        log.error("获取部门ID失败", e);
+        return null;
+    }
+}
+```
+
+### 负荷状态计算（仅电力类型）
 ```java
 /**
  * 计算负荷状态
- * @param phaseACurrent A相电流
- * @param phaseBCurrent B相电流
- * @param phaseCCurrent C相电流
- * @param phaseAVoltage A相电压
- * @param phaseBVoltage B相电压
- * @param phaseCVoltage C相电压
+ * @param IA A相电流
+ * @param IB B相电流
+ * @param IC C相电流
+ * @param UA A相电压
+ * @param UB B相电压
+ * @param UC C相电压
  * @return 负荷状态
  */
-private String calculateLoadStatus(BigDecimal IA, BigDecimal IB, BigDecimal IC,
-                                  BigDecimal UA, BigDecimal UB, BigDecimal UC) {
+public static String calculateLoadStatus(BigDecimal IA, BigDecimal IB, BigDecimal IC,
+                                      BigDecimal UA, BigDecimal UB, BigDecimal UC) {
     // 1. 检查三相平衡度
     BigDecimal avgCurrent = IA.add(IB).add(IC)
             .divide(new BigDecimal(3), 2, RoundingMode.HALF_UP);
@@ -131,7 +156,7 @@ private String calculateLoadStatus(BigDecimal IA, BigDecimal IB, BigDecimal IC,
     return "正常";
 }
 
-private BigDecimal calculateMaxDeviation(BigDecimal a, BigDecimal b, BigDecimal c, BigDecimal avg) {
+private static BigDecimal calculateMaxDeviation(BigDecimal a, BigDecimal b, BigDecimal c, BigDecimal avg) {
     BigDecimal devA = a.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
     BigDecimal devB = b.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
     BigDecimal devC = c.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
@@ -140,15 +165,15 @@ private BigDecimal calculateMaxDeviation(BigDecimal a, BigDecimal b, BigDecimal 
 }
 ```
 
-### 负荷率计算
+### 负荷率计算（仅电力类型）
 ```java
 /**
  * 计算负荷率
- * @param currentPower 当前功率
- * @param ratedPower 额定功率
+ * @param pp 当前功率
+ * @param rated_power 额定功率
  * @return 负荷率(%)
  */
-private BigDecimal calculateLoadRate(BigDecimal pp, BigDecimal rated_power) {
+public static BigDecimal calculateLoadRate(BigDecimal pp, BigDecimal rated_power) {
     if (rated_power == null || rated_power.compareTo(BigDecimal.ZERO) == 0) {
         return BigDecimal.ZERO;
     }
@@ -158,30 +183,34 @@ private BigDecimal calculateLoadRate(BigDecimal pp, BigDecimal rated_power) {
 }
 ```
 
-## 4. 实现代码示例
+## 3. 实现代码示例
 
 ### Controller层
 ```java
 @RestController
-@RequestMapping("/ems/monitor")
+@RequestMapping("/energy/monitor")
 @Api(tags = "能源实时监控")
 @Slf4j
-public class EnergyRealMonitorController {
+public class EnergyMonitorController {
 
     @Autowired
-    private EnergyRealMonitorService energyRealMonitorService;
+    private IEnergyMonitorService energyMonitorService;
     
-    @GetMapping("/getDimensionTree")
-    @ApiOperation("获取维度树")
-    public Result<List<DimensionTreeVO>> getDimensionTree(@RequestParam Integer nowtype) {
-        List<DimensionTreeVO> result = energyRealMonitorService.getDimensionTree(nowtype);
-        return Result.OK(result);
-    }
-    
+    /**
+     * 获取实时监控数据
+     *
+     * @param orgCode 部门编码
+     * @param nowtype 维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水)
+     * @return 实时监控数据
+     */
+    @ApiOperation(value = "获取实时监控数据", notes = "获取右侧实时监控数据")
     @GetMapping("/getRealTimeData")
-    @ApiOperation("获取实时监控数据")
-    public Result<List<Map<String, Object>>> getRealTimeData(@RequestParam String orgCode, @RequestParam Integer nowtype) {
-        List<Map<String, Object>> result = energyRealMonitorService.getRealTimeData(orgCode, nowtype);
+    public Result<List<Map<String, Object>>> getRealTimeData(
+            @ApiParam(value = "部门编码", required = true) @RequestParam String orgCode,
+            @ApiParam(value = "维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水)", required = true) @RequestParam Integer nowtype) {
+        log.info("获取实时监控数据，部门编码：{}，能源类型：{}", orgCode, nowtype);
+        List<Map<String, Object>> result = energyMonitorService.getRealTimeData(orgCode, nowtype);
+        log.info("查询结果条数：{}", result.size());
         return Result.OK(result);
     }
 }
@@ -191,11 +220,8 @@ public class EnergyRealMonitorController {
 ```java
 @Service
 @Slf4j
-public class EnergyRealMonitorServiceImpl implements EnergyRealMonitorService {
+public class EnergyMonitorServiceImpl implements IEnergyMonitorService {
 
-    @Autowired
-    private SysDepartMapper sysDepartMapper;
-    
     @Autowired
     private TbModuleMapper tbModuleMapper;
     
@@ -203,86 +229,104 @@ public class EnergyRealMonitorServiceImpl implements EnergyRealMonitorService {
     private TbEquEleDataMapper tbEquEleDataMapper;
     
     @Autowired
+    private TbEquEnergyDataMapper tbEquEnergyDataMapper;
+    
+    @Autowired
     private TbEpEquEnergyDaycountMapper tbEpEquEnergyDaycountMapper;
     
-    @Override
-    public List<DimensionTreeVO> getDimensionTree(Integer nowtype) {
-        // 根据nowtype获取不同类型的维度树
-        List<SysDepart> departments = sysDepartMapper.selectDepartsByType(nowtype);
-        return buildDimensionTree(departments);
-    }
+    @Autowired
+    private ISysDepartService sysDepartService;
     
     @Override
     public List<Map<String, Object>> getRealTimeData(String orgCode, Integer nowtype) {
-        // 1. 根据orgCode查询关联的仪表列表
-        List<TbModule> modules = tbModuleMapper.selectModulesByOrgCode(orgCode);
+        // 1. 将部门编码转换为部门ID
+        String departId = getDepartIdByOrgCode(orgCode);
+        log.info("部门编码 {} 对应的部门ID为: {}", orgCode, departId);
+        
+        if(departId == null) {
+            // 如果找不到对应的部门ID，直接使用orgCode作为查询条件
+            log.warn("未找到部门编码 {} 对应的部门ID，将直接使用部门编码查询", orgCode);
+            departId = orgCode;
+        }
+        
+        // 2. 根据部门ID查询关联的仪表列表
+        List<TbModule> modules = tbModuleMapper.selectModulesByOrgCode(departId);
+        log.info("根据部门ID/编码 {} 查询到 {} 个仪表", departId, modules.size());
         
         List<Map<String, Object>> result = new ArrayList<>();
         
         for (TbModule module : modules) {
-            // 2. 查询仪表的实时数据
-            TbEquEleData eleData = tbEquEleDataMapper.selectLatestDataByModuleId(module.getModuleId());
-            if (eleData == null) {
-                continue;
-            }
-            
-            // 3. 查询仪表的日用电量
-            TbEpEquEnergyDaycount dayCount = tbEpEquEnergyDaycountMapper.selectTodayDataByModuleId(
-                module.getModuleId(), DateUtil.beginOfDay(new Date()));
-            
-            // 4. 组装数据
             Map<String, Object> dataMap = new HashMap<>();
             dataMap.put("module_name", module.getModuleName());
             dataMap.put("module_id", module.getModuleId());
-            dataMap.put("Equ_Electric_DT", eleData.getEquElectricDT());
-            
-            // 5. 计算负荷状态
-            String loadStatus = calculateLoadStatus(
-                eleData.getIA(), eleData.getIB(), eleData.getIC(),
-                eleData.getUA(), eleData.getUB(), eleData.getUC()
-            );
-            dataMap.put("loadStatus", loadStatus);
-            
-            // 6. 计算负荷率
-            BigDecimal loadRate = calculateLoadRate(
-                eleData.getPp(), 
-                module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : BigDecimal.ZERO
-            );
-            dataMap.put("loadRate", loadRate);
-            
-            // 7. 设置其他数据 - 使用原始字段名
-            dataMap.put("PFS", eleData.getPFS());
-            dataMap.put("HZ", eleData.getHZ());
-            dataMap.put("pp", eleData.getPp());
-            
-            // 电压电流
-            dataMap.put("UA", eleData.getUA());
-            dataMap.put("UB", eleData.getUB());
-            dataMap.put("UC", eleData.getUC());
-            dataMap.put("IA", eleData.getIA());
-            dataMap.put("IB", eleData.getIB());
-            dataMap.put("IC", eleData.getIC());
-            
-            // 功率因数
-            dataMap.put("PFa", eleData.getPFa());
-            dataMap.put("PFb", eleData.getPFb());
-            dataMap.put("PFc", eleData.getPFc());
-            
-            // 有功功率
-            dataMap.put("Pa", eleData.getPa());
-            dataMap.put("Pb", eleData.getPb());
-            dataMap.put("Pc", eleData.getPc());
-            
-            // 电能
-            dataMap.put("KWH", eleData.getKWH());
-            dataMap.put("KVARH", eleData.getKVARH());
-            
-            // 额定功率
             dataMap.put("rated_power", module.getRatedPower());
+            dataMap.put("energy_type", module.getEnergyType());
             
-            // 9. 设置日用电量
+            // 查询仪表的日用电量
+            TbEpEquEnergyDaycount dayCount = tbEpEquEnergyDaycountMapper.selectTodayDataByModuleId(
+                module.getModuleId(), DateUtil.beginOfDay(new Date()));
+                
+            // 设置日用量
             if (dayCount != null) {
                 dataMap.put("dailyPower", dayCount.getEnergyCount());
+            }
+            
+            // 根据能源类型获取不同的实时数据
+            if (nowtype == 1 || nowtype == 2) {
+                // 电力数据
+                TbEquEleData eleData = tbEquEleDataMapper.selectLatestDataByModuleId(module.getModuleId());
+                if (eleData == null) {
+                    log.warn("未找到仪表 {} 的电力数据", module.getModuleId());
+                    continue;
+                }
+                
+                dataMap.put("Equ_Electric_DT", eleData.getEquElectricDT());
+                
+                // 使用工具类计算负荷状态
+                String loadStatus = EnergyCalculationUtils.calculateLoadStatus(
+                    eleData.getIA(), eleData.getIB(), eleData.getIC(),
+                    eleData.getUA(), eleData.getUB(), eleData.getUC()
+                );
+                dataMap.put("loadStatus", loadStatus);
+                
+                // 使用工具类计算负荷率
+                BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(
+                    eleData.getPp(), 
+                    module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : BigDecimal.ZERO
+                );
+                dataMap.put("loadRate", loadRate);
+                
+                // 设置其他电力数据
+                dataMap.put("PFS", eleData.getPFS());
+                dataMap.put("HZ", eleData.getHZ());
+                dataMap.put("pp", eleData.getPp());
+                dataMap.put("UA", eleData.getUA());
+                dataMap.put("UB", eleData.getUB());
+                dataMap.put("UC", eleData.getUC());
+                dataMap.put("IA", eleData.getIA());
+                dataMap.put("IB", eleData.getIB());
+                dataMap.put("IC", eleData.getIC());
+                dataMap.put("PFa", eleData.getPFa());
+                dataMap.put("PFb", eleData.getPFb());
+                dataMap.put("PFc", eleData.getPFc());
+                dataMap.put("Pa", eleData.getPa());
+                dataMap.put("Pb", eleData.getPb());
+                dataMap.put("Pc", eleData.getPc());
+                dataMap.put("KWH", eleData.getKWH());
+                dataMap.put("KVARH", eleData.getKVARH());
+            } else {
+                // 天然气/压缩空气/用水数据
+                TbEquEnergyData energyData = tbEquEnergyDataMapper.selectLatestDataByModuleId(module.getModuleId());
+                if (energyData == null) {
+                    log.warn("未找到仪表 {} 的能源数据", module.getModuleId());
+                    continue;
+                }
+                
+                dataMap.put("equ_energy_dt", energyData.getEquEnergyDt());
+                dataMap.put("energy_temperature", energyData.getEnergyTemperature());
+                dataMap.put("energy_pressure", energyData.getEnergyPressure());
+                dataMap.put("energy_winkvalue", energyData.getEnergyWinkvalue());
+                dataMap.put("energy_accumulatevalue", energyData.getEnergyAccumulatevalue());
             }
             
             result.add(dataMap);
@@ -290,23 +334,122 @@ public class EnergyRealMonitorServiceImpl implements EnergyRealMonitorService {
         
         return result;
     }
-    
-    // 负荷状态计算和负荷率计算方法实现
-    // ...
+}
+```
+
+### 工具类
+```java
+/**
+ * 能源计算工具类
+ * 用于封装负荷状态计算和负荷率计算等功能
+ */
+public class EnergyCalculationUtils {
+
+    /**
+     * 计算负荷状态
+     * @param IA A相电流
+     * @param IB B相电流
+     * @param IC C相电流
+     * @param UA A相电压
+     * @param UB B相电压
+     * @param UC C相电压
+     * @return 负荷状态
+     */
+    public static String calculateLoadStatus(BigDecimal IA, BigDecimal IB, BigDecimal IC,
+                                          BigDecimal UA, BigDecimal UB, BigDecimal UC) {
+        // 1. 检查三相平衡度
+        BigDecimal avgCurrent = IA.add(IB).add(IC)
+                .divide(new BigDecimal(3), 2, RoundingMode.HALF_UP);
+        
+        BigDecimal maxCurrentDeviation = calculateMaxDeviation(IA, IB, IC, avgCurrent);
+        
+        // 电压正常范围检查 (标准电压220V，允许偏差±10%)
+        boolean voltageNormal = UA.compareTo(new BigDecimal(198)) >= 0 
+                && UA.compareTo(new BigDecimal(242)) <= 0
+                && UB.compareTo(new BigDecimal(198)) >= 0 
+                && UB.compareTo(new BigDecimal(242)) <= 0
+                && UC.compareTo(new BigDecimal(198)) >= 0 
+                && UC.compareTo(new BigDecimal(242)) <= 0;
+        
+        // 三相不平衡度超过20%或电压异常时，判定为"异常"
+        if (maxCurrentDeviation.compareTo(new BigDecimal(0.2)) > 0 || !voltageNormal) {
+            return "异常";
+        }
+        
+        // 三相不平衡度在10%-20%之间，判定为"警告"
+        if (maxCurrentDeviation.compareTo(new BigDecimal(0.1)) > 0) {
+            return "警告";
+        }
+        
+        return "正常";
+    }
+
+    /**
+     * 计算最大偏差
+     * @param a 第一个值
+     * @param b 第二个值
+     * @param c 第三个值
+     * @param avg 平均值
+     * @return 最大偏差
+     */
+    public static BigDecimal calculateMaxDeviation(BigDecimal a, BigDecimal b, BigDecimal c, BigDecimal avg) {
+        BigDecimal devA = a.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
+        BigDecimal devB = b.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
+        BigDecimal devC = c.subtract(avg).abs().divide(avg, 2, RoundingMode.HALF_UP);
+        
+        return devA.max(devB).max(devC);
+    }
+
+    /**
+     * 计算负荷率
+     * @param pp 当前功率
+     * @param rated_power 额定功率
+     * @return 负荷率(%)
+     */
+    public static BigDecimal calculateLoadRate(BigDecimal pp, BigDecimal rated_power) {
+        if (rated_power == null || rated_power.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        
+        return pp.multiply(new BigDecimal(100))
+                .divide(rated_power, 2, RoundingMode.HALF_UP);
+    }
 }
 ```
 
 ### Mapper层
 ```java
 @Mapper
+public interface TbModuleMapper extends BaseMapper<TbModule> {
+    
+    /**
+     * 根据组织编码查询关联的仪表
+     * @param orgCode 组织编码
+     * @return 仪表列表
+     */
+    List<TbModule> selectModulesByOrgCode(@Param("orgCode") String orgCode);
+}
+
+@Mapper
 public interface TbEquEleDataMapper {
     
     /**
-     * 根据仪表ID查询最新的实时数据
+     * 根据仪表ID查询最新的电力实时数据
      * @param moduleId 仪表ID
      * @return 实时数据
      */
     TbEquEleData selectLatestDataByModuleId(@Param("moduleId") String moduleId);
+}
+
+@Mapper
+public interface TbEquEnergyDataMapper {
+    
+    /**
+     * 根据仪表ID查询最新的能源实时数据（天然气/压缩空气/用水）
+     * @param moduleId 仪表ID
+     * @return 实时数据
+     */
+    TbEquEnergyData selectLatestDataByModuleId(@Param("moduleId") String moduleId);
 }
 
 @Mapper
@@ -320,42 +463,83 @@ public interface TbEpEquEnergyDaycountMapper {
      */
     TbEpEquEnergyDaycount selectTodayDataByModuleId(@Param("moduleId") String moduleId, @Param("date") Date date);
 }
-
-@Mapper
-public interface TbModuleMapper {
-    
-    /**
-     * 根据组织编码查询关联的仪表
-     * @param orgCode 组织编码
-     * @return 仪表列表
-     */
-    List<TbModule> selectModulesByOrgCode(@Param("orgCode") String orgCode);
-}
 ```
 
-## 5. SQL实现示例
+## 4. SQL实现示例
 
 ```xml
+<!-- TbModuleMapper.xml -->
+<select id="selectModulesByOrgCode" resultType="org.jeecg.modules.energy.entity.TbModule">
+    SELECT * FROM tb_module 
+    WHERE FIND_IN_SET(#{orgCode}, sys_org_code)
+    AND isaction = 'Y'
+</select>
+
 <!-- TbEquEleDataMapper.xml -->
-<select id="selectLatestDataByModuleId" resultType="com.jeecg.ems.entity.TbEquEleData">
+<select id="selectLatestDataByModuleId" resultType="org.jeecg.modules.energy.entity.TbEquEleData">
     SELECT * FROM tb_equ_ele_data 
     WHERE Module_ID = #{moduleId} 
     ORDER BY Equ_Electric_DT DESC 
     LIMIT 1
 </select>
 
+<!-- TbEquEnergyDataMapper.xml -->
+<select id="selectLatestDataByModuleId" resultType="org.jeecg.modules.energy.entity.TbEquEnergyData">
+    SELECT * FROM tb_equ_energy_data 
+    WHERE module_id = #{moduleId} 
+    ORDER BY equ_energy_dt DESC 
+    LIMIT 1
+</select>
+
 <!-- TbEpEquEnergyDaycountMapper.xml -->
-<select id="selectTodayDataByModuleId" resultType="com.jeecg.ems.entity.TbEpEquEnergyDaycount">
+<select id="selectTodayDataByModuleId" resultType="org.jeecg.modules.energy.entity.TbEpEquEnergyDaycount">
     SELECT * FROM tb_ep_equ_energy_daycount 
     WHERE module_id = #{moduleId} 
     AND DATE(dt) = DATE(#{date})
     LIMIT 1
 </select>
-
-<!-- TbModuleMapper.xml -->
-<select id="selectModulesByOrgCode" resultType="com.jeecg.ems.entity.TbModule">
-    SELECT * FROM tb_module 
-    WHERE FIND_IN_SET(#{orgCode}, sys_org_code)
-    AND isaction = 'Y'
-</select>
 ```
+
+## 5. 数据表说明
+
+### 仪表基础信息表(tb_module)
+存储所有仪表的基本信息，包括电表、天然气表、压缩空气表、水表等。
+- `module_id`: 仪表编号，唯一标识一个仪表
+- `module_name`: 仪表名称
+- `energy_type`: 能源类型(1:电力, 2:水, 5:压缩空气, 8:天然气)
+- `rated_power`: 额定功率
+- `sys_org_code`: 维度，记录仪表所属部门ID
+
+### 电力实时数据表(tb_equ_ele_data)
+存储电表的实时数据。
+- `Module_ID`: 仪表编号
+- `Equ_Electric_DT`: 采集时间
+- `UA`, `UB`, `UC`: 三相电压
+- `IA`, `IB`, `IC`: 三相电流
+- `pp`: 总有功功率
+- `PFS`: 总功率因素
+- `KWH`: 正向有功总电能
+
+### 能源实时数据表(tb_equ_energy_data)
+存储天然气、压缩空气、水表等非电力仪表的实时数据。
+- `module_id`: 仪表编号
+- `equ_energy_dt`: 采集时间
+- `energy_temperature`: 温度
+- `energy_pressure`: 压力
+- `energy_winkvalue`: 瞬时流量
+- `energy_accumulatevalue`: 累计值
+
+### 日能耗统计表(tb_ep_equ_energy_daycount)
+存储各类仪表的日能耗统计数据。
+- `module_id`: 仪表编号
+- `dt`: 统计日期
+- `energy_count`: 能耗值
+- `strat_count`: 开始值
+- `end_count`: 结束值
+
+### 系统部门表(sys_depart)
+存储系统部门信息。
+- `id`: 部门ID
+- `org_code`: 部门编码
+- `parent_id`: 父部门ID
+- `depart_name`: 部门名称

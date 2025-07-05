@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.TbModuleMapper">
+
+    <select id="selectModulesByOrgCode" resultType="org.jeecg.modules.energy.entity.TbModule">
+        SELECT * FROM tb_module 
+        WHERE FIND_IN_SET(#{orgCode}, sys_org_code)
+        AND isaction = 'Y'
+    </select>
+
+</mapper> 
