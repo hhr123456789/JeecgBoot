@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -29,212 +30,211 @@ import lombok.experimental.Accessors;
 public class TbEquEleData implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    /**主键*/
     @TableId(type = IdType.AUTO)
     @ApiModelProperty(value = "主键")
     private Integer id;
     
-    /**仪表编号*/
+    @TableField("Module_ID")
     @ApiModelProperty(value = "仪表编号")
     private String moduleId;
     
-    /**采集时间*/
+    @TableField("Equ_Electric_DT")
     @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
     @ApiModelProperty(value = "采集时间")
     private Date equElectricDT;
     
-    /**A相电压*/
+    @TableField("UA")
     @ApiModelProperty(value = "A相电压")
     private BigDecimal UA;
     
-    /**B相电压*/
+    @TableField("UB")
     @ApiModelProperty(value = "B相电压")
     private BigDecimal UB;
     
-    /**C相电压*/
+    @TableField("UC")
     @ApiModelProperty(value = "C相电压")
     private BigDecimal UC;
     
-    /**A相电流*/
+    @TableField("IA")
     @ApiModelProperty(value = "A相电流")
     private BigDecimal IA;
     
-    /**B相电流*/
+    @TableField("IB")
     @ApiModelProperty(value = "B相电流")
     private BigDecimal IB;
     
-    /**C相电流*/
+    @TableField("IC")
     @ApiModelProperty(value = "C相电流")
     private BigDecimal IC;
     
-    /**uaw*/
+    @TableField("uaw")
     @ApiModelProperty(value = "uaw")
     private BigDecimal uaw;
     
-    /**ubw*/
+    @TableField("ubw")
     @ApiModelProperty(value = "ubw")
     private BigDecimal ubw;
     
-    /**ucw*/
+    @TableField("ucw")
     @ApiModelProperty(value = "ucw")
     private BigDecimal ucw;
     
-    /**iaw*/
+    @TableField("iaw")
     @ApiModelProperty(value = "iaw")
     private BigDecimal iaw;
     
-    /**ibw*/
+    @TableField("ibw")
     @ApiModelProperty(value = "ibw")
     private BigDecimal ibw;
     
-    /**icw*/
+    @TableField("icw")
     @ApiModelProperty(value = "icw")
     private BigDecimal icw;
     
-    /**总有功功率*/
+    @TableField("pp")
     @ApiModelProperty(value = "总有功功率")
     private BigDecimal pp;
     
-    /**总无在功率*/
+    @TableField("qq")
     @ApiModelProperty(value = "总无在功率")
     private BigDecimal qq;
     
-    /**总视在功率*/
+    @TableField("ss")
     @ApiModelProperty(value = "总视在功率")
     private BigDecimal ss;
     
-    /**总功率因素*/
+    @TableField("PFS")
     @ApiModelProperty(value = "总功率因素")
     private BigDecimal PFS;
     
-    /**频率*/
+    @TableField("HZ")
     @ApiModelProperty(value = "频率")
     private BigDecimal HZ;
     
-    /**f*/
+    @TableField("ff")
     @ApiModelProperty(value = "f")
     private BigDecimal ff;
     
-    /**A相功率*/
+    @TableField("Pa")
     @ApiModelProperty(value = "A相功率")
     private BigDecimal Pa;
     
-    /**B相功率*/
+    @TableField("Pb")
     @ApiModelProperty(value = "B相功率")
     private BigDecimal Pb;
     
-    /**C相功率*/
+    @TableField("Pc")
     @ApiModelProperty(value = "C相功率")
     private BigDecimal Pc;
     
-    /**A相无功功率*/
+    @TableField("Qa")
     @ApiModelProperty(value = "A相无功功率")
     private BigDecimal Qa;
     
-    /**B相无功功率*/
+    @TableField("Qb")
     @ApiModelProperty(value = "B相无功功率")
     private BigDecimal Qb;
     
-    /**C相无功功率*/
+    @TableField("Qc")
     @ApiModelProperty(value = "C相无功功率")
     private BigDecimal Qc;
     
-    /**A相视在功率*/
+    @TableField("Sa")
     @ApiModelProperty(value = "A相视在功率")
     private BigDecimal Sa;
     
-    /**B相视在功率*/
+    @TableField("Sb")
     @ApiModelProperty(value = "B相视在功率")
     private BigDecimal Sb;
     
-    /**C相视在功率*/
+    @TableField("Sc")
     @ApiModelProperty(value = "C相视在功率")
     private BigDecimal Sc;
     
-    /**A相功率因素*/
+    @TableField("PFa")
     @ApiModelProperty(value = "A相功率因素")
     private BigDecimal PFa;
     
-    /**B相功率因素*/
+    @TableField("PFb")
     @ApiModelProperty(value = "B相功率因素")
     private BigDecimal PFb;
     
-    /**C相功率因素*/
+    @TableField("PFc")
     @ApiModelProperty(value = "C相功率因素")
     private BigDecimal PFc;
     
-    /**正向有功总电能*/
+    @TableField("KWH")
     @ApiModelProperty(value = "正向有功总电能")
     private BigDecimal KWH;
     
-    /**正向无功总电能*/
+    @TableField("KVARH")
     @ApiModelProperty(value = "正向无功总电能")
     private BigDecimal KVARH;
     
-    /**uUnbl*/
+    @TableField("uu_unbl")
     @ApiModelProperty(value = "uUnbl")
     private BigDecimal uuUnbl;
     
-    /**iUnbl*/
+    @TableField("ii_unbl")
     @ApiModelProperty(value = "iUnbl")
     private BigDecimal iiUnbl;
     
-    /**尖时正向有功总电能*/
+    @TableField("CuspValue")
     @ApiModelProperty(value = "尖时正向有功总电能")
     private BigDecimal cuspValue;
     
-    /**峰时正向有功总电能*/
+    @TableField("PeakValue")
     @ApiModelProperty(value = "峰时正向有功总电能")
     private BigDecimal peakValue;
     
-    /**平时正向有功总电能*/
+    @TableField("LevelValue")
     @ApiModelProperty(value = "平时正向有功总电能")
     private BigDecimal levelValue;
     
-    /**谷时正向有功总电能*/
+    @TableField("ValleyValue")
     @ApiModelProperty(value = "谷时正向有功总电能")
     private BigDecimal valleyValue;
     
-    /**isrunState*/
+    @TableField("isrun_state")
     @ApiModelProperty(value = "isrunState")
     private Integer isrunState;
     
-    /**townRunHour*/
+    @TableField("town_run_hour")
     @ApiModelProperty(value = "townRunHour")
     private BigDecimal townRunHour;
     
-    /**economizeRunHour*/
+    @TableField("economize_run_hour")
     @ApiModelProperty(value = "economizeRunHour")
     private BigDecimal economizeRunHour;
     
-    /**stopRunHour*/
+    @TableField("stop_run_hour")
     @ApiModelProperty(value = "stopRunHour")
     private BigDecimal stopRunHour;
     
-    /**备用字段1*/
+    @TableField("Standby1")
     @ApiModelProperty(value = "备用字段1")
     private String standby1;
     
-    /**备用字段2*/
+    @TableField("Standby2")
     @ApiModelProperty(value = "备用字段2")
     private String standby2;
     
-    /**备用字段3*/
+    @TableField("Standby3")
     @ApiModelProperty(value = "备用字段3")
     private String standby3;
     
-    /**need*/
+    @TableField("need")
     @ApiModelProperty(value = "need")
     private BigDecimal need;
     
-    /**needtm*/
+    @TableField("needtm")
     @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
     @ApiModelProperty(value = "needtm")
     private Date needtm;
     
-    /**prevkwh*/
+    @TableField("prevkwh")
     @ApiModelProperty(value = "prevkwh")
     private BigDecimal prevkwh;
-} 
+}

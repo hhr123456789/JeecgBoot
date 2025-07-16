@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.TbEquEnergyDataMapper">
+
+    <!-- 根据仪表ID查询最新的能源实时数据 -->
+    <select id="selectLatestDataByModuleId" resultType="org.jeecg.modules.energy.entity.TbEquEnergyData">
+        SELECT * FROM tb_equ_energy_data
+        WHERE module_id = #{moduleId}
+        ORDER BY equ_energy_dt DESC
+        LIMIT 1
+    </select>
+
+    <!-- 根据仪表ID查询唯一的能源实时数据记录（用于实时表更新） -->
+    <select id="selectByModuleId" resultType="org.jeecg.modules.energy.entity.TbEquEnergyData">
+        SELECT * FROM tb_equ_energy_data
+        WHERE module_id = #{moduleId}
+        LIMIT 1
+    </select>
+
+</mapper>

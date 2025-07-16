@@ -116,7 +116,7 @@ public class EnergyMonitorServiceTest {
         
         // 验证电力数据
         assertNotNull(dataMap.get("Equ_Electric_DT"));
-        assertEquals("正常", dataMap.get("loadStatus")); // 根据模拟数据应该是"正常"
+        assertEquals("低负荷", dataMap.get("loadStatus")); // 根据新的负荷状态判断逻辑应该是"低负荷"
         assertEquals(new BigDecimal("2.85"), dataMap.get("loadRate")); // 28.49 / 1000 * 100 = 2.85
         assertEquals(new BigDecimal("0.91"), dataMap.get("PFS"));
         assertEquals(new BigDecimal("50.00"), dataMap.get("HZ"));
@@ -151,8 +151,8 @@ public class EnergyMonitorServiceTest {
         // 模拟能源数据
         TbEquEnergyData energyData = new TbEquEnergyData();
         energyData.setEquEnergyDt(new Date());
-        energyData.setEnergyTemperature(25.6);
-        energyData.setEnergyPressure(0.8);
+        energyData.setEnergyTemperature(new BigDecimal("25.6"));
+        energyData.setEnergyPressure(new BigDecimal("0.8"));
         energyData.setEnergyWinkvalue(new BigDecimal("2.345"));
         energyData.setEnergyAccumulatevalue(new BigDecimal("1256.78"));
 
@@ -181,8 +181,8 @@ public class EnergyMonitorServiceTest {
         
         // 验证能源数据
         assertNotNull(dataMap.get("equ_energy_dt"));
-        assertEquals(25.6, dataMap.get("energy_temperature"));
-        assertEquals(0.8, dataMap.get("energy_pressure"));
+        assertEquals(new BigDecimal("25.6"), dataMap.get("energy_temperature"));
+        assertEquals(new BigDecimal("0.8"), dataMap.get("energy_pressure"));
         assertEquals(new BigDecimal("2.345"), dataMap.get("energy_winkvalue"));
         assertEquals(new BigDecimal("1256.78"), dataMap.get("energy_accumulatevalue"));
     }

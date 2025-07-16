@@ -10,7 +10,7 @@ import java.util.Map;
  * @Version: V1.0
  */
 public interface IEnergyMonitorService {
-    
+
     /**
      * 获取实时监控数据
      * @param orgCode 部门编码

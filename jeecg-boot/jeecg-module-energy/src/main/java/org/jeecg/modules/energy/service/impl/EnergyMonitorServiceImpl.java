@@ -28,7 +28,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 能源监控服务实现类
+ * @Description: 能源监控服务实现类
+ * @Author: jeecg-boot
+ * @Date: 2023-08-17
+ * @Version: V1.0
  */
 @Service
 @Slf4j
@@ -74,71 +77,86 @@ public class EnergyMonitorServiceImpl implements IEnergyMonitorService {
             dataMap.put("rated_power", module.getRatedPower());
             dataMap.put("energy_type", module.getEnergyType());
             
-            // 查询仪表的日用电量
-            TbEpEquEnergyDaycount dayCount = tbEpEquEnergyDaycountMapper.selectTodayDataByModuleId(
-                module.getModuleId(), DateUtil.beginOfDay(new Date()));
-                
-            // 设置日用量
-            if (dayCount != null) {
-                dataMap.put("dailyPower", dayCount.getEnergyCount());
-            }
+            // 根据能源类型获取不同的实时数据和采集日期
+            Date collectionDate = null;
             
-            // 根据能源类型获取不同的实时数据
             if (nowtype == 1 || nowtype == 2) {
                 // 电力数据
                 TbEquEleData eleData = tbEquEleDataMapper.selectLatestDataByModuleId(module.getModuleId());
                 if (eleData == null) {
-                    log.warn("未找到仪表 {} 的电力数据", module.getModuleId());
-                    continue;
+                    log.warn("未找到仪表 {} 的电力数据，但仍将保留基本信息和日用量", module.getModuleId());
+                } else {
+                    // 获取电力数据的采集日期
+                    collectionDate = eleData.getEquElectricDT();
+                    dataMap.put("Equ_Electric_DT", eleData.getEquElectricDT());
+                    
+                    // 使用工具类计算负荷状态
+                    String loadStatus = EnergyCalculationUtils.calculateLoadStatus(
+                        eleData.getIA(), eleData.getIB(), eleData.getIC(),
+                        eleData.getUA(), eleData.getUB(), eleData.getUC()
+                    );
+                    dataMap.put("loadStatus", loadStatus);
+                    
+                    // 使用工具类计算负荷率
+                    BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(
+                        eleData.getPp(), 
+                        module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : BigDecimal.ZERO
+                    );
+                    dataMap.put("loadRate", loadRate);
+                    
+                    // 设置其他电力数据
+                    dataMap.put("PFS", eleData.getPFS());
+                    dataMap.put("HZ", eleData.getHZ());
+                    dataMap.put("pp", eleData.getPp());
+                    dataMap.put("UA", eleData.getUA());
+                    dataMap.put("UB", eleData.getUB());
+                    dataMap.put("UC", eleData.getUC());
+                    dataMap.put("IA", eleData.getIA());
+                    dataMap.put("IB", eleData.getIB());
+                    dataMap.put("IC", eleData.getIC());
+                    dataMap.put("PFa", eleData.getPFa());
+                    dataMap.put("PFb", eleData.getPFb());
+                    dataMap.put("PFc", eleData.getPFc());
+                    dataMap.put("Pa", eleData.getPa());
+                    dataMap.put("Pb", eleData.getPb());
+                    dataMap.put("Pc", eleData.getPc());
+                    dataMap.put("KWH", eleData.getKWH());
+                    dataMap.put("KVARH", eleData.getKVARH());
                 }
-                
-                dataMap.put("Equ_Electric_DT", eleData.getEquElectricDT());
-                
-                // 使用工具类计算负荷状态
-                String loadStatus = EnergyCalculationUtils.calculateLoadStatus(
-                    eleData.getIA(), eleData.getIB(), eleData.getIC(),
-                    eleData.getUA(), eleData.getUB(), eleData.getUC()
-                );
-                dataMap.put("loadStatus", loadStatus);
-                
-                // 使用工具类计算负荷率
-                BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(
-                    eleData.getPp(), 
-                    module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : BigDecimal.ZERO
-                );
-                dataMap.put("loadRate", loadRate);
-                
-                // 设置其他电力数据
-                dataMap.put("PFS", eleData.getPFS());
-                dataMap.put("HZ", eleData.getHZ());
-                dataMap.put("pp", eleData.getPp());
-                dataMap.put("UA", eleData.getUA());
-                dataMap.put("UB", eleData.getUB());
-                dataMap.put("UC", eleData.getUC());
-                dataMap.put("IA", eleData.getIA());
-                dataMap.put("IB", eleData.getIB());
-                dataMap.put("IC", eleData.getIC());
-                dataMap.put("PFa", eleData.getPFa());
-                dataMap.put("PFb", eleData.getPFb());
-                dataMap.put("PFc", eleData.getPFc());
-                dataMap.put("Pa", eleData.getPa());
-                dataMap.put("Pb", eleData.getPb());
-                dataMap.put("Pc", eleData.getPc());
-                dataMap.put("KWH", eleData.getKWH());
-                dataMap.put("KVARH", eleData.getKVARH());
             } else {
                 // 天然气/压缩空气/用水数据
                 TbEquEnergyData energyData = tbEquEnergyDataMapper.selectLatestDataByModuleId(module.getModuleId());
                 if (energyData == null) {
-                    log.warn("未找到仪表 {} 的能源数据", module.getModuleId());
-                    continue;
+                    log.warn("未找到仪表 {} 的能源数据，但仍将保留基本信息和日用量", module.getModuleId());
+                } else {
+                    // 获取能源数据的采集日期
+                    collectionDate = energyData.getEquEnergyDt();
+                    dataMap.put("equ_energy_dt", energyData.getEquEnergyDt());
+                    dataMap.put("energy_temperature", energyData.getEnergyTemperature());
+                    dataMap.put("energy_pressure", energyData.getEnergyPressure());
+                    dataMap.put("energy_winkvalue", energyData.getEnergyWinkvalue());
+                    dataMap.put("energy_accumulatevalue", energyData.getEnergyAccumulatevalue());
                 }
-                
-                dataMap.put("equ_energy_dt", energyData.getEquEnergyDt());
-                dataMap.put("energy_temperature", energyData.getEnergyTemperature());
-                dataMap.put("energy_pressure", energyData.getEnergyPressure());
-                dataMap.put("energy_winkvalue", energyData.getEnergyWinkvalue());
-                dataMap.put("energy_accumulatevalue", energyData.getEnergyAccumulatevalue());
+            }
+            
+            // 使用采集日期查询仪表的日用电量，如果没有采集日期则使用当前日期
+            Date queryDate = collectionDate != null ? DateUtil.beginOfDay(collectionDate) : DateUtil.beginOfDay(new Date());
+            TbEpEquEnergyDaycount dayCount = tbEpEquEnergyDaycountMapper.selectTodayDataByModuleId(
+                module.getModuleId(), queryDate);
+            
+            // 设置日用量，如果没有数据则默认为0
+            if (dayCount != null && dayCount.getEnergyCount() != null) {
+                dataMap.put("dailyPower", dayCount.getEnergyCount());
+                log.info("仪表 {} 使用日期 {} 设置日用量: {}", module.getModuleId(), DateUtil.formatDate(queryDate), dayCount.getEnergyCount());
+            } else {
+                dataMap.put("dailyPower", BigDecimal.ZERO);
+                log.info("仪表 {} 使用日期 {} 未找到能耗数据，设置默认值0", module.getModuleId(), DateUtil.formatDate(queryDate));
+            }
+            
+            // 最后检查确保dailyPower字段存在
+            if (!dataMap.containsKey("dailyPower")) {
+                dataMap.put("dailyPower", BigDecimal.ZERO);
+                log.warn("最终检查发现仪表 {} 缺少dailyPower字段，已添加默认值0", module.getModuleId());
             }
             
             result.add(dataMap);

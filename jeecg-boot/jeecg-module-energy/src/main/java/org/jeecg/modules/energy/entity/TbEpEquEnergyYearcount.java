@@ -17,17 +17,17 @@ import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 /**
- * @Description: 日统计表实体
+ * @Description: 年统计表实体
  * @Author: jeecg-boot
  * @Date: 2025-01-20
  * @Version: V1.0
  */
 @Data
-@TableName("tb_ep_equ_energy_daycount")
+@TableName("tb_ep_equ_energy_yearcount")
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = false)
-@ApiModel(value="tb_ep_equ_energy_daycount对象", description="日统计表实体")
-public class TbEpEquEnergyDaycount implements Serializable {
+@ApiModel(value="tb_ep_equ_energy_yearcount对象", description="年统计表实体")
+public class TbEpEquEnergyYearcount implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @TableId(type = IdType.AUTO)
@@ -41,7 +41,7 @@ public class TbEpEquEnergyDaycount implements Serializable {
     @TableField("dt")
     @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @ApiModelProperty(value = "统计日期")
+    @ApiModelProperty(value = "采集时间")
     private Date dt;
     
     @TableField("energy_count")

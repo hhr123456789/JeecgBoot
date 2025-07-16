@@ -39,7 +39,7 @@ public class TbEpEquEnergyDaycountMapperTest {
             assertEquals(moduleId, daycount.getModuleId());
             assertNotNull(daycount.getDt());
             assertNotNull(daycount.getEnergyCount());
-            
+
             // 验证日期是否为今天
             // 注意：这里只比较日期部分，不比较时间部分
             java.sql.Date sqlToday = new java.sql.Date(today.getTime());

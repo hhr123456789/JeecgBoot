@@ -3,550 +3,352 @@
     <!-- 左侧树形菜单 -->
     <div class="w-80 bg-white p-2 mr-2 rounded overflow-auto mt-4" style="width:310px;">
       <a-col :xl="6" :lg="8" :md="10" :sm="24" style="flex: 1;height: 100%;background-color: white;padding-left: 10px;">
-      <a-tabs defaultActiveKey="dz-info" @change="handleTabChange" style="height: 100%;width:300px;">
-          <a-tab-pane tab="按部门（用电）" key="info1" forceRender>
-           <a-card :bordered="false" style="height: 100%">
-            <DimensionTree @select="onDepartTreeSelect" :nowtype="1" style="margin-top:-20px ;" />
-            </a-card>
-          </a-tab-pane>
-         <a-tab-pane tab="按线路（用电）" key="info2">
+      <a-tabs defaultActiveKey="info1" @change="handleTabChange" style="height: 100%;width:300px;">
+          <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title" :forceRender="item.key === 'info1'">
             <a-card :bordered="false" style="height: 100%">
-            <DimensionTree @select="onDepartTreeSelect" :nowtype="2" style="margin-top:-20px ;" />
+              <DimensionTree 
+                :ref="(el) => setTreeRef(el, item.key)" 
+                @select="onDepartTreeSelect" 
+                :nowtype="item.nowtype" 
+                :select-level="2" 
+                style="margin-top:-20px ;" 
+              />
             </a-card>
           </a-tab-pane>
-          <a-tab-pane tab="天然气" key="info3"    >
-            <a-card :bordered="false" style="height: 100%">
-            <DimensionTree @select="onDepartTreeSelect" nowtype="3" style="margin-top:-20px ;" />
-            </a-card>
-          </a-tab-pane>
-          <a-tab-pane tab="压缩空气" key="info4"    >
-            <a-card :bordered="false" style="height: 100%">
-            <DimensionTree @select="onDepartTreeSelect" nowtype="4" style="margin-top:-20px ;" />
-            </a-card>
-          </a-tab-pane>
-          <a-tab-pane tab="企业用水" key="info5"    >
-            <a-card :bordered="false" style="height: 100%">
-            <DimensionTree @select="onDepartTreeSelect" nowtype="5" style="margin-top:-20px ;" />
-            </a-card>
-          </a-tab-pane>
-          
         </a-tabs>
-    </a-col>
-
-
+      </a-col>
     </div>
 
     <!-- 右侧内容区域 -->
     <div class="flex-1">
       <div class="real-data-monitor-container p-4">
-        <!-- 顶部导航栏 -->
-         <!--
-        <div class="mb-4">
-          <a-tabs v-model:activeKey="activeTab">
-            <a-tab-pane key="1" tab="全厂用电"></a-tab-pane>
-            <a-tab-pane key="2" tab="全厂用水"></a-tab-pane>
-            <a-tab-pane key="3" tab="全厂用天然气"></a-tab-pane>
-            <a-tab-pane key="4" tab="全厂用缩空气"></a-tab-pane>
-          </a-tabs>
-        </div>
-        -->
-
         <!-- 主要内容区域 -->
-        <div class="grid grid-cols-2 gap-2">
-          <!-- 1#产线1#电表 -->
-          <a-card class="monitor-card" :bordered="false">
-            <div class="flex items-center mb-2">
-              <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                <span class="text-white text-xs">O</span>
-              </div>
-              <span class="text-base font-bold">1#产线1#电表</span>
-            </div>
-            <div class="space-y-1 data-table">
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷状态</span>
-                <span class="text-green-500">正常</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷率</span>
-                <div class="flex-1 mx-1">
-                  <div class="relative h-1.5 bg-gray-200 rounded">
-                    <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: '63.10%' }"></div>
+        <a-spin :spinning="loading">
+          <div class="grid grid-cols-2 gap-2">
+            <!-- 动态生成仪表卡片 -->
+            <template v-if="realTimeData.length > 0">
+              <a-card 
+                v-for="(item, index) in realTimeData" 
+                :key="index" 
+                class="monitor-card" 
+                :bordered="false"
+              >
+                <div class="flex items-center mb-2">
+                  <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                    <span class="text-white text-xs">O</span>
+                  </div>
+                  <span class="text-base font-bold">{{ item.module_name }}</span>
+                </div>
+                
+                <!-- 电力仪表数据 (nowtype=1或2) -->
+                <div v-if="currentNowtype === 1 || currentNowtype === 2" class="space-y-1 data-table">
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-600 w-16">负荷状态</span>
+                    <span :class="getLoadStatusClass(item.loadStatus)">{{ item.loadStatus }}</span>
+                  </div>
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-600 w-16">负荷率</span>
+                    <div class="flex-1 mx-1">
+                      <div class="relative h-1.5 bg-gray-200 rounded">
+                        <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: item.loadRate + '%' }"></div>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-600">{{ item.loadRate }}%</span>
+                  </div>
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-600 w-16">采集时间</span>
+                    <span class="text-green-500">{{ item.Equ_Electric_DT }}</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
+                    <span>总功率因素：{{ item.PFS }}</span>
+                    <span>频率：{{ item.HZ }} Hz</span>
+                    <span>总有功功率：{{ item.pp }} KW</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
+                    <span>A相电流：{{ item.IA }} A</span>
+                    <span>B相电流：{{ item.IB }} A</span>
+                    <span>C相电流：{{ item.IC }} A</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
+                    <span>A相电压：{{ item.UA }} V</span>
+                    <span>B相电压：{{ item.UB }} V</span>
+                    <span>C相电压：{{ item.UC }} V</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
+                    <span>A相功率因素：{{ item.PFa }}</span>
+                    <span>B相功率因素：{{ item.PFb }}</span>
+                    <span>C相功率因素：{{ item.PFc }}</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
+                    <span>A相有功功率：{{ item.Pa }} kW</span>
+                    <span>B相有功功率：{{ item.Pb }} kW</span>
+                    <span>C相有功功率：{{ item.Pc }} kW</span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
+                    <span>有功电量：{{ item.KWH }} kW·h</span>
+                    <span>无功电量：{{ item.KVARH }} kvar·h</span>
+                    <span>日用电量：{{ item.dailyPower }} kWh</span>
                   </div>
                 </div>
-                <span class="text-xs text-gray-600">63.10%</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">采集时间</span>
-                <span class="text-green-500">2025-07-04 10:00:00</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>总有功功率：{{ workshop1.l3.toFixed(2) }} KW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>A相电流：{{ workshop1.l1.toFixed(2) }} A</span>
-                <span>B相电流：{{ workshop1.l2.toFixed(2) }} A</span>
-                <span>C相电流：{{ workshop1.l3.toFixed(2) }} A</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相电压：{{ workshop1.l1.toFixed(2) }} V</span>
-                <span>B相电压：{{ workshop1.l2.toFixed(2) }} V</span>
-                <span>C相电压：{{ workshop1.l3.toFixed(2) }} V</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>B相功率因素：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>C相功率因素：{{ workshop1.l3.toFixed(2) }}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相有功功率：{{ workshop1.l1.toFixed(2) }} kW</span>
-                <span>B相有功功率：{{ workshop1.l2.toFixed(2) }} kW</span>
-                <span>C相有功功率：{{ workshop1.l3.toFixed(2) }} kW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>有功电量：{{ workshop1.l1.toFixed(2) }} kW·h</span>
-                <span>无功电量：{{ workshop1.l2.toFixed(2) }} kvar·h</span>
-                <span>日用电量：{{ workshop1.l3.toFixed(2) }} kWh</span>
-              </div>
-            </div>
-          </a-card>
-
-          <!-- 1#产线2#电表 -->
-          <a-card class="monitor-card" :bordered="false">
-            <div class="flex items-center mb-2">
-              <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                <span class="text-white text-xs">O</span>
-              </div>
-              <span class="text-base font-bold">1#产线2#电表</span>
-            </div>
-            <div class="space-y-1 data-table">
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷状态</span>
-                <span class="text-green-500">正常</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷率</span>
-                <div class="flex-1 mx-1">
-                  <div class="relative h-1.5 bg-gray-200 rounded">
-                    <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: '63.10%' }"></div>
+                
+                <!-- 其他能源仪表数据 (nowtype=3/4/5) -->
+                <div v-else class="space-y-1 data-table">
+                  <div class="flex items-center text-sm">
+                    <span class="text-gray-600 w-16">采集时间</span>
+                    <span class="text-green-500">{{ item.equ_energy_dt }}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4 text-sm mt-0.5 data-row">
+                    <span>温度：{{ item.energy_temperature }} ℃</span>
+                    <span>压力：{{ item.energy_pressure }} MPa</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4 text-sm mt-0.5 data-row">
+                    <span>瞬时流量：{{ item.energy_winkvalue }}m³/h</span>
+                    <span>累计值：{{ item.energy_accumulatevalue }}m³</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4 text-sm mt-0.5 data-row">
+                    <span>日用量：{{ item.dailyPower }}m³</span>
+                    
                   </div>
                 </div>
-                <span class="text-xs text-gray-600">63.10%</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">采集时间</span>
-                <span class="text-green-500">2025-07-04 10:00:00</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>总有功功率：{{ workshop1.l3.toFixed(2) }} KW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>A相电流：{{ workshop1.l1.toFixed(2) }} A</span>
-                <span>B相电流：{{ workshop1.l2.toFixed(2) }} A</span>
-                <span>C相电流：{{ workshop1.l3.toFixed(2) }} A</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相电压：{{ workshop1.l1.toFixed(2) }} V</span>
-                <span>B相电压：{{ workshop1.l2.toFixed(2) }} V</span>
-                <span>C相电压：{{ workshop1.l3.toFixed(2) }} V</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>B相功率因素：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>C相功率因素：{{ workshop1.l3.toFixed(2) }}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相有功功率：{{ workshop1.l1.toFixed(2) }} kW</span>
-                <span>B相有功功率：{{ workshop1.l2.toFixed(2) }} kW</span>
-                <span>C相有功功率：{{ workshop1.l3.toFixed(2) }} kW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>有功电量：{{ workshop1.l1.toFixed(2) }} kW·h</span>
-                <span>无功电量：{{ workshop1.l2.toFixed(2) }} kvar·h</span>
-                <span>日用电量：{{ workshop1.l3.toFixed(2) }} kWh</span>
-              </div>
+              </a-card>
+            </template>
+            <div v-else class="col-span-2 flex justify-center items-center h-64">
+              <a-empty description="请选择左侧维度查看实时数据" />
             </div>
-          </a-card>
-
-          <!-- 1#产线3#电表-->
-          <a-card class="monitor-card" :bordered="false">
-            <div class="flex items-center mb-2">
-              <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                <span class="text-white text-xs">O</span>
-              </div>
-              <span class="text-base font-bold">1#产线3#电表</span>
-            </div>
-            <div class="space-y-1 data-table">
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷状态</span>
-                <span class="text-green-500">正常</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷率</span>
-                <div class="flex-1 mx-1">
-                  <div class="relative h-1.5 bg-gray-200 rounded">
-                    <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: '63.10%' }"></div>
-                  </div>
-                </div>
-                <span class="text-xs text-gray-600">63.10%</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">采集时间</span>
-                <span class="text-green-500">2025-07-04 10:00:00</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>总有功功率：{{ workshop1.l3.toFixed(2) }} KW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>A相电流：{{ workshop1.l1.toFixed(2) }} A</span>
-                <span>B相电流：{{ workshop1.l2.toFixed(2) }} A</span>
-                <span>C相电流：{{ workshop1.l3.toFixed(2) }} A</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相电压：{{ workshop1.l1.toFixed(2) }} V</span>
-                <span>B相电压：{{ workshop1.l2.toFixed(2) }} V</span>
-                <span>C相电压：{{ workshop1.l3.toFixed(2) }} V</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>B相功率因素：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>C相功率因素：{{ workshop1.l3.toFixed(2) }}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相有功功率：{{ workshop1.l1.toFixed(2) }} kW</span>
-                <span>B相有功功率：{{ workshop1.l2.toFixed(2) }} kW</span>
-                <span>C相有功功率：{{ workshop1.l3.toFixed(2) }} kW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>有功电量：{{ workshop1.l1.toFixed(2) }} kW·h</span>
-                <span>无功电量：{{ workshop1.l2.toFixed(2) }} kvar·h</span>
-                <span>日用电量：{{ workshop1.l3.toFixed(2) }} kWh</span>
-              </div>
-            </div>
-          </a-card>
-
-          <!-- 1#产线4#电表 -->
-          <a-card class="monitor-card" :bordered="false">
-            <div class="flex items-center mb-2">
-              <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                <span class="text-white text-xs">O</span>
-              </div>
-              <span class="text-base font-bold">1#产线4#电表</span>
-            </div>
-            <div class="space-y-1 data-table">
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷状态</span>
-                <span class="text-green-500">正常</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷率</span>
-                <div class="flex-1 mx-1">
-                  <div class="relative h-1.5 bg-gray-200 rounded">
-                    <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: '63.10%' }"></div>
-                  </div>
-                </div>
-                <span class="text-xs text-gray-600">63.10%</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">采集时间</span>
-                <span class="text-green-500">2025-07-04 10:00:00</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>总有功功率：{{ workshop1.l3.toFixed(2) }} KW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>A相电流：{{ workshop1.l1.toFixed(2) }} A</span>
-                <span>B相电流：{{ workshop1.l2.toFixed(2) }} A</span>
-                <span>C相电流：{{ workshop1.l3.toFixed(2) }} A</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相电压：{{ workshop1.l1.toFixed(2) }} V</span>
-                <span>B相电压：{{ workshop1.l2.toFixed(2) }} V</span>
-                <span>C相电压：{{ workshop1.l3.toFixed(2) }} V</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>B相功率因素：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>C相功率因素：{{ workshop1.l3.toFixed(2) }}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相有功功率：{{ workshop1.l1.toFixed(2) }} kW</span>
-                <span>B相有功功率：{{ workshop1.l2.toFixed(2) }} kW</span>
-                <span>C相有功功率：{{ workshop1.l3.toFixed(2) }} kW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>有功电量：{{ workshop1.l1.toFixed(2) }} kW·h</span>
-                <span>无功电量：{{ workshop1.l2.toFixed(2) }} kvar·h</span>
-                <span>日用电量：{{ workshop1.l3.toFixed(2) }} kWh</span>
-              </div>
-            </div>
-          </a-card>
-
-          <!-- 1#产线5#电表 -->
-          <a-card class="monitor-card" :bordered="false">
-            <div class="flex items-center mb-2">
-              <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
-                <span class="text-white text-xs">O</span>
-              </div>
-              <span class="text-base font-bold">1#产线5#电表</span>
-            </div>
-            <div class="space-y-1 data-table">
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷状态</span>
-                <span class="text-green-500">正常</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">负荷率</span>
-                <div class="flex-1 mx-1">
-                  <div class="relative h-1.5 bg-gray-200 rounded">
-                    <div class="absolute left-0 top-0 h-full bg-blue-500 rounded" :style="{ width: '63.10%' }"></div>
-                  </div>
-                </div>
-                <span class="text-xs text-gray-600">63.10%</span>
-              </div>
-              <div class="flex items-center text-sm">
-                <span class="text-gray-600 w-16">采集时间</span>
-                <span class="text-green-500">2025-07-04 10:00:00</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>总功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>时间：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>总有功功率：{{ workshop1.l3.toFixed(2) }} KW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-0.5 data-row">
-                <span>A相电流：{{ workshop1.l1.toFixed(2) }} A</span>
-                <span>B相电流：{{ workshop1.l2.toFixed(2) }} A</span>
-                <span>C相电流：{{ workshop1.l3.toFixed(2) }} A</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相电压：{{ workshop1.l1.toFixed(2) }} V</span>
-                <span>B相电压：{{ workshop1.l2.toFixed(2) }} V</span>
-                <span>C相电压：{{ workshop1.l3.toFixed(2) }} V</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相功率因素：{{ workshop1.l1.toFixed(2) }}</span>
-                <span>B相功率因素：{{ workshop1.l2.toFixed(2) }}</span>
-                <span>C相功率因素：{{ workshop1.l3.toFixed(2) }}</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>A相有功功率：{{ workshop1.l1.toFixed(2) }} kW</span>
-                <span>B相有功功率：{{ workshop1.l2.toFixed(2) }} kW</span>
-                <span>C相有功功率：{{ workshop1.l3.toFixed(2) }} kW</span>
-              </div>
-              <div class="grid grid-cols-3 gap-4 text-sm mt-1 data-row">
-                <span>有功电量：{{ workshop1.l1.toFixed(2) }} kW·h</span>
-                <span>无功电量：{{ workshop1.l2.toFixed(2) }} kvar·h</span>
-                <span>日用电量：{{ workshop1.l3.toFixed(2) }} kWh</span>
-              </div>
-            </div>
-          </a-card>
-        </div>
+          </div>
+        </a-spin>
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import {provide,ref, onMounted, onUnmounted,nextTick  } from 'vue';
+import {provide, ref, onMounted, onUnmounted, nextTick} from 'vue';
 import RealTimeChart from './components/RealTimeChart.vue';
 import HistoryChart from './components/HistoryChart.vue';
 import ProductionParamsChart from './components/ProductionParamsChart.vue';
 import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
+import { defHttp } from '/@/utils/http/axios';
+import { useMessage } from '/@/hooks/web/useMessage';
 
+const { createMessage } = useMessage();
 
-// 定义 currentWname 变量
-  const currentWname = ref('');
-//定义切换树变量
-const selecttag = ref('');
-//切换树到默认第一个tab
-handleTabChange("info1"); 
+// 加载状态
+const loading = ref(false);
 
+// 实时数据
+const realTimeData = ref<any[]>([]);
 
-// 新增 handleTabChange 方法
-function handleTabChange(key) {
-  //debugger;
-  // 检查当前选中的key（'info1'或'info2'）
-  if (key === 'info1') {
-    // 触发 onDepartTreeSelect 并传递tab1默认数据
-    deafulDepartTreeSelect('A10003A06A01');
-    selecttag.value='1';
-  } else if (key === 'info2') {
-    // 触发 onDepartTreeSelect 并传递tab2默认数据
-    deafulDepartTreeSelect('A10004A01A01');
-    selecttag.value='2';
-  }else if (key === 'info3') {
-    // 触发 onDepartTreeSelect 并传递tab3默认数据
-    deafulDepartTreeSelect('A10005A01A01');
-    selecttag.value='3';
-  }else if (key === 'info4') {
-    // 触发 onDepartTreeSelect 并传递tab4默认数据
-    deafulDepartTreeSelect('A10006A01A01');
-    selecttag.value='4';
-  }else if (key === 'info5') {
-    // 触发 onDepartTreeSelect 并传递tab5默认数据
-    deafulDepartTreeSelect('A10007A01A01');
-    selecttag.value='5';
-  }
-}
+// 当前选中的能源类型
+const currentNowtype = ref(1);
 
-
- // 左侧树选择后触发
- function onDepartTreeSelect(data) {
-    //console.log("michael111");
-    //console.log(data);
-    //console.log(data[0]);
-    // 检查data是否为数组且不为空
-    if (Array.isArray(data) && data.length > 0) {
-      // 使用map提取每个对象的'departName'，然后用join连接成字符串
-      const orgCodestr = data.map(item => item.orgCode).join(',');
-      //console.log(orgCodestr);
-
-      // 更新changeIframeSrc
-       //changeIframeSrc(orgCodestr);
-    } else {
-      console.log("没有选中任何项目");
-      // 处理没有选中任何项目的情况
-    }
-    //changeIframeSrc(data[0]["departName"]);
-    //DepartData.value = data;
-  }
-
-  function deafulDepartTreeSelect(Wname){
-    console.log(Wname);
-  }
-
-interface CurrentData {
-  total: number;
-  l1: number;
-  l2: number;
-  l3: number;
-}
-
-
-
-
+// 当前选中的部门编码
+const currentOrgCode = ref('');
 
 // 当前激活的标签页
-const activeTab = ref('1');
+const activeTabKey = ref('info1');
 
-// 各车间电流数据
-const workshop1 = ref<CurrentData>({
-  total: 84.61,
-  l1: 27.87,
-  l2: 28.26,
-  l3: 28.48
+// 维度列表
+const dimensionList = ref<any[]>([]);
+
+// 树组件引用
+const treeRefs = ref<Record<string, any>>({});
+
+// 设置树组件引用
+const setTreeRef = (el, key) => {
+  if (el) {
+    treeRefs.value[key] = el;
+  }
+};
+
+// 存储每个标签页选中的节点信息
+const selectedNodesMap = ref({
+  info1: null,
+  info2: null,
+  info3: null,
+  info4: null,
+  info5: null
 });
 
-const workshop2 = ref<CurrentData>({
-  total: 74.24,
-  l1: 20.20,
-  l2: 47.72,
-  l3: 6.32
-});
-
-const workshop3 = ref<CurrentData>({
-  total: 31.88,
-  l1: 1.57,
-  l2: 75.19,
-  l3: 0.245
-});
-
-const workshop4 = ref<CurrentData>({
-  total: 80.63,
-  l1: 30.63,
-  l2: 40.12,
-  l3: 9.88
-});
-
-const workshop5 = ref<CurrentData>({
-  total: 99.28,
-  l1: 30.63,
-  l2: 44.12,
-  l3: 24.53
-});
-
-// 模拟实时数据
-const powerMonitorData = ref<{
-  categories: string[];
-  series: Array<{
-    name: string;
-    data: number[];
-  }>;
-}>({
-  categories: [],
-  series: [
-    { name: '电流', data: [] },
-    { name: '电压', data: [] },
-    { name: '功率', data: [] }
-  ]
-});
-
-
-
-// 模拟实时数据更新
+// 定时刷新数据的定时器
 let timer: number | null = null;
 
-const updateRealTimeData = () => {
-  const now = new Date();
-  const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+// 获取字典数据
+function loadDimensionDictData() {
+  defHttp.get({
+    url: '/sys/dict/getDictItems/dimensionCode'
+  })
+  .then((res) => {
+    if (res && Array.isArray(res)) {
+      // 将字典数据转换为维度列表
+      dimensionList.value = res.map((item, index) => {
+        return {
+          key: `info${index + 1}`,
+          title: item.text,
+          nowtype: Number(index + 1), // 使用索引+1作为nowtype值
+          value: Number(index + 1)
+        };
+      });
+      
+      // 默认选中第一个标签页
+      if (dimensionList.value.length > 0) {
+        activeTabKey.value = dimensionList.value[0].key;
+        currentNowtype.value = dimensionList.value[0].nowtype;
+      }
+    } else {
+      // 如果获取字典失败，使用默认维度列表
+      dimensionList.value = [
+        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+        { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+        { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+        { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
+      ];
+    }
+  })
+  .catch(() => {
+    // 如果API调用失败，使用默认维度列表
+    dimensionList.value = [
+      { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+      { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+      { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+      { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+      { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
+    ];
+  });
+}
+
+// 处理标签页切换
+function handleTabChange(key) {
+  activeTabKey.value = key;
   
-  const newCategories = [...powerMonitorData.value.categories, timeStr];
-  const newSeries = powerMonitorData.value.series.map(series => ({
-    name: series.name,
-    data: [...series.data, Number((Math.random() * (series.name === '电压' ? 220 : 100)).toFixed(2))]
-  }));
-
-  // 保持最近30个数据点
-  if (newCategories.length > 30) {
-    newCategories.shift();
-    newSeries.forEach(series => series.data.shift());
+  // 根据选中的标签页设置当前能源类型
+  const selectedDimension = dimensionList.value.find(item => item.key === key);
+  if (selectedDimension) {
+    currentNowtype.value = selectedDimension.nowtype;
   }
+  
+  // 如果该标签页之前已经选择过节点，则使用保存的节点信息
+  const savedNode = selectedNodesMap.value[key];
+  if (savedNode) {
+    currentOrgCode.value = savedNode.orgCode;
+    loadRealTimeData(savedNode.orgCode, currentNowtype.value);
+  }
+  
+  // 等待树组件加载完成后，如果没有选中的节点，则触发树组件的默认选择
+  nextTick(() => {
+    const currentTreeRef = treeRefs.value[key];
+    if (currentTreeRef && !savedNode) {
+      // 树组件会自动选择默认节点并触发select事件
+    }
+  });
+}
 
-  powerMonitorData.value = {
-    categories: newCategories,
-    series: newSeries
-  };
+// 获取当前激活标签页对应的树组件引用
+function getCurrentTreeRef() {
+  return treeRefs.value[activeTabKey.value];
+}
 
-  // 更新车间数据
-  workshop1.value = updateCurrentData(workshop1.value);
-  workshop2.value = updateCurrentData(workshop2.value);
-  workshop3.value = updateCurrentData(workshop3.value);
-  workshop4.value = updateCurrentData(workshop4.value);
-  workshop5.value = updateCurrentData(workshop5.value);
-};
+// 左侧树选择后触发
+function onDepartTreeSelect(data) {
+  if (Array.isArray(data) && data.length > 0) {
+    const orgCodestr = data.map(item => item.orgCode).join(',');
+    currentOrgCode.value = orgCodestr;
+    
+    // 保存当前标签页选中的节点信息
+    selectedNodesMap.value[activeTabKey.value] = {
+      orgCode: orgCodestr,
+      data: data
+    };
+    
+    loadRealTimeData(orgCodestr, currentNowtype.value);
+  } else if (data && data.orgCode) {
+    // 处理单个对象的情况
+    currentOrgCode.value = data.orgCode;
+    
+    // 保存当前标签页选中的节点信息
+    selectedNodesMap.value[activeTabKey.value] = {
+      orgCode: data.orgCode,
+      data: data
+    };
+    
+    loadRealTimeData(data.orgCode, currentNowtype.value);
+  } else {
+    console.log("没有选中任何项目");
+  }
+}
 
-// 模拟更新电流数据
-const updateCurrentData = (current: CurrentData): CurrentData => {
-  const variation = 0.1; // 10% 的变化范围
-  const round = (num: number) => Number(num.toFixed(2));
-  return {
-    l1: round(current.l1 * (1 + (Math.random() - 0.5) * variation)),
-    l2: round(current.l2 * (1 + (Math.random() - 0.5) * variation)),
-    l3: round(current.l3 * (1 + (Math.random() - 0.5) * variation)),
-    total: round(current.total * (1 + (Math.random() - 0.5) * variation))
-  };
-};
+// 获取负荷状态对应的样式类
+function getLoadStatusClass(status) {
+  if (!status) return 'text-gray-500';
+  
+  switch (status) {
+    case '正常':
+      return 'text-green-500';
+    case '警告':
+      return 'text-yellow-500';
+    case '异常':
+      return 'text-red-500';
+    default:
+      return 'text-gray-500';
+  }
+}
 
-// 处理树节点选择
-const handleSelect = (selectedKeys: string[], info: any) => {
-  console.log('selected', selectedKeys, info);
-  // 根据选中节点更新数据
-};
+// 加载实时监控数据
+function loadRealTimeData(orgCode, nowtype) {
+  if (!orgCode) return;
+  
+  loading.value = true;
+  realTimeData.value = [];
+  
+  defHttp.get({
+    url: '/energy/monitor/getRealTimeData',
+    params: {
+      orgCode: orgCode,
+      nowtype: nowtype
+    }
+  })
+  .then((res) => {
+    if (res && Array.isArray(res)) {
+      realTimeData.value = res;
+    } else {
+      createMessage.warning('获取实时数据失败');
+    }
+  })
+  .catch((err) => {
+    console.error('获取实时数据出错:', err);
+    createMessage.error('获取实时数据出错');
+  })
+  .finally(() => {
+    loading.value = false;
+  });
+}
 
+// 初始化时设置默认标签页
 onMounted(() => {
-  // 启动实时数据更新
-  timer = window.setInterval(updateRealTimeData, 1000);
+  // 加载维度字典数据
+  loadDimensionDictData();
+  
+  // 等待树组件加载完成后触发默认选择
+  nextTick(() => {
+    const currentTreeRef = getCurrentTreeRef();
+    if (currentTreeRef) {
+      // 树组件会自动选择默认节点并触发select事件
+    }
+  });
+  
+  // 每30秒自动刷新数据
+  timer = window.setInterval(() => {
+    if (currentOrgCode.value) {
+      // 使用当前激活标签页对应的nowtype值
+      const nowtype = currentNowtype.value;
+      loadRealTimeData(currentOrgCode.value, nowtype);
+    }
+  }, 30000);
 });
 
+// 组件卸载时清理定时器
 onUnmounted(() => {
-  // 清理定时器
   if (timer) {
     clearInterval(timer);
     timer = null;

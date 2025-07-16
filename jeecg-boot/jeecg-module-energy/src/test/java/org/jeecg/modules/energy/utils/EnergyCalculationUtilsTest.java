@@ -12,75 +12,93 @@ import static org.junit.jupiter.api.Assertions.*;
 public class EnergyCalculationUtilsTest {
 
     /**
-     * 测试计算负荷状态 - 正常情况
+     * 测试计算负荷状态 - 停机情况
      */
     @Test
-    public void testCalculateLoadStatusNormal() {
-        // 三相电流平衡，电压正常
-        BigDecimal IA = new BigDecimal("60.00");
-        BigDecimal IB = new BigDecimal("61.00");
-        BigDecimal IC = new BigDecimal("59.00");
-        BigDecimal UA = new BigDecimal("220.00");
-        BigDecimal UB = new BigDecimal("220.00");
-        BigDecimal UC = new BigDecimal("220.00");
+    public void testCalculateLoadStatusStopped() {
+        // 三相电流接近0，表示设备停机
+        BigDecimal IA = new BigDecimal("0.2");
+        BigDecimal IB = new BigDecimal("0.3");
+        BigDecimal IC = new BigDecimal("0.1");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("正常", loadStatus);
+        assertEquals("停机", loadStatus);
     }
     
     /**
-     * 测试计算负荷状态 - 警告情况
+     * 测试计算负荷状态 - 低负荷情况
      */
     @Test
-    public void testCalculateLoadStatusWarning() {
-        // 三相电流不平衡度在10%-20%之间
-        BigDecimal IA = new BigDecimal("60.00");
-        BigDecimal IB = new BigDecimal("70.00"); // 偏高约16.7%
-        BigDecimal IC = new BigDecimal("59.00");
-        BigDecimal UA = new BigDecimal("220.00");
-        BigDecimal UB = new BigDecimal("220.00");
-        BigDecimal UC = new BigDecimal("220.00");
+    public void testCalculateLoadStatusLow() {
+        // 三相电流平均值小于10A，表示低负荷
+        BigDecimal IA = new BigDecimal("8.00");
+        BigDecimal IB = new BigDecimal("7.00");
+        BigDecimal IC = new BigDecimal("9.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("警告", loadStatus);
+        assertEquals("低负荷", loadStatus);
     }
     
     /**
-     * 测试计算负荷状态 - 异常情况(电流不平衡)
+     * 测试计算负荷状态 - 中负荷情况
      */
     @Test
-    public void testCalculateLoadStatusAbnormalCurrent() {
-        // 三相电流不平衡度超过20%
-        BigDecimal IA = new BigDecimal("60.00");
-        BigDecimal IB = new BigDecimal("80.00"); // 偏高约33.3%
-        BigDecimal IC = new BigDecimal("59.00");
-        BigDecimal UA = new BigDecimal("220.00");
-        BigDecimal UB = new BigDecimal("220.00");
-        BigDecimal UC = new BigDecimal("220.00");
+    public void testCalculateLoadStatusMedium() {
+        // 三相电流平均值在10A-30A之间，表示中负荷
+        BigDecimal IA = new BigDecimal("20.00");
+        BigDecimal IB = new BigDecimal("22.00");
+        BigDecimal IC = new BigDecimal("18.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("异常", loadStatus);
+        assertEquals("中负荷", loadStatus);
     }
     
     /**
-     * 测试计算负荷状态 - 异常情况(电压异常)
+     * 测试计算负荷状态 - 高负荷情况
      */
     @Test
-    public void testCalculateLoadStatusAbnormalVoltage() {
-        // 电压异常
-        BigDecimal IA = new BigDecimal("60.00");
-        BigDecimal IB = new BigDecimal("61.00");
-        BigDecimal IC = new BigDecimal("59.00");
-        BigDecimal UA = new BigDecimal("220.00");
-        BigDecimal UB = new BigDecimal("250.00"); // 电压过高
-        BigDecimal UC = new BigDecimal("220.00");
+    public void testCalculateLoadStatusHigh() {
+        // 三相电流平均值大于30A，表示高负荷
+        BigDecimal IA = new BigDecimal("40.00");
+        BigDecimal IB = new BigDecimal("42.00");
+        BigDecimal IC = new BigDecimal("38.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("异常", loadStatus);
+        assertEquals("高负荷", loadStatus);
+    }
+    
+    /**
+     * 测试计算负荷状态 - 参数为null的情况
+     */
+    @Test
+    public void testCalculateLoadStatusWithNull() {
+        // 部分参数为null
+        BigDecimal IA = new BigDecimal("40.00");
+        BigDecimal IB = null;
+        BigDecimal IC = new BigDecimal("38.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
+        
+        String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
+        
+        assertEquals("未知", loadStatus);
     }
     
     /**
@@ -89,10 +107,10 @@ public class EnergyCalculationUtilsTest {
     @Test
     public void testCalculateLoadRate() {
         // 当前功率为500，额定功率为1000
-        BigDecimal pp = new BigDecimal("500.00");
+        BigDecimal currentPower = new BigDecimal("500.00");
         BigDecimal ratedPower = new BigDecimal("1000.00");
         
-        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(pp, ratedPower);
+        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(currentPower, ratedPower);
         
         assertEquals(new BigDecimal("50.00"), loadRate);
     }
@@ -102,10 +120,10 @@ public class EnergyCalculationUtilsTest {
      */
     @Test
     public void testCalculateLoadRateWithZeroRatedPower() {
-        BigDecimal pp = new BigDecimal("500.00");
+        BigDecimal currentPower = new BigDecimal("500.00");
         BigDecimal ratedPower = BigDecimal.ZERO;
         
-        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(pp, ratedPower);
+        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(currentPower, ratedPower);
         
         assertEquals(BigDecimal.ZERO, loadRate);
     }
@@ -115,27 +133,24 @@ public class EnergyCalculationUtilsTest {
      */
     @Test
     public void testCalculateLoadRateWithNullRatedPower() {
-        BigDecimal pp = new BigDecimal("500.00");
+        BigDecimal currentPower = new BigDecimal("500.00");
         BigDecimal ratedPower = null;
         
-        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(pp, ratedPower);
+        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(currentPower, ratedPower);
         
         assertEquals(BigDecimal.ZERO, loadRate);
     }
     
     /**
-     * 测试计算最大偏差
+     * 测试计算负荷率 - 当前功率为null
      */
     @Test
-    public void testCalculateMaxDeviation() {
-        BigDecimal a = new BigDecimal("60.00");
-        BigDecimal b = new BigDecimal("70.00");
-        BigDecimal c = new BigDecimal("59.00");
-        BigDecimal avg = new BigDecimal("63.00");
+    public void testCalculateLoadRateWithNullCurrentPower() {
+        BigDecimal currentPower = null;
+        BigDecimal ratedPower = new BigDecimal("1000.00");
         
-        BigDecimal maxDeviation = EnergyCalculationUtils.calculateMaxDeviation(a, b, c, avg);
+        BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(currentPower, ratedPower);
         
-        // 最大偏差应该是 (70-63)/63 = 0.111...
-        assertEquals(new BigDecimal("0.11"), maxDeviation);
+        assertEquals(BigDecimal.ZERO, loadRate);
     }
 } 

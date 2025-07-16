@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.TbEpEquEnergyDaycountMapper">
+
+    <select id="selectByModuleIdAndDate" resultType="org.jeecg.modules.energy.entity.TbEpEquEnergyDaycount">
+        SELECT * FROM tb_ep_equ_energy_daycount
+        WHERE module_id = #{moduleId}
+        AND DATE(dt) = DATE(#{date})
+    </select>
+
+    <!-- 根据仪表ID和日期查询当天的能耗数据（兼容旧方法名） -->
+    <select id="selectTodayDataByModuleId" resultType="org.jeecg.modules.energy.entity.TbEpEquEnergyDaycount">
+        SELECT * FROM tb_ep_equ_energy_daycount
+        WHERE module_id = #{moduleId}
+        AND DATE(dt) = DATE(#{date})
+        LIMIT 1
+    </select>
+
+</mapper>

@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -35,40 +36,49 @@ public class TbEquEnergyData implements Serializable {
     private Integer id;
     
     /**仪表编号*/
+    @TableField("module_id")
     @ApiModelProperty(value = "仪表编号")
     private String moduleId;
     
     /**采集时间*/
+    @TableField("equ_energy_dt")
     @JsonFormat(timezone = "GMT+8",pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
     @ApiModelProperty(value = "采集时间")
     private Date equEnergyDt;
     
-    /**温度*/
-    @ApiModelProperty(value = "温度")
-    private Double energyTemperature;
+    /**能源温度*/
+    @TableField("energy_temperature")
+    @ApiModelProperty(value = "能源温度")
+    private BigDecimal energyTemperature;
     
-    /**压力*/
-    @ApiModelProperty(value = "压力")
-    private Double energyPressure;
+    /**能源压力*/
+    @TableField("energy_pressure")
+    @ApiModelProperty(value = "能源压力")
+    private BigDecimal energyPressure;
     
-    /**瞬时流量*/
-    @ApiModelProperty(value = "瞬时流量")
+    /**瞬时值*/
+    @TableField("energy_winkvalue")
+    @ApiModelProperty(value = "瞬时值")
     private BigDecimal energyWinkvalue;
     
     /**累计值*/
+    @TableField("energy_accumulatevalue")
     @ApiModelProperty(value = "累计值")
     private BigDecimal energyAccumulatevalue;
     
     /**备用字段1*/
+    @TableField("standby1")
     @ApiModelProperty(value = "备用字段1")
     private String standby1;
     
     /**备用字段2*/
+    @TableField("standby2")
     @ApiModelProperty(value = "备用字段2")
     private String standby2;
     
-    /**备用字段3*/
+    /**备用字段3*/  
+    @TableField("standby3")
     @ApiModelProperty(value = "备用字段3")
     private String standby3;
 } 
