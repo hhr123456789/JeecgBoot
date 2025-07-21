@@ -6,12 +6,12 @@ import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.modules.energy.service.IEnergyMonitorService;
+import org.jeecg.modules.energy.vo.monitor.ModuleVO;
+import org.jeecg.modules.energy.vo.monitor.RealTimeDataRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -47,4 +47,47 @@ public class EnergyMonitorController {
         log.info("查询结果条数：{}", result.size());
         return Result.OK(result);
     }
-} 
+
+    /**
+     * 根据维度获取仪表列表
+     *
+     * @param orgCodes 维度编码列表（支持多选）
+     * @param nowtype 维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水)
+     * @return 仪表列表
+     */
+    @ApiOperation(value = "根据维度获取仪表列表", notes = "根据维度编码获取该维度下的所有启用仪表，支持多选维度")
+    @GetMapping("/getModulesByOrgCode")
+    public Result<List<ModuleVO>> getModulesByOrgCode(
+            @ApiParam(value = "维度编码列表，多个用逗号分隔", required = true) @RequestParam String orgCodes,
+            @ApiParam(value = "维度类型(1:按部门用电,2:按线路用电,3:天然气,4:压缩空气,5:企业用水)", required = true) @RequestParam Integer nowtype) {
+        log.info("根据维度获取仪表列表，维度编码：{}，维度类型：{}", orgCodes, nowtype);
+        List<ModuleVO> result = energyMonitorService.getModulesByOrgCode(orgCodes, nowtype);
+        log.info("查询到仪表数量：{}", result.size());
+        return Result.OK(result);
+    }
+
+    /**
+     * 查询实时数据
+     *
+     * @param request 查询请求参数
+     * @return 实时数据
+     */
+    @ApiOperation(value = "查询实时数据", notes = "查询指定仪表、参数、时间范围的实时数据")
+    @PostMapping("/getRealTimeMonitorData")
+    public Result<Object> getRealTimeMonitorData(@Valid @RequestBody RealTimeDataRequest request) {
+        log.info("🔍 查询实时数据开始，请求参数：{}", request);
+        try {
+            Object result = energyMonitorService.getRealTimeMonitorData(request);
+            log.info("✅ 查询实时数据成功，返回结果类型：{}", result != null ? result.getClass().getSimpleName() : "null");
+            Result<Object> response = Result.OK(result);
+            log.info("🔍 Controller返回的Result格式：success={}, code={}, message={}",
+                response.isSuccess(), response.getCode(), response.getMessage());
+            return response;
+        } catch (Exception e) {
+            log.error("❌ 查询实时数据失败", e);
+            return Result.error("查询实时数据失败: " + e.getMessage());
+        }
+    }
+
+
+}

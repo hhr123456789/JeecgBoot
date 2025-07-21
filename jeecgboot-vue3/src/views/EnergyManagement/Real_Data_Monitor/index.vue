@@ -6,12 +6,12 @@
         <a-tabs defaultActiveKey="info1" @change="handleTabChange" style="height: 100%;width:300px;">
           <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title" :forceRender="item.key === 'info1'">
             <a-card :bordered="false" style="height: 100%">
-              <DimensionTree 
-                :ref="(el) => setTreeRef(el, item.key)" 
-                @select="onDepartTreeSelect" 
-                :nowtype="item.nowtype" 
-                :select-level="2" 
-                style="margin-top:-20px ;" 
+              <MultiSelectDimensionTree
+                :ref="(el) => setTreeRef(el, item.key)"
+                @select="onDepartTreeSelect"
+                :nowtype="item.nowtype"
+                :select-level="2"
+                style="margin-top:-20px ;"
               />
             </a-card>
           </a-tab-pane>
@@ -91,6 +91,7 @@
             <span class="text-sm mr-2">查询方式：</span>
             <a-select
               v-model:value="displayMode"
+              @change="handleQuery"
               style="width: 120px"
               class="custom-select"
               placeholder="请选择显示方式"
@@ -121,34 +122,79 @@
           <div class="text-sm">所有数据统一显示</div>
           <a-button type="primary" size="small">导出数据</a-button>
         </div>
-        <MonitorChart
-          :chartData="getUnifiedChartData()"
-          chartId="unified-chart"
-          :activeIndex="activeIndex"
-          :chartType="chartType"
-          @mouseOnIndex="handleMouseOnIndex"
-          @mouseOut="handleMouseOut"
-        />
+
+        <!-- 检查是否有数据 -->
+        <template v-if="hasChartData()">
+          <MonitorChart
+            :chartData="getUnifiedChartData()"
+            chartId="unified-chart"
+            :activeIndex="activeIndex"
+            :chartType="chartType"
+            @mouseOnIndex="handleMouseOnIndex"
+            @mouseOut="handleMouseOut"
+          />
+        </template>
+
+        <!-- 无数据时的友好提示 -->
+        <template v-else>
+          <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+            <div class="text-6xl mb-4">📊</div>
+            <div class="text-lg font-medium mb-2">暂无监控数据</div>
+            <div class="text-sm text-center max-w-md">
+              <p class="mb-2">当前条件下没有找到监控数据，可能的原因：</p>
+              <ul class="text-left space-y-1">
+                <li>• 该能源类型的数据采集尚未配置</li>
+                <li>• 选择的时间范围内没有数据记录</li>
+                <li>• 仪表设备离线或数据传输异常</li>
+              </ul>
+              <p class="mt-3 text-xs text-gray-400">
+                请联系系统管理员检查数据采集配置，或尝试选择其他时间范围
+              </p>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- 分开显示模式 - 为每个参数和每个仪表生成独立图表 -->
       <template v-else>
-        <div v-for="(param, paramIndex) in selectedParams" :key="`param-${param}`">
-          <div v-for="(meterId, meterIndex) in selectedMeters" :key="`${param}-${meterId}`" class="bg-white rounded p-3 mb-4">
+        <!-- 如果有API数据，使用API数据 -->
+        <template v-if="hasChartData()">
+          <div v-for="(chartData, index) in separateChartsData" :key="`api-chart-${index}`" class="bg-white rounded p-3 mb-4">
             <div class="flex justify-between items-center mb-3">
-              <div class="text-sm">{{ getMeterLabel(meterId) }} - {{ getParamLabel(param) }}</div>
+              <div class="text-sm">{{ chartData.moduleName }} - {{ chartData.parameter }}</div>
               <a-button type="primary" size="small">导出数据</a-button>
             </div>
             <MonitorChart
-              :chartData="getChartDataForMeterAndParam(meterId, param)"
-              :chartId="getChartId(param, meterId)"
+              :chartData="chartData"
+              :chartId="`api-chart-${index}`"
               :activeIndex="activeIndex"
               :chartType="chartType"
               @mouseOnIndex="handleMouseOnIndex"
               @mouseOut="handleMouseOut"
             />
           </div>
-        </div>
+        </template>
+
+        <!-- 无数据时的友好提示 -->
+        <template v-else>
+          <div class="bg-white rounded p-3 mb-4">
+            <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+              <div class="text-6xl mb-4">📊</div>
+              <div class="text-lg font-medium mb-2">暂无监控数据</div>
+              <div class="text-sm text-center max-w-md">
+                <p class="mb-2">当前条件下没有找到监控数据，可能的原因：</p>
+                <ul class="text-left space-y-1">
+                  <li>• 该能源类型的数据采集尚未配置</li>
+                  <li>• 选择的时间范围内没有数据记录</li>
+                  <li>• 仪表设备离线或数据传输异常</li>
+                </ul>
+                <p class="mt-3 text-xs text-gray-400">
+                  请联系系统管理员检查数据采集配置，或尝试选择其他时间范围
+                </p>
+              </div>
+            </div>
+          </div>
+        </template>
       </template>
     </div>
   </div>
@@ -159,9 +205,11 @@ import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import type { TreeDataItem } from 'ant-design-vue/es/tree/Tree';
 import MonitorChart from './components/MonitorChart.vue';
 import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
+import MultiSelectDimensionTree from './components/MultiSelectDimensionTree.vue';
 import { defHttp } from '/@/utils/http/axios';
 import { useMessage } from '/@/hooks/web/useMessage';
 import { initDictOptions } from '/@/utils/dict/index';
+import { getModulesByOrgCode, getRealTimeMonitorData, type ModuleInfo, type RealTimeMonitorRequest } from './api';
 import dayjs from 'dayjs';
 
 const { createMessage } = useMessage();
@@ -171,6 +219,7 @@ const activeIndex = ref<number>(-1);
 
 // 防抖标志
 let debounceTimer: number | null = null;
+let queryDebounceTimer: number | null = null;
 
 // 处理鼠标在图表上的移动 - 添加防抖
 const handleMouseOnIndex = (index: number) => {
@@ -242,18 +291,15 @@ const queryMethodOptions = ref([]); // 查询方式字典数据
 
 // 查询条件 - 默认选择两个仪表以便测试联动效果
 const dateRange = ref([dayjs().startOf('day'), dayjs()]);
-const selectedMeters = ref(['meter1', 'meter2']);
-const selectedParams = ref([]);
+const selectedMeters = ref<string[]>([]);
+const selectedParams = ref<string[]>([]);
 const queryInterval = ref(''); // 查询间隔从字典获取
 const displayMode = ref(''); // 查询方式从字典获取
 const chartType = ref('line'); // 图表类型：line(曲线图) 或 bar(柱状图)
 
-// 仪表列表
-const meters = ref([
-  { label: '1号仪表', value: 'meter1' },
-  { label: '2号仪表', value: 'meter2' },
-  { label: '3号仪表', value: 'meter3' }
-]);
+// 仪表列表 - 从API获取
+const meters = ref<Array<{ label: string; value: string }>>([]);
+const allModules = ref<ModuleInfo[]>([]); // 存储完整的仪表信息
 
 // 获取选中的仪表名称
 const selectedMeterLabels = computed(() => {
@@ -265,46 +311,59 @@ const selectedMeterLabels = computed(() => {
 
 // 获取字典数据
 function loadDimensionDictData() {
+  console.log('🔄 开始加载维度字典数据...');
   defHttp.get({
     url: '/sys/dict/getDictItems/dimensionCode'
   })
   .then((res) => {
     if (res && Array.isArray(res)) {
+      console.log('📋 维度字典原始数据:', res);
+
       // 将字典数据转换为维度列表
       dimensionList.value = res.map((item, index) => {
         return {
           key: `info${index + 1}`,
           title: item.text,
-          nowtype: Number(index + 1), // 使用索引+1作为nowtype值
-          value: Number(index + 1)
+          nowtype: Number(item.value), // 使用字典中的value作为nowtype值
+          value: Number(item.value)
         };
       });
+
+      console.log('🏷️ 转换后的维度列表:', dimensionList.value);
 
       // 默认选中第一个标签页
       if (dimensionList.value.length > 0) {
         activeTabKey.value = dimensionList.value[0].key;
         currentNowtype.value = dimensionList.value[0].nowtype;
+        console.log('🎯 默认选中维度类型:', currentNowtype.value);
       }
     } else {
+      console.log('⚠️ 维度字典数据为空或格式不正确，使用默认配置');
       // 如果获取字典失败，使用默认维度列表
+      // 根据实际测试，第一个标签页应该使用nowtype=1才有数据
       dimensionList.value = [
-        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
-        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 }, // 使用1（有数据）
+        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 }, // 使用2（可能没数据）
         { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
         { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
         { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
       ];
+      activeTabKey.value = 'info1';
+      currentNowtype.value = 1; // 默认选中nowtype=1（有数据）
     }
   })
-  .catch(() => {
+  .catch((error) => {
+    console.error('❌ 获取维度字典失败:', error);
     // 如果API调用失败，使用默认维度列表
     dimensionList.value = [
-      { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
-      { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+      { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 }, // 使用1（有数据）
+      { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 }, // 使用2（可能没数据）
       { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
       { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
       { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
     ];
+    activeTabKey.value = 'info1';
+    currentNowtype.value = 1; // 默认选中nowtype=1（有数据）
   });
 }
 
@@ -324,6 +383,12 @@ function getParameterDictCode() {
     default:
       return 'parameter'; // 默认为电能参数
   }
+}
+
+// 根据能源类型获取查询间隔字典编码
+function getQueryIntervalDictCode() {
+  // 所有能源类型都使用统一的查询间隔字典
+  return 'queryInterval';
 }
 
 // 加载参数选择字典数据
@@ -406,27 +471,47 @@ function getDefaultParameterOptions() {
 // 加载查询间隔字典数据
 async function loadQueryIntervalDictData() {
   try {
-    const res = await initDictOptions('queryInterval');
+    const dictCode = getQueryIntervalDictCode();
+    console.log(`Loading query interval dict with code: ${dictCode} for energy type: ${currentNowtype.value}`);
+
+    const res = await initDictOptions(dictCode);
     if (res && Array.isArray(res) && res.length > 0) {
       queryIntervalOptions.value = res;
-      // 设置默认选中第一个间隔
+      // 根据能源类型设置不同的默认值
       if (!queryInterval.value) {
-        queryInterval.value = res[0].value;
+        const defaultValue = getDefaultQueryInterval();
+        queryInterval.value = defaultValue;
+        console.log(`设置默认查询间隔: ${defaultValue} for energy type: ${currentNowtype.value}`);
       }
     } else {
       throw new Error('字典数据为空');
     }
   } catch (error) {
     console.error('加载查询间隔字典失败:', error);
-    // 使用默认数据，使用数字值与字典保持一致
-    queryIntervalOptions.value = [
-      { text: '15分钟', value: '1' },
-      { text: '30分钟', value: '2' },
-      { text: '60分钟', value: '3' },
-      { text: '120分钟', value: '4' }
-    ];
-    queryInterval.value = '4'; // 默认选中120分钟
+    // 根据能源类型使用不同的默认数据
+    getDefaultQueryIntervalOptions();
   }
+}
+
+// 根据能源类型获取默认查询间隔
+function getDefaultQueryInterval() {
+  // 所有能源类型都默认使用15分钟
+  return '1'; // 15分钟
+}
+
+// 根据能源类型获取默认查询间隔选项
+function getDefaultQueryIntervalOptions() {
+  // 使用默认数据，使用数字值与字典保持一致
+  queryIntervalOptions.value = [
+    { text: '15分钟', value: '1' },
+    { text: '30分钟', value: '2' },
+    { text: '60分钟', value: '3' },
+    { text: '120分钟', value: '4' }
+  ];
+
+  const defaultValue = getDefaultQueryInterval();
+  queryInterval.value = defaultValue;
+  console.log(`使用默认查询间隔选项，设置默认值: ${defaultValue} for energy type: ${currentNowtype.value}`);
 }
 
 // 加载查询方式字典数据
@@ -463,12 +548,14 @@ function handleTabChange(key) {
     const oldNowtype = currentNowtype.value;
     currentNowtype.value = selectedDimension.nowtype;
 
-    // 如果能源类型发生变化，重新加载参数字典
+    // 如果能源类型发生变化，重新加载参数字典和查询间隔字典
     if (oldNowtype !== selectedDimension.nowtype) {
       console.log(`能源类型从 ${oldNowtype} 切换为 ${selectedDimension.nowtype}`);
       loadParameterDictData();
+      loadQueryIntervalDictData(); // 🔥 重新加载查询间隔字典
       // 清空图表数据
-      chartData.value = [];
+      unifiedChartData.value = { categories: [], series: [] };
+      separateChartsData.value = [];
     }
   }
 
@@ -476,13 +563,32 @@ function handleTabChange(key) {
   const savedNode = selectedNodesMap.value[key];
   if (savedNode) {
     currentOrgCode.value = savedNode.orgCode;
+    // 重新加载该标签页对应的仪表列表
+    if (savedNode.data) {
+      const orgCodes = Array.isArray(savedNode.data)
+        ? savedNode.data.map(item => item.orgCode)
+        : [savedNode.data.orgCode];
+      loadModulesByOrgCodes(orgCodes);
+    }
+  } else {
+    // 清空仪表列表
+    meters.value = [];
+    allModules.value = [];
+    selectedMeters.value = [];
   }
 
   // 等待树组件加载完成后，如果没有选中的节点，则触发树组件的默认选择
   nextTick(() => {
     const currentTreeRef = treeRefs.value[key];
     if (currentTreeRef && !savedNode) {
-      // 树组件会自动选择默认节点并触发select事件
+      // 手动触发树组件的默认选择
+      console.log('手动触发树组件的默认选择...');
+      // 等待一段时间确保树组件完全加载
+      setTimeout(() => {
+        if (currentTreeRef.autoExpandToTargetLevelNode) {
+          currentTreeRef.autoExpandToTargetLevelNode(2);
+        }
+      }, 100);
     }
   });
 }
@@ -492,30 +598,150 @@ function getCurrentTreeRef() {
   return treeRefs.value[activeTabKey.value];
 }
 
-// 左侧树选择后触发
+// 根据维度编码获取仪表列表
+async function loadModulesByOrgCodes(orgCodes: string[]) {
+  console.log('loadModulesByOrgCodes called with:', orgCodes);
+
+  if (!orgCodes || orgCodes.length === 0) {
+    console.log('No orgCodes provided, clearing meters');
+    meters.value = [];
+    allModules.value = [];
+    selectedMeters.value = [];
+    return;
+  }
+
+  try {
+    loading.value = true;
+
+    // 将多个维度编码合并为逗号分隔的字符串
+    const orgCodesStr = orgCodes.join(',');
+    console.log('API request params:', {
+      orgCodes: orgCodesStr,
+      nowtype: String(currentNowtype.value || 1),
+      includeChildren: true
+    });
+
+    try {
+      const response = await getModulesByOrgCode({
+        orgCodes: orgCodesStr,  // 使用orgCodes参数名（复数）
+        nowtype: String(currentNowtype.value || 1),  // 传递维度类型，确保是字符串
+        includeChildren: true
+      });
+
+      console.log('API response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Is array:', Array.isArray(response));
+      console.log('Response.success:', response?.success);
+      console.log('Response.result:', response?.result);
+
+      // 检查响应是否直接是数组（没有包装在success/result结构中）
+      if (Array.isArray(response)) {
+        allModules.value = response;
+        console.log('Successfully loaded modules (direct array):', response.length);
+        if (response.length === 0) {
+          console.warn(`⚠️ 维度类型 ${currentNowtype.value} 下的维度编码 ${orgCodesStr} 没有找到仪表数据`);
+          console.warn('可能的原因：1. 该维度下确实没有仪表 2. 维度编码不正确 3. 后端数据问题');
+        }
+      } else if (response && response.success && Array.isArray(response.result)) {
+        allModules.value = response.result;
+        console.log('Successfully loaded modules (wrapped):', response.result.length);
+      } else {
+        console.warn('获取仪表列表失败:', response?.message);
+        console.warn('Unexpected response structure:', response);
+        allModules.value = [];
+      }
+    } catch (error) {
+      console.error(`获取维度 ${orgCodesStr} 的仪表列表失败:`, error);
+      allModules.value = [];
+    }
+
+    // 转换为下拉框选项格式
+    meters.value = allModules.value.map(module => ({
+      label: module.moduleName,
+      value: module.moduleId
+    }));
+
+    // 默认选择所有仪表（如果有的话）
+    if (meters.value.length > 0) {
+      selectedMeters.value = meters.value.map(m => m.value);
+    } else {
+      selectedMeters.value = [];
+    }
+
+    console.log(`加载了 ${allModules.value.length} 个仪表，默认选中 ${selectedMeters.value.length} 个`);
+    console.log('仪表详情:', meters.value);
+
+    // 如果没有仪表数据，显示友好提示
+    if (allModules.value.length === 0) {
+      console.log('💡 提示：当前维度下暂无仪表数据，请尝试切换其他维度或联系管理员配置仪表');
+    } else {
+      // 🔥 自动触发查询 - 仪表加载完成后自动查询数据
+      console.log('🚀 仪表加载完成，自动触发查询...');
+      await nextTick(); // 确保DOM更新完成
+      handleQuery();
+    }
+
+  } catch (error) {
+    console.error('获取仪表列表失败:', error);
+    createMessage.error('获取仪表列表失败');
+    meters.value = [];
+    allModules.value = [];
+    selectedMeters.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 左侧树选择后触发 - 支持多选
 function onDepartTreeSelect(data) {
+  console.log('onDepartTreeSelect received:', data);
+  console.log('Current nowtype:', currentNowtype.value);
+  console.log('Current tab:', activeTabKey.value);
+
   if (Array.isArray(data) && data.length > 0) {
-    const orgCodestr = data.map(item => item.orgCode).join(',');
+    // 直接使用所有选中的节点，不过滤
+    // 因为树组件已经处理了父子关系，选中的都是有效节点
+    const orgCodes = data.map(item => item.orgCode).filter(code => code); // 过滤掉空值
+    const orgCodestr = orgCodes.join(',');
     currentOrgCode.value = orgCodestr;
-    
+
+    console.log('Selected nodes count:', data.length);
+    console.log('Selected orgCodes:', orgCodestr);
+    console.log('Selected nodes details:', data.map(item => ({
+      orgCode: item.orgCode,
+      departName: item.departName,
+      id: item.id
+    })));
+
     // 保存当前标签页选中的节点信息
     selectedNodesMap.value[activeTabKey.value] = {
       orgCode: orgCodestr,
       data: data
     };
-    
+
+    // 根据选中的维度获取仪表列表
+    console.log('Calling loadModulesByOrgCodes with:', orgCodes);
+    loadModulesByOrgCodes(orgCodes);
+
   } else if (data && data.orgCode) {
     // 处理单个对象的情况
     currentOrgCode.value = data.orgCode;
-    
+
     // 保存当前标签页选中的节点信息
     selectedNodesMap.value[activeTabKey.value] = {
       orgCode: data.orgCode,
       data: data
     };
-    
+
+    // 根据选中的维度获取仪表列表
+    loadModulesByOrgCodes([data.orgCode]);
+
   } else {
     console.log("没有选中任何项目");
+    // 清空仪表列表
+    meters.value = [];
+    allModules.value = [];
+    selectedMeters.value = [];
   }
 }
 
@@ -586,8 +812,7 @@ const getMeterLabel = (meterId: string): string => {
 
 // 根据仪表ID和参数获取对应的图表数据
 const getChartDataForMeterAndParam = (meterId: string, param: string | number): ChartData => {
-  const categories = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-                    '14:00', '16:00', '18:00', '20:00', '22:00'];
+  const categories = generateTimeCategories();
 
   // 基础颜色数组
   const colors = ['#1890ff', '#52c41a', '#faad14', '#f759ab', '#722ed1', '#13c2c2'];
@@ -946,59 +1171,99 @@ const getChartDataForMeterAndParam = (meterId: string, param: string | number): 
   }
 };
 
-// 获取统一显示的图表数据
-const getUnifiedChartData = (): ChartData => {
-  const categories = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-                    '14:00', '16:00', '18:00', '20:00', '22:00'];
+// 根据查询间隔生成时间分类
+const generateTimeCategories = (): string[] => {
+  // 获取查询间隔对应的分钟数
+  const getIntervalMinutes = (intervalValue: string): number => {
+    switch (intervalValue) {
+      case '1': return 15;  // 15分钟
+      case '2': return 30;  // 30分钟
+      case '3': return 60;  // 60分钟
+      case '4': return 120; // 120分钟
+      default: return 15;   // 默认15分钟
+    }
+  };
 
-  // 基础颜色数组
-  const colors = ['#1890ff', '#52c41a', '#faad14', '#f759ab', '#722ed1', '#13c2c2',
-                  '#eb2f96', '#fa8c16', '#a0d911', '#1890ff', '#722ed1', '#fa541c'];
+  const intervalMinutes = getIntervalMinutes(queryInterval.value);
+  const categories: string[] = [];
 
-  // 合并所有选中的仪表和参数的数据系列
-  const allSeries: ChartDataSeries[] = [];
-  let colorIndex = 0;
-
-  // 如果没有选中参数，返回空数据
-  if (selectedParams.value.length === 0) {
-    console.log('No parameters selected, returning empty chart data');
-    return {
-      categories,
-      series: []
-    };
+  // 从00:00开始，按间隔生成时间点，直到24:00
+  for (let minutes = 0; minutes < 24 * 60; minutes += intervalMinutes) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    categories.push(timeStr);
   }
 
-  selectedParams.value.forEach(param => {
-    selectedMeters.value.forEach(meterId => {
-      const meterLabel = getMeterLabel(meterId);
-      const paramLabel = getParamLabel(param);
+  console.log(`生成时间轴 (间隔${intervalMinutes}分钟):`, categories);
+  return categories;
+};
 
-      // 获取该仪表和参数的图表数据
-      const chartData = getChartDataForMeterAndParam(meterId, param);
+// 检查是否有图表数据
+const hasChartData = (): boolean => {
 
-      // 将每个数据系列添加到统一图表中，并添加仪表和参数标识
-      chartData.series.forEach(series => {
-        allSeries.push({
-          name: `${meterLabel}-${paramLabel}-${series.name}`,
-          data: series.data,
-          itemStyle: {
-            color: colors[colorIndex % colors.length]
-          }
-        });
-        colorIndex++;
-      });
-    });
-  });
+  // 统一显示模式：检查是否有API数据
+  if (displayMode.value === 'unified' || displayMode.value === '1') {
+    return unifiedChartData.value.categories.length > 0 && unifiedChartData.value.series.length > 0;
+  }
 
-  console.log('Generated unified chart data:', { categories, series: allSeries });
+  // 分开显示模式：检查是否有分开显示的数据
+  console.log('检查是否有分开显示的数据hhr:', separateChartsData.value.length);
+  return separateChartsData.value.length > 0;
+};
+
+// 获取统一显示的图表数据
+const getUnifiedChartData = (): ChartData => {
+  // 如果有API数据，优先使用API数据
+  if (unifiedChartData.value.categories.length > 0) {
+    return unifiedChartData.value;
+  }
+
+  // 如果没有API数据，返回空数据（不显示模拟数据）
   return {
-    categories,
-    series: allSeries
+    categories: [],
+    series: []
   };
 };
 
-// 处理查询按钮点击
+// 处理查询按钮点击 - 添加防抖
 const handleQuery = () => {
+  if (queryDebounceTimer) {
+    clearTimeout(queryDebounceTimer);
+  }
+
+  queryDebounceTimer = window.setTimeout(async () => {
+    await executeQuery();
+  }, 300); // 300ms防抖
+};
+
+// 验证查询参数
+const validateQueryParams = () => {
+  if (!selectedMeters.value || selectedMeters.value.length === 0) {
+    return { isValid: false, message: '请选择至少一个仪表' };
+  }
+
+  if (!selectedParams.value || selectedParams.value.length === 0) {
+    return { isValid: false, message: '请选择至少一个参数' };
+  }
+
+  if (!dateRange.value || dateRange.value.length !== 2) {
+    return { isValid: false, message: '请选择时间范围' };
+  }
+
+  if (!queryInterval.value) {
+    return { isValid: false, message: '请选择查询间隔' };
+  }
+
+  if (!displayMode.value) {
+    return { isValid: false, message: '请选择查询方式' };
+  }
+
+  return { isValid: true, message: '' };
+};
+
+// 执行实际查询
+const executeQuery = async () => {
   console.log('查询条件:', {
     dateRange: dateRange.value,
     selectedMeters: selectedMeters.value,
@@ -1008,7 +1273,237 @@ const handleQuery = () => {
     currentOrgCode: currentOrgCode.value,
     currentNowtype: currentNowtype.value
   });
+
+  // 验证查询条件
+  const validationResult = validateQueryParams();
+  if (!validationResult.isValid) {
+    createMessage.warning(validationResult.message);
+    return;
+  }
+
+  try {
+    loading.value = true;
+
+    // 构建请求参数
+    const requestData: RealTimeMonitorRequest = {
+      moduleIds: selectedMeters.value,
+      parameters: selectedParams.value.map(p => Number(p)),
+      startTime: dayjs(dateRange.value[0]).format('YYYY-MM-DD HH:mm:ss'),
+      endTime: dayjs(dateRange.value[1]).format('YYYY-MM-DD HH:mm:ss'),
+      interval: Number(queryInterval.value),
+      displayMode: Number(displayMode.value)
+    };
+
+    console.log('API请求参数:', requestData);
+
+    // 调用API获取数据
+    console.log('🚀 开始调用API...');
+    const response = await getRealTimeMonitorData(requestData);
+    console.log('📡 API原始响应:', response);
+    console.log('📡 响应类型:', typeof response);
+    console.log('📡 响应成功标志:', response?.success);
+
+    // 检查响应格式：可能是包装格式或直接数据格式
+    if (response && response.success) {
+      // 标准包装格式：{success: true, result: {...}}
+      console.log('✅ API响应数据(包装格式):', response.result);
+      updateChartDataFromAPI(response.result);
+      createMessage.success('数据查询成功');
+    } else if (response && response.series && Array.isArray(response.series)) {
+      // 统一显示格式：{displayMode: 'unified', series: [...]}
+      console.log('✅ API响应数据(统一显示格式):', response);
+      console.log('✅ 数据系列数量:', response.series.length);
+      console.log('✅ 显示模式:', response.displayMode);
+
+      if (response.series.length === 0) {
+        console.warn('⚠️ API返回成功但数据为空，可能原因：');
+        console.warn('1. 数据库中没有该能源类型的监控数据');
+        console.warn('2. 选择的时间范围内没有数据');
+        console.warn('3. 仪表配置或数据采集问题');
+        createMessage.warning('当前条件下暂无监控数据，请检查数据采集配置或选择其他时间范围。');
+      } else {
+        createMessage.success('数据查询成功');
+      }
+
+      updateChartDataFromAPI(response);
+    } else if (response && response.charts && Array.isArray(response.charts)) {
+      // 分开显示格式：{displayMode: 'separated', charts: [...]}
+      console.log('✅ API响应数据(分开显示格式):', response);
+      console.log('✅ 图表数量:', response.charts.length);
+      console.log('✅ 显示模式:', response.displayMode);
+
+      if (response.charts.length === 0) {
+        console.warn('⚠️ API返回成功但数据为空，可能原因：');
+        console.warn('1. 数据库中没有该能源类型的监控数据');
+        console.warn('2. 选择的时间范围内没有数据');
+        console.warn('3. 仪表配置或数据采集问题');
+        createMessage.warning('当前条件下暂无监控数据，请检查数据采集配置或选择其他时间范围。');
+      } else {
+        createMessage.success('数据查询成功');
+      }
+
+      updateChartDataFromAPI(response);
+    } else {
+      console.error('❌ API调用失败或数据格式错误');
+      console.error('❌ 响应消息:', response?.message);
+      console.error('❌ 完整响应:', response);
+      createMessage.error(response?.message || '数据查询失败');
+    }
+
+  } catch (error) {
+    console.error('查询数据失败:', error);
+    console.error('错误详情:', {
+      message: error?.message,
+      stack: error?.stack,
+      response: error?.response
+    });
+
+    // 根据错误类型提供更具体的错误信息
+    let errorMessage = '查询数据失败';
+    if (error?.response?.status === 404) {
+      errorMessage = '接口不存在，请检查后端服务';
+    } else if (error?.response?.status === 500) {
+      errorMessage = '服务器内部错误，请联系管理员';
+    } else if (error?.code === 'NETWORK_ERROR') {
+      errorMessage = '网络连接失败，请检查网络';
+    } else if (error?.message) {
+      errorMessage = `查询失败: ${error.message}`;
+    }
+
+    createMessage.error(errorMessage);
+  } finally {
+    loading.value = false;
+  }
 };
+
+// 处理API响应数据，更新图表
+const updateChartDataFromAPI = (apiData: any) => {
+  console.log('更新图表数据:', apiData);
+
+  if (!apiData) {
+    console.warn('API数据为空');
+    return;
+  }
+
+  // 保存原始API数据，用于显示模式切换
+  originalApiData.value = apiData;
+
+  // 同时处理两种显示模式的数据，让界面根据当前模式选择显示
+
+  // 处理统一显示数据
+  if (apiData.series && Array.isArray(apiData.series)) {
+      // 转换API数据格式为图表组件需要的格式
+      const categories = [];
+      const seriesData = [];
+
+      // 提取时间轴数据
+      if (apiData.series.length > 0 && apiData.series[0].data) {
+        categories.push(...apiData.series[0].data.map(item => item[0]));
+      }
+
+      // 转换系列数据
+      apiData.series.forEach((series, index) => {
+        const colors = ['#1890ff', '#52c41a', '#faad14', '#fa8c16', '#722ed1', '#13c2c2'];
+        seriesData.push({
+          name: series.name,
+          data: series.data.map(item => item[1]),
+          itemStyle: {
+            color: colors[index % colors.length]
+          }
+        });
+      });
+
+      // 更新统一图表数据
+      unifiedChartData.value = {
+        categories,
+        series: seriesData
+      };
+    }
+
+  // 处理分开显示数据
+  if (apiData.charts && Array.isArray(apiData.charts)) {
+      // 处理分开显示的数据
+      console.log('📊 分开显示原始数据:', apiData.charts);
+      apiData.charts.forEach((chart, index) => {
+        console.log(`📊 图表${index}:`, chart);
+        console.log(`📊 图表${index}的data属性:`, chart.data);
+        console.log(`📊 图表${index}的series属性:`, chart.series);
+      });
+
+      // 分开显示：为每个仪表的每个系列创建独立图表
+      const separateCharts = [];
+      const colors = ['#1890ff', '#52c41a', '#faad14', '#fa8c16', '#722ed1', '#13c2c2'];
+      let colorIndex = 0;
+
+      apiData.charts.forEach((chart, chartIndex) => {
+        console.log(`📊 处理图表${chartIndex}:`, chart);
+
+        // 检查数据结构：分开显示模式使用 series 字段
+        if (!chart.series || !Array.isArray(chart.series) || chart.series.length === 0) {
+          console.warn(`⚠️ 图表${chartIndex}的series属性无效:`, chart.series);
+          return;
+        }
+
+        // 为每个系列创建独立的图表
+        chart.series.forEach((series, seriesIndex) => {
+          const categories = series.data ? series.data.map(item => item[0]) : [];
+          const data = series.data ? series.data.map(item => item[1]) : [];
+
+          separateCharts.push({
+            moduleId: chart.moduleId,
+            moduleName: series.name || chart.moduleName || chart.title,
+            parameter: chart.parameter,
+            categories,
+            series: [{
+              name: series.name || `${chart.parameter}-${seriesIndex}`,
+              data,
+              itemStyle: {
+                color: colors[colorIndex % colors.length]
+              }
+            }]
+          });
+
+          colorIndex++;
+          console.log(`📊 创建独立图表: ${series.name}`, {
+            categories: categories.length,
+            dataPoints: data.length
+          });
+        });
+      });
+
+      separateChartsData.value = separateCharts;
+      console.log('📊 分开显示图表总数:', separateCharts.length);
+    }
+};
+
+// 统一显示的图表数据
+const unifiedChartData = ref<ChartData>({
+  categories: [],
+  series: []
+});
+
+// 分开显示的图表数据
+const separateChartsData = ref<any[]>([]);
+
+// 存储原始API数据，用于显示模式切换
+const originalApiData = ref<any>(null);
+
+// 注释掉显示模式切换的自动触发逻辑，保持与查询间隔一致的行为
+// 用户需要手动点击"查询"按钮来重新获取数据
+// const handleDisplayModeChange = (newMode: string, oldMode: string) => {
+//   console.log('显示模式切换:', oldMode, '->', newMode);
+//
+//   // 只有在有原始API数据且模式确实发生变化时才重新组织数据
+//   if (originalApiData.value && newMode !== oldMode && oldMode) {
+//     console.log('重新组织现有数据以适应新的显示模式');
+//     updateChartDataFromAPI(originalApiData.value);
+//   }
+// };
+
+// // 监听显示模式变化
+// watch(displayMode, (newVal, oldVal) => {
+//   handleDisplayModeChange(newVal, oldVal);
+// });
 
 // 更新数据的方法
 const updateData = () => {
@@ -1036,6 +1531,10 @@ onMounted(() => {
     const currentTreeRef = getCurrentTreeRef();
     if (currentTreeRef) {
       // 树组件会自动选择默认节点并触发select事件
+      // 等待一下让树组件完全初始化，然后自动执行查询
+      setTimeout(() => {
+        handleQuery();
+      }, 500);
     }
   });
 

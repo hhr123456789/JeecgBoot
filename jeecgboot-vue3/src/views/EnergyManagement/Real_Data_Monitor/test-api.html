@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API 测试页面</h1>
+    <div>
+        <h2>测试 getModulesByOrgCode 接口</h2>
+        <p>请求参数：</p>
+        <pre id="request-params"></pre>
+        <button onclick="testAPI()">测试API</button>
+        <p>响应结果：</p>
+        <pre id="response-result"></pre>
+    </div>
+
+    <script>
+        function testAPI() {
+            const params = {
+                orgCodes: 'test-org-code',
+                nowtype: '1',
+                includeChildren: true
+            };
+            
+            document.getElementById('request-params').textContent = JSON.stringify(params, null, 2);
+            
+            // 构建查询字符串
+            const queryString = new URLSearchParams(params).toString();
+            const url = `/jeecg-boot/energy/monitor/getModulesByOrgCode?${queryString}`;
+            
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // 这里需要添加认证头，根据实际情况调整
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('response-result').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('response-result').textContent = 'Error: ' + error.message;
+            });
+        }
+    </script>
+</body>
+</html>

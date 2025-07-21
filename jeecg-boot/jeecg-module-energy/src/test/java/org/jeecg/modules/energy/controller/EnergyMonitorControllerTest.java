@@ -2,6 +2,10 @@ package org.jeecg.modules.energy.controller;
 
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.modules.energy.service.IEnergyMonitorService;
+import org.jeecg.modules.energy.vo.monitor.ModuleVO;
+import org.jeecg.modules.energy.vo.monitor.RealTimeDataRequest;
+import org.jeecg.modules.energy.vo.monitor.UnifiedDisplayResult;
+import org.jeecg.modules.energy.vo.monitor.SeparatedDisplayResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -12,8 +16,7 @@ import java.math.BigDecimal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
@@ -146,4 +149,122 @@ public class EnergyMonitorControllerTest {
         assertEquals(new BigDecimal("2.345"), resultMap.get("energy_winkvalue"));
         assertEquals(new BigDecimal("1256.78"), resultMap.get("energy_accumulatevalue"));
     }
-} 
+
+    /**
+     * 测试根据维度获取仪表列表接口
+     */
+    @Test
+    public void testGetModulesByOrgCode() {
+        // 准备测试数据
+        String orgCodes = "A02A02,A02A03";
+        Integer nowtype = 1;
+
+        // 模拟服务层返回数据
+        List<ModuleVO> serviceResult = new ArrayList<>();
+        ModuleVO moduleVO = new ModuleVO();
+        moduleVO.setModuleId("yj0001_1202");
+        moduleVO.setModuleName("1号注塑机");
+        moduleVO.setOrgCode("A02A02");
+        moduleVO.setDepartName("1号注塑机");
+        moduleVO.setEnergyType(1);
+        moduleVO.setIsAction("Y");
+        serviceResult.add(moduleVO);
+
+        // 配置Mock行为
+        when(energyMonitorService.getModulesByOrgCode(anyString(), anyInt())).thenReturn(serviceResult);
+
+        // 执行测试
+        Result<List<ModuleVO>> result = energyMonitorController.getModulesByOrgCode(orgCodes, nowtype);
+
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(200, result.getCode());
+        assertEquals("操作成功", result.getMessage());
+
+        List<ModuleVO> resultData = result.getResult();
+        assertNotNull(resultData);
+        assertEquals(1, resultData.size());
+
+        ModuleVO resultModule = resultData.get(0);
+        assertEquals("yj0001_1202", resultModule.getModuleId());
+        assertEquals("1号注塑机", resultModule.getModuleName());
+        assertEquals("A02A02A01A01", resultModule.getOrgCode());
+        assertEquals("1号注塑机", resultModule.getDepartName());
+        assertEquals(Integer.valueOf(1), resultModule.getEnergyType());
+        assertEquals("Y", resultModule.getIsAction());
+    }
+
+    /**
+     * 测试查询实时数据接口 - 统一显示模式
+     */
+    @Test
+    public void testGetRealTimeMonitorDataUnified() {
+        // 准备测试数据
+        RealTimeDataRequest request = new RealTimeDataRequest();
+        request.setModuleIds(Arrays.asList("yj0001_1202", "yj0001_12"));
+        request.setParameters(Arrays.asList(1, 4, 7)); // A相电流, A相电压, 总有功功率
+        request.setStartTime("2025-07-15 08:00:00");
+        request.setEndTime("2025-07-15 16:00:00");
+        request.setInterval(1); // 15分钟
+        request.setDisplayMode(1); // 统一显示
+
+        // 模拟服务层返回数据
+        UnifiedDisplayResult serviceResult = new UnifiedDisplayResult();
+        serviceResult.setDisplayMode("unified");
+
+        // 配置Mock行为
+        when(energyMonitorService.getRealTimeMonitorData(any(RealTimeDataRequest.class))).thenReturn(serviceResult);
+
+        // 执行测试
+        Result<Object> result = energyMonitorController.getRealTimeMonitorData(request);
+
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(200, result.getCode());
+        assertEquals("操作成功", result.getMessage());
+
+        Object resultData = result.getResult();
+        assertNotNull(resultData);
+        assertTrue(resultData instanceof UnifiedDisplayResult);
+
+        UnifiedDisplayResult unifiedResult = (UnifiedDisplayResult) resultData;
+        assertEquals("unified", unifiedResult.getDisplayMode());
+    }
+
+    /**
+     * 测试查询实时数据接口 - 分开显示模式
+     */
+    @Test
+    public void testGetRealTimeMonitorDataSeparated() {
+        // 准备测试数据
+        RealTimeDataRequest request = new RealTimeDataRequest();
+        request.setModuleIds(Arrays.asList("yj0001_1202", "yj0001_12"));
+        request.setParameters(Arrays.asList(1, 2, 3)); // A相电流, B相电流, C相电流
+        request.setStartTime("2025-07-15 08:00:00");
+        request.setEndTime("2025-07-15 16:00:00");
+        request.setInterval(2); // 30分钟
+        request.setDisplayMode(2); // 分开显示
+
+        // 模拟服务层返回数据
+        SeparatedDisplayResult serviceResult = new SeparatedDisplayResult();
+        serviceResult.setDisplayMode("separated");
+
+        // 配置Mock行为
+        when(energyMonitorService.getRealTimeMonitorData(any(RealTimeDataRequest.class))).thenReturn(serviceResult);
+
+        // 执行测试
+        Result<Object> result = energyMonitorController.getRealTimeMonitorData(request);
+
+        // 验证结果
+        assertNotNull(result);
+        assertEquals(200, result.getCode());
+        assertEquals("操作成功", result.getMessage());
+
+        Object resultData = result.getResult();
+        assertNotNull(resultData);
+        assertTrue(resultData instanceof SeparatedDisplayResult);
+
+        SeparatedDisplayResult separatedResult = (SeparatedDisplayResult) resultData;
+        assertEquals("separated", separatedResult.getDisplayMode());
+    }
+}

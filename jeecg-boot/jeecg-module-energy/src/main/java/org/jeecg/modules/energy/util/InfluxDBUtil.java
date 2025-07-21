@@ -220,25 +220,59 @@ public class InfluxDBUtil {
      * 解析QueryResult为List<Map<String, Object>>
      */
     public static List<Map<String, Object>> parseQueryResult(QueryResult queryResult) {
+        logger.info("🔍 开始解析InfluxDB查询结果");
         List<Map<String, Object>> resultList = new java.util.ArrayList<>();
         if (queryResult == null || queryResult.getResults() == null) {
+            logger.warn("❌ queryResult 或 results 为 null");
             return resultList;
         }
-        for (QueryResult.Result result : queryResult.getResults()) {
-            if (result == null || result.getSeries() == null) continue;
-            for (QueryResult.Series series : result.getSeries()) {
-                List<String> columns = series.getColumns();
-                List<List<Object>> values = series.getValues();
-                if (values == null) continue;
-                for (List<Object> valueRow : values) {
-                    Map<String, Object> map = new java.util.HashMap<>();
-                    for (int i = 0; i < columns.size(); i++) {
-                        map.put(columns.get(i), valueRow.get(i));
+
+        logger.info("🔍 查询结果数量: {}", queryResult.getResults().size());
+
+        try {
+            for (QueryResult.Result result : queryResult.getResults()) {
+                if (result == null || result.getSeries() == null) {
+                    logger.warn("⚠️ result 或 series 为 null，跳过");
+                    continue;
+                }
+
+                logger.info("🔍 series 数量: {}", result.getSeries().size());
+
+                for (QueryResult.Series series : result.getSeries()) {
+                    List<String> columns = series.getColumns();
+                    List<List<Object>> values = series.getValues();
+                    Map<String, String> tags = series.getTags(); // 获取tag信息
+
+                    logger.info("🔍 columns: {}", columns);
+                    logger.info("🔍 tags: {}", tags);
+                    logger.info("🔍 values 数量: {}", (values != null ? values.size() : 0));
+
+                    if (values == null) continue;
+                    for (List<Object> valueRow : values) {
+                        Map<String, Object> map = new java.util.HashMap<>();
+
+                        // 添加列数据
+                        for (int i = 0; i < columns.size(); i++) {
+                            if (i < valueRow.size()) {
+                                map.put(columns.get(i), valueRow.get(i));
+                            }
+                        }
+
+                        // 添加tag数据 (包括tagname)
+                        if (tags != null) {
+                            map.putAll(tags);
+                        }
+
+                        resultList.add(map);
                     }
-                    resultList.add(map);
                 }
             }
+        } catch (Exception e) {
+            logger.error("❌ 解析过程中出现异常: {}", e.getMessage(), e);
+            throw e;
         }
+
+        logger.info("✅ 解析完成，返回数据条数: {}", resultList.size());
         return resultList;
     }
 
