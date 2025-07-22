@@ -180,10 +180,10 @@ public class InfluxDBQueryServiceImpl implements IInfluxDBQueryService {
      */
     private String getGasParameterField(Integer param) {
         switch (param) {
-            case 1: return "PV";   // 瞬时流量
-            case 2: return "SV";   // 累计值
-            case 3: return "TEMP"; // 温度
-            case 4: return "PRE";  // 压力
+            case 1: return "TEMP"; // 温度
+            case 2: return "PRE";  // 压力
+            case 3: return "PV";   // 瞬时流量
+            case 4: return "SV";   // 累计量
             default:
                 log.warn("未知的天然气参数: {}", param);
                 return null;
@@ -195,10 +195,10 @@ public class InfluxDBQueryServiceImpl implements IInfluxDBQueryService {
      */
     private String getAirParameterField(Integer param) {
         switch (param) {
-            case 1: return "PV";   // 瞬时流量
-            case 2: return "SV";   // 累计值
-            case 3: return "TEMP"; // 温度
-            case 4: return "PRE";  // 压力
+            case 1: return "TEMP"; // 温度
+            case 2: return "PRE";  // 压力
+            case 3: return "PV";   // 瞬时流量
+            case 4: return "SV";   // 累计量
             default:
                 log.warn("未知的压缩空气参数: {}", param);
                 return null;
@@ -210,10 +210,10 @@ public class InfluxDBQueryServiceImpl implements IInfluxDBQueryService {
      */
     private String getWaterParameterField(Integer param) {
         switch (param) {
-            case 1: return "PV";   // 瞬时流量
-            case 2: return "SV";   // 累计值
-            case 3: return "TEMP"; // 温度
-            case 4: return "PRE";  // 压力
+            case 1: return "TEMP"; // 温度
+            case 2: return "PRE";  // 压力
+            case 3: return "PV";   // 瞬时流量
+            case 4: return "SV";   // 累计量
             default:
                 log.warn("未知的用水参数: {}", param);
                 return null;

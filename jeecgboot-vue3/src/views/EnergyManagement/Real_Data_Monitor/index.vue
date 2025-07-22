@@ -209,7 +209,7 @@ import MultiSelectDimensionTree from './components/MultiSelectDimensionTree.vue'
 import { defHttp } from '/@/utils/http/axios';
 import { useMessage } from '/@/hooks/web/useMessage';
 import { initDictOptions } from '/@/utils/dict/index';
-import { getModulesByOrgCode, getRealTimeMonitorData, type ModuleInfo, type RealTimeMonitorRequest } from './api';
+import { getModulesByOrgCode, getRealTimeMonitorData, getRealTimeData, type ModuleInfo, type RealTimeMonitorRequest } from './api';
 import dayjs from 'dayjs';
 
 const { createMessage } = useMessage();
@@ -375,11 +375,11 @@ function getParameterDictCode() {
     case 2: // 按线路（用电）
       return 'parameter';
     case 3: // 天然气
-      return 'parameter_gas';
+      return 'parameter_energy';
     case 4: // 压缩空气
-      return 'parameter_air';
+      return 'parameter_energy';
     case 5: // 企业用水
-      return 'parameter_water';
+      return 'parameter_energy';
     default:
       return 'parameter'; // 默认为电能参数
   }
@@ -415,57 +415,30 @@ async function loadParameterDictData() {
 
 // 获取默认参数选项（根据能源类型）
 function getDefaultParameterOptions() {
-  switch (currentNowtype.value) {
-    case 1: // 按部门（用电）
-    case 2: // 按线路（用电）
-      parameterOptions.value = [
-        { text: 'A相电流', value: '1' },
-        { text: 'B相电流', value: '2' },
-        { text: 'C相电流', value: '3' },
-        { text: 'A相电压', value: '4' },
-        { text: 'B相电压', value: '5' },
-        { text: 'C相电压', value: '6' },
-        { text: '总功率因数', value: '7' },
-        { text: 'A相功率因数', value: '8' },
-        { text: 'B相功率因数', value: '9' },
-        { text: 'C相功率因数', value: '10' }
-      ];
-      break;
-    case 3: // 天然气
-      parameterOptions.value = [
-        { text: '瞬时流量', value: '1' },
-        { text: '累计流量', value: '2' },
-        { text: '温度', value: '3' },
-        { text: '压力', value: '4' },
-        { text: '密度', value: '5' }
-      ];
-      break;
-    case 4: // 压缩空气
-      parameterOptions.value = [
-        { text: '瞬时流量', value: '1' },
-        { text: '累计流量', value: '2' },
-        { text: '压力', value: '3' },
-        { text: '温度', value: '4' }
-      ];
-      break;
-    case 5: // 企业用水
-      parameterOptions.value = [
-        { text: '瞬时流量', value: '1' },
-        { text: '累计流量', value: '2' },
-        { text: '压力', value: '3' },
-        { text: '温度', value: '4' }
-      ];
-      break;
-    default:
-      parameterOptions.value = [
-        { text: 'A相电流', value: '1' },
-        { text: 'B相电流', value: '2' },
-        { text: 'C相电流', value: '3' }
-      ];
-  }
+  const dictCode = getParameterDictCode();
+  const energyTypeName = getEnergyTypeName(currentNowtype.value);
 
-  // 默认选中第一个参数
-  selectedParams.value = parameterOptions.value.length > 0 ? [parameterOptions.value[0].value] : [];
+  console.warn(`⚠️ 字典数据加载失败，请检查字典配置: ${dictCode}`);
+  console.warn(`⚠️ 当前能源类型: ${energyTypeName} (nowtype=${currentNowtype.value})`);
+
+  // 清空参数选项，避免使用可能不准确的写死数据
+  parameterOptions.value = [];
+  selectedParams.value = [];
+
+  // 提示用户检查字典配置
+  createMessage.error(`参数字典 "${dictCode}" 加载失败，请联系管理员检查字典配置`);
+}
+
+// 获取能源类型名称
+function getEnergyTypeName(nowtype: number): string {
+  switch (nowtype) {
+    case 1: return '按部门（用电）';
+    case 2: return '按线路（用电）';
+    case 3: return '天然气';
+    case 4: return '压缩空气';
+    case 5: return '企业用水';
+    default: return '未知类型';
+  }
 }
 
 // 加载查询间隔字典数据
@@ -681,6 +654,9 @@ async function loadModulesByOrgCodes(orgCodes: string[]) {
       handleQuery();
     }
 
+    // 🔄 加载实时数据
+    loadRealTimeData();
+
   } catch (error) {
     console.error('获取仪表列表失败:', error);
     createMessage.error('获取仪表列表失败');
@@ -763,23 +739,88 @@ interface RealTimeData {
   temperatureC: number;
 }
 
-// 实时数据
+// 实时数据 - 初始化为空，从API获取
 const realTimeData = ref<RealTimeData>({
   // 电能数据
-  activePower: 55.54,
-  totalActivePower: 80.92,
-  
+  activePower: 0,
+  totalActivePower: 0,
+
   // 电流和温度数据
-  powerFactor: 0.95,
-  targetPowerFactor: 0.98,
-  frequency: 80.92,
-  currentA: 53.26,
-  currentB: 61.49,
-  currentC: 57.48,
-  temperatureA: 25.81,
-  temperatureB: 11.70,
-  temperatureC: 40.80
+  powerFactor: 0,
+  targetPowerFactor: 0,
+  frequency: 0,
+  currentA: 0,
+  currentB: 0,
+  currentC: 0,
+  temperatureA: 0,
+  temperatureB: 0,
+  temperatureC: 0
 });
+
+// 加载实时数据
+async function loadRealTimeData() {
+  if (!currentOrgCode.value || !currentNowtype.value) {
+    console.log('缺少必要参数，跳过实时数据加载');
+    return;
+  }
+
+  try {
+    console.log('🔄 开始加载实时数据...', {
+      orgCode: currentOrgCode.value,
+      nowtype: currentNowtype.value
+    });
+
+    const response = await getRealTimeData({
+      orgCode: currentOrgCode.value,
+      nowtype: currentNowtype.value
+    });
+
+    console.log('📊 实时数据API响应:', response);
+
+    if (response && response.success && response.result) {
+      const data = response.result;
+
+      // 根据能源类型处理不同的数据结构
+      if (currentNowtype.value === 1 || currentNowtype.value === 2) {
+        // 电力数据
+        realTimeData.value = {
+          activePower: data.pp || 0,
+          totalActivePower: data.KWH || 0,
+          powerFactor: data.PFS || 0,
+          targetPowerFactor: 0.98, // 目标功率因数通常是固定值
+          frequency: data.HZ || 0,
+          currentA: data.IA || 0,
+          currentB: data.IB || 0,
+          currentC: data.IC || 0,
+          temperatureA: data.temperatureA || 0,
+          temperatureB: data.temperatureB || 0,
+          temperatureC: data.temperatureC || 0
+        };
+      } else {
+        // 其他能源类型的数据处理
+        realTimeData.value = {
+          activePower: data.instantFlow || 0,
+          totalActivePower: data.totalFlow || 0,
+          powerFactor: 0,
+          targetPowerFactor: 0,
+          frequency: 0,
+          currentA: data.pressure || 0,
+          currentB: data.temperature || 0,
+          currentC: 0,
+          temperatureA: data.temperature || 0,
+          temperatureB: 0,
+          temperatureC: 0
+        };
+      }
+
+      console.log('✅ 实时数据更新成功:', realTimeData.value);
+    } else {
+      console.warn('⚠️ 实时数据API返回格式异常:', response);
+    }
+  } catch (error) {
+    console.error('❌ 加载实时数据失败:', error);
+  }
+}
 
 // 图表数据接口定义
 interface ChartDataSeries {
@@ -1208,7 +1249,7 @@ const hasChartData = (): boolean => {
   }
 
   // 分开显示模式：检查是否有分开显示的数据
-  console.log('检查是否有分开显示的数据hhr:', separateChartsData.value.length);
+  console.log('检查是否有分开显示的数据:', separateChartsData.value.length);
   return separateChartsData.value.length > 0;
 };
 
@@ -1285,9 +1326,24 @@ const executeQuery = async () => {
     loading.value = true;
 
     // 构建请求参数
+    const parameters = selectedParams.value.map(p => {
+      const numParam = Number(p);
+      if (isNaN(numParam)) {
+        console.warn(`⚠️ 参数值 "${p}" 无法转换为数字，请检查字典配置`);
+        return 0; // 使用0作为默认值
+      }
+      return numParam;
+    });
+
+    console.log('🔍 参数转换详情:', {
+      原始参数: selectedParams.value,
+      转换后参数: parameters,
+      参数选项: parameterOptions.value
+    });
+
     const requestData: RealTimeMonitorRequest = {
       moduleIds: selectedMeters.value,
-      parameters: selectedParams.value.map(p => Number(p)),
+      parameters: parameters,
       startTime: dayjs(dateRange.value[0]).format('YYYY-MM-DD HH:mm:ss'),
       endTime: dayjs(dateRange.value[1]).format('YYYY-MM-DD HH:mm:ss'),
       interval: Number(queryInterval.value),

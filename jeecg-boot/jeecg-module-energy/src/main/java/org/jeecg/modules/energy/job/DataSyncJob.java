@@ -74,9 +74,9 @@ public class DataSyncJob {
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
     
     /**
-     * 每5分钟同步一次实时数据
+     * 每5分钟同步一次实时数据 - 已禁用，使用InfluxDBSyncJob替代
      */
-    @Scheduled(cron = "0 */5 * * * ?")
+    // @Scheduled(cron = "0 */5 * * * ?")
     public void syncRealTimeData() {
         log.info("开始同步实时数据...");
         try {

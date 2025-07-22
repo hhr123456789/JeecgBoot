@@ -97,9 +97,12 @@
       }
     }
 
-    // 从根节点开始查找
+    // 从所有根节点开始查找
     if (treeData.value.length > 0) {
-      findTargetLevelNodes(treeData.value[0], 0, []);
+      // 遍历所有根节点，查找目标级别的节点
+      treeData.value.forEach(rootNode => {
+        findTargetLevelNodes(rootNode, 0, []);
+      });
     }
 
     // 如果找到了目标级别节点，展开并选中
@@ -112,6 +115,7 @@
       expandedKeys.value = Array.from(allExpandKeys);
 
       // 根据维度类型决定选择多少个节点
+      // 默认只选择第一个第2级节点，用户可以手动多选其他节点
       let selectCount = 1; // 默认选择1个节点
 
       // 获取要选中的节点

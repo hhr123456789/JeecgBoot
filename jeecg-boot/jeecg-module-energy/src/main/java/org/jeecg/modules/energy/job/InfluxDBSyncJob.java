@@ -26,6 +26,9 @@ import java.util.*;
 @Slf4j
 @Component
 public class InfluxDBSyncJob {
+
+    // 任务执行状态标志，防止重叠执行
+    private volatile boolean isRunning = false;
     
     @Autowired
     private IInfluxDBService influxDBService;
@@ -65,7 +68,15 @@ public class InfluxDBSyncJob {
      */
     @Scheduled(cron = "0 */5 * * * ?")
     public void syncRealTimeData() {
+        // 检查是否已有任务在执行
+        if (isRunning) {
+            log.warn("上一次同步任务尚未完成，跳过本次执行");
+            return;
+        }
+
+        isRunning = true;
         log.info("开始同步实时数据和统计数据...");
+        long startTime = System.currentTimeMillis();
         try {
             // 1. 同步实时数据
             syncRealTimeDataFromInfluxDB();
@@ -73,9 +84,12 @@ public class InfluxDBSyncJob {
             // 2. 实时更新统计表
             updateStatisticsRealTime();
 
-            log.info("实时数据和统计数据同步完成");
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("实时数据和统计数据同步完成，耗时: {}ms", duration);
         } catch (Exception e) {
             log.error("同步实时数据和统计数据失败", e);
+        } finally {
+            isRunning = false;
         }
     }
 
@@ -111,11 +125,12 @@ public class InfluxDBSyncJob {
 
             log.info("成功连接到数据库: {}，活跃模块数: {}", currentMonthDB, moduleMap.size());
 
-            // 构建查询命令 - 查询最近5分钟的数据
+            // 构建查询命令 - 查询最近5分钟的数据（匹配定时任务频率）
             String command = String.format("SELECT * FROM %s WHERE time > now() - 5m",
                     influxDBConfig.getMeasurement());
 
-            log.info("执行查询: {}", command);
+            // 减少日志输出
+            // log.info("执行查询: {}", command);
 
             QueryResult queryResult = influxDBService.queryInDatabase(command, currentMonthDB);
 
@@ -177,7 +192,8 @@ public class InfluxDBSyncJob {
                     Map<String, Object> pointValues = moduleLatestData.get(moduleId);
                     pointValues.put(pointName, value);
 
-                    log.debug("收集数据点: 模块ID={}, 点位={}, 值={}, 时间={}", moduleId, pointName, value, dataTime);
+                    // 减少日志输出，只在需要时记录
+                    // log.debug("收集数据点: 模块ID={}, 点位={}, 值={}, 时间={}", moduleId, pointName, value, dataTime);
                 }
             }
 
@@ -301,7 +317,8 @@ public class InfluxDBSyncJob {
                             daycountMapper.insert(dayRecord);
                         }
 
-                        log.debug("更新日统计: moduleId={}, consumption={}", moduleId, dailyConsumption);
+                        // 减少日志输出
+                        // log.debug("更新日统计: moduleId={}, consumption={}", moduleId, dailyConsumption);
                     }
                 } catch (Exception e) {
                     log.error("更新模块 {} 的日统计失败", module.getModuleId(), e);
@@ -377,7 +394,8 @@ public class InfluxDBSyncJob {
                             monthcountMapper.insert(monthRecord);
                         }
 
-                        log.debug("更新月统计: moduleId={}, consumption={}", moduleId, monthlyConsumption);
+                        // 减少日志输出
+                        // log.debug("更新月统计: moduleId={}, consumption={}", moduleId, monthlyConsumption);
                     }
                 } catch (Exception e) {
                     log.error("更新模块 {} 的月统计失败", module.getModuleId(), e);
@@ -454,7 +472,8 @@ public class InfluxDBSyncJob {
                             yearcountMapper.insert(yearRecord);
                         }
 
-                        log.debug("更新年统计: moduleId={}, consumption={}", moduleId, yearlyConsumption);
+                        // 减少日志输出
+                        // log.debug("更新年统计: moduleId={}, consumption={}", moduleId, yearlyConsumption);
                     }
                 } catch (Exception e) {
                     log.error("更新模块 {} 的年统计失败", module.getModuleId(), e);

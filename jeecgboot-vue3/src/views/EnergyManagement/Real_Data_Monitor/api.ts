@@ -5,6 +5,8 @@ enum Api {
   getModulesByOrgCode = '/energy/monitor/getModulesByOrgCode',
   // 实时数据查询
   getRealTimeMonitorData = '/energy/monitor/getRealTimeMonitorData',
+  // 获取实时监控数据
+  getRealTimeData = '/energy/monitor/getRealTimeData',
 }
 
 /**
@@ -21,7 +23,7 @@ export const getModulesByOrgCode = (params: {
 
 /**
  * 查询实时监控数据
- * @param data 
+ * @param data
  */
 export const getRealTimeMonitorData = (data: {
   moduleIds: string[];
@@ -32,6 +34,17 @@ export const getRealTimeMonitorData = (data: {
   displayMode: number;
 }) => {
   return defHttp.post({ url: Api.getRealTimeMonitorData, data });
+};
+
+/**
+ * 获取实时监控数据（右侧实时数据面板）
+ * @param params
+ */
+export const getRealTimeData = (params: {
+  orgCode: string;
+  nowtype: number;
+}) => {
+  return defHttp.get({ url: Api.getRealTimeData, params });
 };
 
 /**
