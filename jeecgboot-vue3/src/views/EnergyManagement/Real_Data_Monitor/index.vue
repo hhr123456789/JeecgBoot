@@ -111,16 +111,23 @@
             </a-radio-group>
           </div>
 
-          <!-- 查询按钮 -->
-          <a-button type="primary" class="custom-button" @click="handleQuery">查询</a-button>
+          <!-- 查询和导出按钮 -->
+          <div class="flex gap-2">
+            <a-button type="primary" class="custom-button" @click="handleQuery">查询</a-button>
+            <a-button type="default" class="custom-button" @click="handleExportExcel" :loading="exportLoading">
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              导出数据
+            </a-button>
+          </div>
         </div>
       </div>
 
       <!-- 统一显示模式 - 所有数据在一个图表中显示 -->
       <div v-if="displayMode === 'unified' || displayMode === '1'" class="bg-white rounded p-3 mb-4">
-        <div class="flex justify-between items-center mb-3">
+        <div class="mb-3">
           <div class="text-sm">所有数据统一显示</div>
-          <a-button type="primary" size="small">导出数据</a-button>
         </div>
 
         <!-- 检查是否有数据 -->
@@ -130,6 +137,7 @@
             chartId="unified-chart"
             :activeIndex="activeIndex"
             :chartType="chartType"
+            :enableMultiYAxis="true"
             @mouseOnIndex="handleMouseOnIndex"
             @mouseOut="handleMouseOut"
           />
@@ -160,9 +168,8 @@
         <!-- 如果有API数据，使用API数据 -->
         <template v-if="hasChartData()">
           <div v-for="(chartData, index) in separateChartsData" :key="`api-chart-${index}`" class="bg-white rounded p-3 mb-4">
-            <div class="flex justify-between items-center mb-3">
+            <div class="mb-3">
               <div class="text-sm">{{ chartData.moduleName }} - {{ chartData.parameter }}</div>
-              <a-button type="primary" size="small">导出数据</a-button>
             </div>
             <MonitorChart
               :chartData="chartData"
@@ -209,8 +216,9 @@ import MultiSelectDimensionTree from './components/MultiSelectDimensionTree.vue'
 import { defHttp } from '/@/utils/http/axios';
 import { useMessage } from '/@/hooks/web/useMessage';
 import { initDictOptions } from '/@/utils/dict/index';
-import { getModulesByOrgCode, getRealTimeMonitorData, getRealTimeData, type ModuleInfo, type RealTimeMonitorRequest } from './api';
+import { getModulesByOrgCode, getRealTimeMonitorData, getRealTimeData, exportRealTimeData, type ModuleInfo, type RealTimeMonitorRequest } from './api';
 import dayjs from 'dayjs';
+import { DownloadOutlined } from '@ant-design/icons-vue';
 
 const { createMessage } = useMessage();
 
@@ -220,6 +228,9 @@ const activeIndex = ref<number>(-1);
 // 防抖标志
 let debounceTimer: number | null = null;
 let queryDebounceTimer: number | null = null;
+
+// 导出状态
+const exportLoading = ref(false);
 
 // 处理鼠标在图表上的移动 - 添加防抖
 const handleMouseOnIndex = (index: number) => {
@@ -308,6 +319,273 @@ const selectedMeterLabels = computed(() => {
     return meter ? meter.label : '';
   });
 });
+
+// 从系列名称推断参数类型
+const getParameterTypeFromName = (seriesName: string): string => {
+  const name = seriesName.toLowerCase();
+  console.log('hht='+name);
+  // 优先匹配更具体的关键词
+  if (name.includes('有功电量') || name.includes('无功电量') || name.includes('电量')) {
+    return 'powerCount';
+  } else if (name.includes('有功功率') || name.includes('无功功率') || name.includes('功率') ) {
+    return 'power';
+  } else if (name.includes('功率因数') || name.includes('factor')) {
+    return 'powerFactor';
+  } else if (name.includes('频率') || name.includes('frequency')) {
+    return 'frequency';
+  } else if (name.includes('电压') || name.includes('voltage')) {
+    return 'voltage';
+  } else if (name.includes('电流') || name.includes('current')) {
+    return 'current';
+  } else if (name.includes('瞬时流量') || name.includes('instant')) {
+    return 'instantFlow';
+  } else if (name.includes('累计流量') || name.includes('total')) {
+    return 'totalFlow';
+  } else if (name.includes('温度') || name.includes('temperature')) {
+    return 'temperature';
+  } else if (name.includes('压力') || name.includes('pressure')) {
+    return 'pressure';
+  } else if (name.includes('密度') || name.includes('density')) {
+    return 'density';
+  }
+  
+  return 'current'; // 默认类型
+};
+
+// 获取参数类型对应的颜色
+const getParamTypeColor = (paramType: string): string => {
+  const colorMap = {
+    current: '#1890ff',
+    voltage: '#722ed1',
+    power: '#13c2c2',
+    powerCount: '#531dab',
+    powerFactor: '#f759ab',
+    frequency: '#fa541c',
+    instantFlow: '#096dd9',
+    totalFlow: '#389e0d',
+    temperature: '#d4380d',
+    pressure: '#7cb305',
+    density: '#531dab'
+  };
+  return colorMap[paramType] || '#666';
+};
+
+// 格式化Y轴标签值
+const getFormattedValue = (value: number, paramType: string): string => {
+  switch (paramType) {
+    case 'current':
+      return `${value}A`;
+    case 'voltage':
+      return `${value}V`;
+    case 'power':
+      return `${value}kW`;
+    case 'powerCount':
+      return `${value}kWH`;
+    case 'powerFactor':
+      return value.toFixed(2);
+    case 'frequency':
+      return `${value}Hz`;
+    case 'instantFlow':
+      return `${value}m³/h`;
+    case 'totalFlow':
+      return `${value}m³`;
+    case 'temperature':
+      return `${value}°C`;
+    case 'pressure':
+      return `${value}MPa`;
+    case 'density':
+      return `${value}kg/m³`;
+    default:
+      return String(value);
+  }
+};
+
+// 为特定参数类型创建Y轴配置
+const createYAxisForParamType = (paramType: string, typeIndex: number, totalTypes: number): any => {
+  const baseConfig = {
+    type: 'value',
+    position: typeIndex % 2 === 0 ? 'left' : 'right',
+    axisLine: {
+      show: true,
+      lineStyle: { color: getParamTypeColor(paramType) }
+    },
+    axisLabel: {
+      color: getParamTypeColor(paramType),
+      formatter: (value: number) => getFormattedValue(value, paramType)
+    },
+    splitLine: {
+      show: typeIndex === 0, // 只有第一个Y轴显示网格线
+      lineStyle: {
+        color: '#f0f0f0',
+        type: 'dashed'
+      }
+    }
+  };
+
+  // 根据参数类型设置特定配置
+  const getYAxisConfig = () => {
+    switch (paramType) {
+      case 'current':
+        return {
+          ...baseConfig,
+          name: '电流 (A)',
+          min: 0,
+          max: (value: any) => Math.ceil(value.max * 1.1)
+        };
+      
+      case 'voltage':
+        return {
+          ...baseConfig,
+          name: '电压 (V)',
+          min: 200,
+          max: 250
+        };
+      
+      case 'power':
+        return {
+          ...baseConfig,
+          name: '功率 (kW)',
+          min: 0
+        };
+
+      case 'powerCount':
+        return {
+          ...baseConfig,
+          name: '电量 (kWH)',
+          min: 0
+        };
+      
+      case 'powerFactor':
+        return {
+          ...baseConfig,
+          name: '功率因数',
+          min: 0.8,
+          max: 1.0
+        };
+      
+      case 'frequency':
+        return {
+          ...baseConfig,
+          name: '频率 (Hz)',
+          min: 49,
+          max: 51
+        };
+      
+      case 'instantFlow':
+        return {
+          ...baseConfig,
+          name: '瞬时流量 (m³/h)',
+          min: 0
+        };
+      
+      case 'totalFlow':
+        return {
+          ...baseConfig,
+          name: '累计流量 (m³)',
+          min: 0
+        };
+      
+      case 'temperature':
+        return {
+          ...baseConfig,
+          name: '温度 (°C)',
+          min: 0,
+          max: 100
+        };
+      
+      case 'pressure':
+        return {
+          ...baseConfig,
+          name: '压力 (MPa)',
+          min: 0
+        };
+      
+      case 'density':
+        return {
+          ...baseConfig,
+          name: '密度 (kg/m³)',
+          min: 0
+        };
+      
+      default:
+        return baseConfig;
+    }
+  };
+
+  const yAxis = getYAxisConfig();
+  
+  // 如果有多个Y轴，需要设置偏移避免重叠
+  if (totalTypes > 2) {
+    const offset = Math.floor(typeIndex / 2) * 60; // 每两个轴偏移60像素
+    yAxis.offset = offset;
+  }
+
+  return yAxis;
+};
+
+// 根据参数类型对数据系列进行分组和Y轴映射
+const groupSeriesByParamType = (series: any[]) => {
+  const paramTypeGroups: Record<string, any[]> = {};
+  const yAxisConfig: any[] = [];
+  const colorsByType = {
+    current: ['#1890ff', '#52c41a', '#faad14'],      // 电流类 - 蓝绿橙
+    voltage: ['#722ed1', '#eb2f96', '#fa8c16'],      // 电压类 - 紫红橙
+    power: ['#13c2c2', '#52c41a', '#faad14'],        // 功率类 - 青绿橙
+    powerCount: ['#096dd9', '#531dab'],            // 电 电量类
+    powerFactor: ['#f759ab'],                        // 功率因数 - 粉
+    frequency: ['#fa541c'],                          // 频率 - 红橙
+    instantFlow: ['#096dd9'],                        // 瞬时流量 - 深蓝
+    totalFlow: ['#389e0d'],                          // 累计流量 - 深绿
+    temperature: ['#d4380d'],                        // 温度 - 深红
+    pressure: ['#7cb305'],                           // 压力 - 深绿
+    density: ['#531dab']                             // 密度 - 深紫
+  };
+
+  // 按参数类型分组
+  series.forEach((seriesItem, index) => {
+    const paramType = seriesItem.paramType || getParameterTypeFromName(seriesItem.name);
+    
+    if (!paramTypeGroups[paramType]) {
+      paramTypeGroups[paramType] = [];
+    }
+    
+    paramTypeGroups[paramType].push({
+      ...seriesItem,
+      paramType
+    });
+  });
+
+  console.log('📊 参数类型分组结果:', paramTypeGroups);
+
+  // 为每个参数类型创建Y轴配置
+  const paramTypeKeys = Object.keys(paramTypeGroups);
+  const processedSeries: any[] = [];
+
+  paramTypeKeys.forEach((paramType, typeIndex) => {
+    const group = paramTypeGroups[paramType];
+    const colors = colorsByType[paramType] || ['#666'];
+    
+    // 创建Y轴配置
+    const yAxisConfigItem = createYAxisForParamType(paramType, typeIndex, paramTypeKeys.length);
+    yAxisConfig.push(yAxisConfigItem);
+
+    // 处理该组的系列数据
+    group.forEach((seriesItem, seriesIndex) => {
+      processedSeries.push({
+        ...seriesItem,
+        yAxisIndex: typeIndex, // 使用参数类型索引作为Y轴索引
+        itemStyle: {
+          color: colors[seriesIndex % colors.length]
+        }
+      });
+    });
+  });
+
+  return {
+    series: processedSeries,
+    yAxisConfig: yAxisConfig
+  };
+};
 
 // 获取字典数据
 function loadDimensionDictData() {
@@ -438,6 +716,51 @@ function getEnergyTypeName(nowtype: number): string {
     case 4: return '压缩空气';
     case 5: return '企业用水';
     default: return '未知类型';
+  }
+}
+
+// 根据参数值获取参数类型（用于多Y轴显示）
+function getParameterType(paramValue: string | number): string {
+  const paramStr = String(paramValue);
+  console.log('🔍 参数类型判断 - 输入参数:', paramStr);
+
+  // 根据当前能源类型确定参数映射
+  switch (currentNowtype.value) {
+    case 1: // 按部门（用电）
+    case 2: // 按线路（用电）
+      // 首先尝试匹配parameterCode（如IA, IB, IC等）
+      switch (paramStr.toUpperCase()) {
+        case 'IA': case 'IB': case 'IC': return 'current'; // A、B、C相电流
+        case 'UA': case 'UB': case 'UC': return 'voltage'; // A、B、C相电压
+        case 'PA': case 'PB': case 'PC': return 'power'; // A、B、C相功率
+        case 'PFS': case 'PFSA': case 'PFSB': case 'PFSC': return 'powerFactor'; // 功率因数
+        case 'HZ':  return 'frequency'; // 频率
+        case 'PP': case 'Q': return 'power'; // 有功功率、无功功率
+        case 'EP': case 'EQ': return 'power'; // 有功电量、无功电量
+        case 'KWH': case 'KVARH': return 'powerCount'; // 有功电量、无功电量（千瓦时）
+        case 'W': case 'KW': case 'MW': return 'power'; // 功率单位
+        case 'VAR': case 'KVAR': case 'MVAR': return 'power'; // 无功功率单位
+        
+      }
+    case 3: // 天然气
+      switch (paramStr.toUpperCase()) {
+        case 'PV': return 'instantFlow'; // 瞬时流量
+        case 'SV': return 'totalFlow'; // 累计流量
+        case 'TEMP': return 'temperature'; // 温度
+        case 'PRE': return 'pressure'; // 压力
+        default: return 'instantFlow';
+      }
+    case 4: // 压缩空气
+    case 5: // 企业用水
+      switch (paramStr.toUpperCase()) {
+        case 'PV': return 'instantFlow'; // 瞬时流量
+        case 'SV': return 'totalFlow'; // 累计流量
+        case 'TEMP': return 'temperature'; // 温度
+        case 'PRE': return 'pressure'; // 压力
+        default: return 'instantFlow';
+      }
+    default:
+      return 'current';
   }
 }
 
@@ -826,6 +1149,8 @@ async function loadRealTimeData() {
 interface ChartDataSeries {
   name: string;
   data: number[];
+  paramType?: string;
+  yAxisIndex?: number;
   itemStyle?: {
     color: string;
   };
@@ -834,6 +1159,8 @@ interface ChartDataSeries {
 interface ChartData {
   categories: string[];
   series: ChartDataSeries[];
+  yAxisConfig?: any[];
+  enableMultiYAxis?: boolean;
 }
 
 // 定时更新数据
@@ -849,367 +1176,6 @@ const getParamLabel = (paramValue: string | number): string => {
 const getMeterLabel = (meterId: string): string => {
   const meter = meters.value.find(m => m.value === meterId);
   return meter ? meter.label : '';
-};
-
-// 根据仪表ID和参数获取对应的图表数据
-const getChartDataForMeterAndParam = (meterId: string, param: string | number): ChartData => {
-  const categories = generateTimeCategories();
-
-  // 基础颜色数组
-  const colors = ['#1890ff', '#52c41a', '#faad14', '#f759ab', '#722ed1', '#13c2c2'];
-
-  // 获取仪表索引，用于生成不同的基础数据
-  const meterIndex = meters.value.findIndex(m => m.value === meterId);
-
-  // 将参数值转换为字符串进行比较，支持数字和字符串两种格式
-  const paramStr = String(param);
-
-  // 根据能源类型和字典值映射到对应的参数类型
-  let paramType = '';
-
-  // 根据当前能源类型确定参数映射
-  switch (currentNowtype.value) {
-    case 1: // 按部门（用电）
-    case 2: // 按线路（用电）
-      switch (paramStr) {
-        case '1':
-        case '2':
-        case '3':
-        case 'current':
-          paramType = 'current';
-          break;
-        case '4':
-        case '5':
-        case '6':
-        case 'voltage':
-          paramType = 'voltage';
-          break;
-        case '7':
-        case '8':
-        case '9':
-        case '10':
-        case 'powerFactor':
-          paramType = 'powerFactor';
-          break;
-        default:
-          paramType = 'current';
-      }
-      break;
-
-    case 3: // 天然气
-      switch (paramStr) {
-        case '1':
-          paramType = 'instantFlow';
-          break;
-        case '2':
-          paramType = 'totalFlow';
-          break;
-        case '3':
-          paramType = 'temperature';
-          break;
-        case '4':
-          paramType = 'pressure';
-          break;
-        case '5':
-          paramType = 'density';
-          break;
-        default:
-          paramType = 'instantFlow';
-      }
-      break;
-
-    case 4: // 压缩空气
-    case 5: // 企业用水
-      switch (paramStr) {
-        case '1':
-          paramType = 'instantFlow';
-          break;
-        case '2':
-          paramType = 'totalFlow';
-          break;
-        case '3':
-          paramType = 'pressure';
-          break;
-        case '4':
-          paramType = 'temperature';
-          break;
-        default:
-          paramType = 'instantFlow';
-      }
-      break;
-
-    default:
-      paramType = 'current';
-  }
-
-  switch (paramType) {
-    case 'current':
-      // 为当前仪表生成A、B、C三相电流数据
-      const currentSeries: ChartDataSeries[] = [];
-
-      ['A', 'B', 'C'].forEach((phase, phaseIndex) => {
-        // 生成基于仪表ID和相位的随机但一致的数据
-        const baseValue = 50 + (meterIndex * 5) + (phaseIndex * 3);
-        const data = categories.map((_, i) => {
-          // 使用仪表ID、相位和时间点生成伪随机值
-          const seed = (meterIndex * 100) + (phaseIndex * 10) + i;
-          const variation = Math.sin(seed * 0.1) * 5;
-          return Number((baseValue + variation).toFixed(2));
-        });
-
-        currentSeries.push({
-          name: `${phase}相电流`,
-          data,
-          itemStyle: {
-            color: colors[phaseIndex % colors.length]
-          }
-        });
-      });
-
-      return {
-        categories,
-        series: currentSeries
-      };
-
-    case 'power':
-      return {
-        categories,
-        series: [
-          {
-            name: '总有功功率',
-            data: categories.map((_, i) => {
-              const baseValue = 80 + (meterIndex * 10);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 3;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[0]
-            }
-          },
-          {
-            name: 'A相有功功率',
-            data: categories.map((_, i) => {
-              const baseValue = 26 + (meterIndex * 3);
-              const seed = (meterIndex * 100) + i + 1;
-              const variation = Math.sin(seed * 0.1) * 2;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[1]
-            }
-          },
-          {
-            name: 'B相有功功率',
-            data: categories.map((_, i) => {
-              const baseValue = 28 + (meterIndex * 3);
-              const seed = (meterIndex * 100) + i + 2;
-              const variation = Math.sin(seed * 0.1) * 2;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[2]
-            }
-          },
-          {
-            name: 'C相有功功率',
-            data: categories.map((_, i) => {
-              const baseValue = 26 + (meterIndex * 3);
-              const seed = (meterIndex * 100) + i + 3;
-              const variation = Math.sin(seed * 0.1) * 1;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[3]
-            }
-          }
-        ]
-      };
-      
-    case 'reactivePower':
-      return {
-        categories,
-        series: [
-          {
-            name: '无功功率',
-            data: categories.map((_, i) => {
-              const baseValue = 30 + (meterIndex * 5);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 2;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[0]
-            }
-          }
-        ]
-      };
-
-    case 'powerFactor':
-      return {
-        categories,
-        series: [
-          {
-            name: '功率因数',
-            data: categories.map((_, i) => {
-              const baseValue = 0.95 - (meterIndex * 0.01);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 0.01;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[0]
-            }
-          }
-        ]
-      };
-
-    case 'voltage':
-      // 电压数据（A、B、C三相）
-      const voltageSeries: ChartDataSeries[] = [];
-
-      ['A', 'B', 'C'].forEach((phase, phaseIndex) => {
-        const baseValue = 220 + (meterIndex * 2) + (phaseIndex * 1);
-        const data = categories.map((_, i) => {
-          const seed = (meterIndex * 100) + (phaseIndex * 10) + i;
-          const variation = Math.sin(seed * 0.1) * 2;
-          return Number((baseValue + variation).toFixed(1));
-        });
-
-        voltageSeries.push({
-          name: `${phase}相电压`,
-          data,
-          itemStyle: {
-            color: colors[phaseIndex % colors.length]
-          }
-        });
-      });
-
-      return {
-        categories,
-        series: voltageSeries
-      };
-
-    case 'instantFlow':
-      return {
-        categories,
-        series: [
-          {
-            name: '瞬时流量',
-            data: categories.map((_, i) => {
-              const baseValue = 100 + (meterIndex * 10);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 10;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[0]
-            }
-          }
-        ]
-      };
-
-    case 'totalFlow':
-      return {
-        categories,
-        series: [
-          {
-            name: '累计流量',
-            data: categories.map((_, i) => {
-              const baseValue = 1000 + (meterIndex * 100) + (i * 50);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 20;
-              return Number((baseValue + variation).toFixed(2));
-            }),
-            itemStyle: {
-              color: colors[1]
-            }
-          }
-        ]
-      };
-
-    case 'temperature':
-      return {
-        categories,
-        series: [
-          {
-            name: '温度',
-            data: categories.map((_, i) => {
-              const baseValue = 25 + (meterIndex * 2);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 3;
-              return Number((baseValue + variation).toFixed(1));
-            }),
-            itemStyle: {
-              color: colors[2]
-            }
-          }
-        ]
-      };
-
-    case 'pressure':
-      return {
-        categories,
-        series: [
-          {
-            name: '压力',
-            data: categories.map((_, i) => {
-              const baseValue = 0.5 + (meterIndex * 0.1);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 0.05;
-              return Number((baseValue + variation).toFixed(3));
-            }),
-            itemStyle: {
-              color: colors[3]
-            }
-          }
-        ]
-      };
-
-    case 'density':
-      return {
-        categories,
-        series: [
-          {
-            name: '密度',
-            data: categories.map((_, i) => {
-              const baseValue = 0.8 + (meterIndex * 0.01);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 0.01;
-              return Number((baseValue + variation).toFixed(4));
-            }),
-            itemStyle: {
-              color: colors[4]
-            }
-          }
-        ]
-      };
-
-    case 'frequency':
-      return {
-        categories,
-        series: [
-          {
-            name: '频率',
-            data: categories.map((_, i) => {
-              const baseValue = 50 + (meterIndex * 0.1);
-              const seed = (meterIndex * 100) + i;
-              const variation = Math.sin(seed * 0.1) * 0.1;
-              return Number((baseValue + variation).toFixed(1));
-            }),
-            itemStyle: {
-              color: colors[0]
-            }
-          }
-        ]
-      };
-      
-    default:
-      return {
-        categories: [],
-        series: []
-      };
-  }
 };
 
 // 根据查询间隔生成时间分类
@@ -1257,13 +1223,18 @@ const hasChartData = (): boolean => {
 const getUnifiedChartData = (): ChartData => {
   // 如果有API数据，优先使用API数据
   if (unifiedChartData.value.categories.length > 0) {
-    return unifiedChartData.value;
+    return {
+      ...unifiedChartData.value,
+      enableMultiYAxis: true, // 确保启用多Y轴
+      yAxisConfig: unifiedChartData.value.yAxisConfig // 传递Y轴配置
+    };
   }
 
   // 如果没有API数据，返回空数据（不显示模拟数据）
   return {
     categories: [],
-    series: []
+    series: [],
+    enableMultiYAxis: false
   };
 };
 
@@ -1276,6 +1247,120 @@ const handleQuery = () => {
   queryDebounceTimer = window.setTimeout(async () => {
     await executeQuery();
   }, 300); // 300ms防抖
+};
+
+// 处理导出Excel
+const handleExportExcel = async () => {
+  // 验证查询条件
+  const validationResult = validateQueryParams();
+  if (!validationResult.isValid) {
+    createMessage.warning(validationResult.message);
+    return;
+  }
+
+  if (!dateRange.value || dateRange.value.length !== 2) {
+    createMessage.warning('请选择时间范围');
+    return;
+  }
+
+  // 获取选中的仪表名称用于显示
+  const selectedMeterNames = selectedMeters.value.map(meterId => {
+    const meter = meters.value.find(m => m.value === meterId);
+    return meter ? meter.label : meterId;
+  });
+
+  // 获取选中的参数名称用于显示
+  const selectedParamNames = selectedParams.value.map(paramId => {
+    const param = parameterOptions.value.find(p => p.value === paramId);
+    return param ? param.label : paramId;
+  });
+
+  // 显示导出确认信息
+  console.log(`📊 准备导出数据:`);
+  console.log(`   仪表: ${selectedMeterNames.join(', ')}`);
+  console.log(`   参数: ${selectedParamNames.join(', ')}`);
+  console.log(`   时间: ${dayjs(dateRange.value[0]).format('YYYY-MM-DD HH:mm')} 至 ${dayjs(dateRange.value[1]).format('YYYY-MM-DD HH:mm')}`);
+
+  try {
+    exportLoading.value = true;
+
+    // 显示开始导出的提示
+    createMessage.loading('正在准备导出数据，请稍候...', 2);
+
+    // 构建导出参数（与查询接口保持一致）
+    const parameters = selectedParams.value.map(p => {
+      const numParam = Number(p);
+      if (isNaN(numParam)) {
+        console.warn(`⚠️ 导出参数值 "${p}" 无法转换为数字，请检查字典配置`);
+        return 0; // 使用0作为默认值
+      }
+      return numParam;
+    });
+
+    console.log('🔍 导出参数转换详情:', {
+      原始参数: selectedParams.value,
+      转换后参数: parameters,
+      参数选项: parameterOptions.value
+    });
+
+    const exportData = {
+      moduleIds: selectedMeters.value,
+      parameters: parameters,
+      startTime: dayjs(dateRange.value[0]).format('YYYY-MM-DD HH:mm:ss'),
+      endTime: dayjs(dateRange.value[1]).format('YYYY-MM-DD HH:mm:ss'),
+      interval: Number(queryInterval.value),
+      displayMode: Number(displayMode.value),
+      fileName: `实时数据导出_${dayjs().format('YYYYMMDD_HHmmss')}`
+    };
+
+    console.log('📊 导出Excel完整参数:', exportData);
+    console.log(`📊 导出范围: ${selectedMeters.value.length}个仪表, ${parameters.length}个参数`);
+    console.log(`📊 时间范围: ${exportData.startTime} 至 ${exportData.endTime}`);
+    console.log(`📊 查询间隔: ${exportData.interval}, 显示模式: ${exportData.displayMode}`);
+    console.log('📊 选中的仪表:', selectedMeters.value);
+    console.log('📊 选中的参数:', parameters);
+
+    // 调用导出API
+    const response = await exportRealTimeData(exportData);
+
+    if (!response) {
+      createMessage.error('导出失败：未收到响应数据');
+      return;
+    }
+
+    // 创建下载链接
+    const blob = new Blob([response], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${exportData.fileName}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    createMessage.success('导出成功');
+  } catch (error: any) {
+    console.error('❌ 导出Excel失败:', error);
+
+    // 根据错误类型提供更具体的错误信息
+    let errorMessage = '导出失败，请稍后重试';
+    if (error?.response?.status === 404) {
+      errorMessage = '导出接口不存在，请检查后端服务';
+    } else if (error?.response?.status === 500) {
+      errorMessage = '服务器内部错误，请联系管理员';
+    } else if (error?.code === 'NETWORK_ERROR') {
+      errorMessage = '网络连接失败，请检查网络';
+    } else if (error?.message) {
+      errorMessage = `导出失败: ${error.message}`;
+    }
+
+    createMessage.error(errorMessage);
+  } finally {
+    exportLoading.value = false;
+  }
 };
 
 // 验证查询参数
@@ -1324,6 +1409,14 @@ const executeQuery = async () => {
 
   try {
     loading.value = true;
+
+    // 清空当前图表数据，避免显示旧数据
+    unifiedChartData.value = {
+      categories: [],
+      series: [],
+      yAxisConfig: []
+    };
+    separateChartsData.value = [];
 
     // 构建请求参数
     const parameters = selectedParams.value.map(p => {
@@ -1445,7 +1538,7 @@ const updateChartDataFromAPI = (apiData: any) => {
   originalApiData.value = apiData;
 
   // 同时处理两种显示模式的数据，让界面根据当前模式选择显示
-
+console.log('series='+JSON.stringify(apiData.series, null, 2));
   // 处理统一显示数据
   if (apiData.series && Array.isArray(apiData.series)) {
       // 转换API数据格式为图表组件需要的格式
@@ -1459,77 +1552,93 @@ const updateChartDataFromAPI = (apiData: any) => {
 
       // 转换系列数据
       apiData.series.forEach((series, index) => {
-        const colors = ['#1890ff', '#52c41a', '#faad14', '#fa8c16', '#722ed1', '#13c2c2'];
+        // 从系列名称中提取参数信息，用于确定参数类型
+        let paramType = 'current'; // 默认类型
+
+        // 尝试从API数据中获取参数信息
+        if (series.parameterCode !== undefined) {
+          paramType = getParameterType(series.parameterCode);
+        } else if (series.parameter !== undefined) {
+          paramType = getParameterType(series.parameter);
+        } else {
+          // 如果没有参数信息，尝试从系列名称推断
+          paramType = getParameterTypeFromName(series.name);
+        }
+
         seriesData.push({
           name: series.name,
           data: series.data.map(item => item[1]),
-          itemStyle: {
-            color: colors[index % colors.length]
-          }
+          paramType: paramType, // 添加参数类型信息
         });
+
+        console.log(`📊 系列数据: ${series.name}, 参数类型: ${paramType}, 参数值: ${series.parameter}, 参数代码: ${series.parameterCode}`);
       });
 
+      // 按参数类型分组并生成多Y轴配置
+      const groupedData = groupSeriesByParamType(seriesData);
+      
       // 更新统一图表数据
       unifiedChartData.value = {
         categories,
-        series: seriesData
+        series: groupedData.series,
+        yAxisConfig: groupedData.yAxisConfig // 添加Y轴配置
       };
     }
 
-  // 处理分开显示数据
-  if (apiData.charts && Array.isArray(apiData.charts)) {
-      // 处理分开显示的数据
-      console.log('📊 分开显示原始数据:', apiData.charts);
-      apiData.charts.forEach((chart, index) => {
-        console.log(`📊 图表${index}:`, chart);
-        console.log(`📊 图表${index}的data属性:`, chart.data);
-        console.log(`📊 图表${index}的series属性:`, chart.series);
-      });
+        // 处理分开显示数据
+      if (apiData.charts && Array.isArray(apiData.charts)) {
+          // 处理分开显示的数据
+          console.log('📊 分开显示原始数据:', apiData.charts);
+          apiData.charts.forEach((chart, index) => {
+            console.log(`📊 图表${index}:`, chart);
+            console.log(`📊 图表${index}的data属性:`, chart.data);
+            console.log(`📊 图表${index}的series属性:`, chart.series);
+          });
 
-      // 分开显示：为每个仪表的每个系列创建独立图表
-      const separateCharts = [];
-      const colors = ['#1890ff', '#52c41a', '#faad14', '#fa8c16', '#722ed1', '#13c2c2'];
-      let colorIndex = 0;
+          // 分开显示：为每个仪表的每个系列创建独立图表
+          const separateCharts = [];
+          const colors = ['#1890ff', '#52c41a', '#faad14', '#fa8c16', '#722ed1', '#13c2c2'];
+          let colorIndex = 0;
 
-      apiData.charts.forEach((chart, chartIndex) => {
-        console.log(`📊 处理图表${chartIndex}:`, chart);
+          apiData.charts.forEach((chart, chartIndex) => {
+            console.log(`📊 处理图表${chartIndex}:`, chart);
 
-        // 检查数据结构：分开显示模式使用 series 字段
-        if (!chart.series || !Array.isArray(chart.series) || chart.series.length === 0) {
-          console.warn(`⚠️ 图表${chartIndex}的series属性无效:`, chart.series);
-          return;
+            // 检查数据结构：分开显示模式使用 series 字段
+            if (!chart.series || !Array.isArray(chart.series) || chart.series.length === 0) {
+              console.warn(`⚠️ 图表${chartIndex}的series属性无效:`, chart.series);
+              return;
+            }
+
+            // 为每个系列创建独立的图表
+            chart.series.forEach((series, seriesIndex) => {
+              const categories = series.data ? series.data.map(item => item[0]) : [];
+              const data = series.data ? series.data.map(item => item[1]) : [];
+
+              separateCharts.push({
+                moduleId: chart.moduleId,
+                moduleName: series.name || chart.moduleName || chart.title,
+                parameter: chart.parameter,
+                categories,
+                series: [{
+                  name: series.name || `${chart.parameter}-${seriesIndex}`,
+                  data,
+                  itemStyle: {
+                    color: colors[colorIndex % colors.length]
+                  }
+                }]
+              });
+
+              colorIndex++;
+              console.log(`📊 创建独立图表: ${series.name}`, {
+                categories: categories.length,
+                dataPoints: data.length
+              });
+            });
+          });
+
+          separateChartsData.value = separateCharts;
+          console.log('📊 分开显示图表总数:', separateCharts.length);
         }
-
-        // 为每个系列创建独立的图表
-        chart.series.forEach((series, seriesIndex) => {
-          const categories = series.data ? series.data.map(item => item[0]) : [];
-          const data = series.data ? series.data.map(item => item[1]) : [];
-
-          separateCharts.push({
-            moduleId: chart.moduleId,
-            moduleName: series.name || chart.moduleName || chart.title,
-            parameter: chart.parameter,
-            categories,
-            series: [{
-              name: series.name || `${chart.parameter}-${seriesIndex}`,
-              data,
-              itemStyle: {
-                color: colors[colorIndex % colors.length]
-              }
-            }]
-          });
-
-          colorIndex++;
-          console.log(`📊 创建独立图表: ${series.name}`, {
-            categories: categories.length,
-            dataPoints: data.length
-          });
-        });
-      });
-
-      separateChartsData.value = separateCharts;
-      console.log('📊 分开显示图表总数:', separateCharts.length);
-    }
 };
 
 // 统一显示的图表数据
@@ -1544,23 +1653,6 @@ const separateChartsData = ref<any[]>([]);
 // 存储原始API数据，用于显示模式切换
 const originalApiData = ref<any>(null);
 
-// 注释掉显示模式切换的自动触发逻辑，保持与查询间隔一致的行为
-// 用户需要手动点击"查询"按钮来重新获取数据
-// const handleDisplayModeChange = (newMode: string, oldMode: string) => {
-//   console.log('显示模式切换:', oldMode, '->', newMode);
-//
-//   // 只有在有原始API数据且模式确实发生变化时才重新组织数据
-//   if (originalApiData.value && newMode !== oldMode && oldMode) {
-//     console.log('重新组织现有数据以适应新的显示模式');
-//     updateChartDataFromAPI(originalApiData.value);
-//   }
-// };
-
-// // 监听显示模式变化
-// watch(displayMode, (newVal, oldVal) => {
-//   handleDisplayModeChange(newVal, oldVal);
-// });
-
 // 更新数据的方法
 const updateData = () => {
   // 模拟数据更新
@@ -1572,6 +1664,7 @@ const updateData = () => {
     powerFactor: Number((realTimeData.value.powerFactor * (1 + (Math.random() - 0.5) * 0.001)).toFixed(2))
   };
 };
+
 
 onMounted(() => {
   // 加载维度字典数据

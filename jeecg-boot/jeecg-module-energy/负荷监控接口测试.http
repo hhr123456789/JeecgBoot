@@ -1,0 +1,105 @@
+### 负荷监控接口测试
+
+### 1. 获取电力仪表列表
+GET http://localhost:8080/energy/realtime/getModulesByDimension?dimensionCode=A02A02A01&energyType=1&includeChildren=true
+Content-Type: application/json
+
+### 2. 查询负荷时序数据 - 按天（每小时一个数据点）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeGranularity": "day",
+  "queryDate": "2025-07-25",
+  "startTime": "2025-07-25 00:00:00",
+  "endTime": "2025-07-25 23:59:59"
+}
+
+### 2.1 查询负荷时序数据 - 按月（每天一个数据点）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeGranularity": "month",
+  "queryDate": "2025-07",
+  "startTime": "2025-07-01 00:00:00",
+  "endTime": "2025-07-31 23:59:59"
+}
+
+### 2.2 查询负荷时序数据 - 按年（每月一个数据点）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202"],
+  "timeGranularity": "year",
+  "queryDate": "2025",
+  "startTime": "2025-01-01 00:00:00",
+  "endTime": "2025-12-31 23:59:59"
+}
+
+### 3. 获取实时负荷状态
+POST http://localhost:8080/energy/realtime/getCurrentLoadStatus
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"]
+}
+
+### 3.1 获取实时负荷状态 - 测试单个仪表
+POST http://localhost:8080/energy/realtime/getCurrentLoadStatus
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202"]
+}
+
+### 4. 获取负荷数据表格
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+  "timeType": "day",
+  "startTime": "2025-07-25 00:00:00",
+  "endTime": "2025-07-25 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 4.1 获取负荷数据表格 - 测试不同日期
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeType": "day",
+  "startTime": "2025-07-26 00:00:00",
+  "endTime": "2025-07-26 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 5. 原有的时序数据查询接口（保持兼容）
+POST http://localhost:8080/energy/realtime/getTimeSeriesData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "parameters": [1, 2, 3],
+  "timeGranularity": "day",
+  "queryDate": "2025-07-25",
+  "startTime": "2025-07-25 00:00:00",
+  "endTime": "2025-07-25 23:59:59"
+}
+
+### 6. 原有的实时状态查询接口（保持兼容）
+POST http://localhost:8080/energy/realtime/getCurrentStatus
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "parameters": [1, 2, 3]
+}

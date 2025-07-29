@@ -28,14 +28,14 @@ public class ParameterConfig {
         PARAMETER_MAP.put(5, new ParameterInfo("UB", "B相电压", "V"));
         PARAMETER_MAP.put(6, new ParameterInfo("UC", "C相电压", "V"));
         PARAMETER_MAP.put(7, new ParameterInfo("PFS", "总功率因素", ""));
-        PARAMETER_MAP.put(8, new ParameterInfo("PFa", "A相功率因素", ""));
-        PARAMETER_MAP.put(9, new ParameterInfo("PFb", "B相功率因素", ""));
-        PARAMETER_MAP.put(10, new ParameterInfo("PFc", "C相功率因素", ""));
+        PARAMETER_MAP.put(8, new ParameterInfo("PFSA", "A相功率因素", ""));
+        PARAMETER_MAP.put(9, new ParameterInfo("PFSB", "B相功率因素", ""));
+        PARAMETER_MAP.put(10, new ParameterInfo("PFSC", "C相功率因素", ""));
         PARAMETER_MAP.put(11, new ParameterInfo("HZ", "频率", "Hz"));
-        PARAMETER_MAP.put(12, new ParameterInfo("PP", "总有功功率", "kW"));
-        PARAMETER_MAP.put(13, new ParameterInfo("Pa", "A相有功功率", "kW"));
-        PARAMETER_MAP.put(14, new ParameterInfo("Pb", "B相有功功率", "kW"));
-        PARAMETER_MAP.put(15, new ParameterInfo("Pc", "C相有功功率", "kW"));
+        PARAMETER_MAP.put(12, new ParameterInfo("P", "总有功功率", "kW"));
+        PARAMETER_MAP.put(13, new ParameterInfo("PA", "A相有功功率", "kW"));
+        PARAMETER_MAP.put(14, new ParameterInfo("PB", "B相有功功率", "kW"));
+        PARAMETER_MAP.put(15, new ParameterInfo("PC", "C相有功功率", "kW"));
         PARAMETER_MAP.put(16, new ParameterInfo("KWH", "有功电量", "kWh"));
         PARAMETER_MAP.put(17, new ParameterInfo("KVARH", "无功电量", "kVarh"));
 

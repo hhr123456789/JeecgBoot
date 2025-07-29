@@ -7,6 +7,8 @@ enum Api {
   getRealTimeMonitorData = '/energy/monitor/getRealTimeMonitorData',
   // 获取实时监控数据
   getRealTimeData = '/energy/monitor/getRealTimeData',
+  // 导出实时数据Excel
+  exportRealTimeData = '/energy/monitor/exportRealTimeData',
 }
 
 /**
@@ -45,6 +47,29 @@ export const getRealTimeData = (params: {
   nowtype: number;
 }) => {
   return defHttp.get({ url: Api.getRealTimeData, params });
+};
+
+/**
+ * 导出实时数据Excel
+ * @param data
+ */
+export const exportRealTimeData = (data: {
+  moduleIds: string[];
+  parameters: number[];
+  startTime: string;
+  endTime: string;
+  interval: number;
+  displayMode: number;
+  fileName?: string;
+}) => {
+  return defHttp.post({
+    url: Api.exportRealTimeData,
+    data,
+    responseType: 'blob',
+    timeout: 60000 // 导出可能需要较长时间
+  }, {
+    isTransformResponse: false
+  });
 };
 
 /**

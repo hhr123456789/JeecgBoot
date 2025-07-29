@@ -1,0 +1,80 @@
+# 实时数据监控接口测试文件
+# 使用 VS Code 的 REST Client 插件或 IntelliJ IDEA 的 HTTP Client 运行
+
+### 1. 测试获取仪表列表
+GET http://localhost:8080/jeecg-boot/energy/realtime/test/testGetModules
+Accept: application/json
+
+### 2. 测试获取参数配置
+GET http://localhost:8080/jeecg-boot/energy/realtime/test/testGetParameters
+Accept: application/json
+
+### 3. 测试查询时序数据
+GET http://localhost:8080/jeecg-boot/energy/realtime/test/testGetTimeSeriesData
+Accept: application/json
+
+### 4. 测试获取实时状态
+GET http://localhost:8080/jeecg-boot/energy/realtime/test/testGetCurrentStatus
+Accept: application/json
+
+### 5. 正式接口 - 根据维度获取仪表列表
+GET http://localhost:8080/jeecg-boot/energy/realtime/getModulesByDimension?dimensionCode=A02A02A01&energyType=1&includeChildren=true
+Accept: application/json
+
+### 6. 正式接口 - 获取参数配置
+GET http://localhost:8080/jeecg-boot/energy/realtime/getParameterConfig?energyType=1
+Accept: application/json
+
+### 7. 正式接口 - 查询时序数据
+POST http://localhost:8080/jeecg-boot/energy/realtime/getTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_13", "yj0001_14"],
+    "parameters": [1, 2, 7],
+    "timeGranularity": "day",
+    "queryDate": "2025-07-25"
+}
+
+### 8. 正式接口 - 获取实时状态
+POST http://localhost:8080/jeecg-boot/energy/realtime/getCurrentStatus
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_13", "yj0001_14"],
+    "parameters": [1, 2, 7]
+}
+
+### 9. 测试不同时间粒度 - 月份数据
+POST http://localhost:8080/jeecg-boot/energy/realtime/getTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_13"],
+    "parameters": [1, 7],
+    "timeGranularity": "month",
+    "queryDate": "2025-07"
+}
+
+### 10. 测试不同时间粒度 - 年份数据
+POST http://localhost:8080/jeecg-boot/energy/realtime/getTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_13"],
+    "parameters": [1, 7],
+    "timeGranularity": "year",
+    "queryDate": "2025"
+}
+
+### 11. 测试天然气参数配置
+GET http://localhost:8080/jeecg-boot/energy/realtime/getParameterConfig?energyType=2
+Accept: application/json
+
+### 12. 测试压缩空气参数配置
+GET http://localhost:8080/jeecg-boot/energy/realtime/getParameterConfig?energyType=3
+Accept: application/json
+
+### 13. 测试企业用水参数配置
+GET http://localhost:8080/jeecg-boot/energy/realtime/getParameterConfig?energyType=4
+Accept: application/json

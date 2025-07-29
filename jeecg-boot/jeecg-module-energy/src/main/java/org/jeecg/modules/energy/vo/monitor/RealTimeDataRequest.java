@@ -49,4 +49,8 @@ public class RealTimeDataRequest implements Serializable {
     @ApiModelProperty(value = "显示方式 (1=统一显示,2=分开显示)", required = true)
     @NotNull(message = "显示方式不能为空")
     private Integer displayMode;
+
+    /**文件名*/
+    @ApiModelProperty(value = "导出文件名 (可选，默认为'实时数据导出')", required = false, example = "中电电气实时数据导出")
+    private String fileName;
 }

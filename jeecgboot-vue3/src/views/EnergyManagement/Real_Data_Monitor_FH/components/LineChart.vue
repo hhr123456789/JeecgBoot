@@ -21,6 +21,8 @@ const props = defineProps<{
       itemStyle: {
         color: string;
       };
+      unit?: string;
+      deviceName?: string;
     }[];
   };
 }>();
@@ -46,6 +48,32 @@ const initChart = () => {
         label: {
           backgroundColor: '#6a7985'
         }
+      },
+      formatter: function(params: any) {
+        if (Array.isArray(params) && params.length > 0) {
+          const param = params[0];
+          const seriesData = props.chartData.series.find((s: any) => s.name === param.seriesName);
+          const unit = seriesData?.unit || '';
+          const deviceName = seriesData?.deviceName || '1号设备';
+
+          // 根据不同的数据类型显示不同的格式
+          let displayText = '';
+          if (param.seriesName === '负荷率') {
+            displayText = `负荷：${param.value}${unit}`;
+          } else if (param.seriesName === '有功功率') {
+            displayText = `有功功率：${param.value}${unit}`;
+          } else {
+            displayText = `${param.seriesName}：${param.value}${unit}`;
+          }
+
+          return `
+            <div style="padding: 6px 10px; background: rgba(50, 50, 50, 0.9); border-radius: 4px; color: white; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+              <div style="margin-bottom: 2px;">${deviceName}</div>
+              <div>${displayText}</div>
+            </div>
+          `;
+        }
+        return '';
       }
     },
     legend: {

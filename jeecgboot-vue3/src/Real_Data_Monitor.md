@@ -138,6 +138,14 @@ public Result<List<ModuleVO>> getModulesByOrgCode(
 - **功能**: 查询指定仪表、参数、时间范围的实时数据
 - **状态**: ✅ 已实现并修复InfluxDB查询问题
 
+### 3. 实时数据导出Excel接口
+
+#### 接口信息
+- **URL**: `/energy/monitor/exportRealTimeData`
+- **Method**: `POST`
+- **功能**: 导出指定仪表、参数、时间范围的实时数据为Excel文件
+- **状态**: ✅ 已实现
+
 #### 请求参数
 ```json
 {
@@ -254,6 +262,47 @@ public Result<List<ModuleVO>> getModulesByOrgCode(
     }
 }
 ```
+
+#### 导出Excel请求参数
+```json
+{
+    "moduleIds": ["yj0001_1202", "yj0001_12"],  // 仪表编号列表 (必填)
+    "parameters": [1, 4, 7],                    // 参数编号列表 (必填) 1=A相电流,4=A相电压,7=总有功功率
+    "startTime": "2025-07-15 08:00:00",         // 开始时间 (必填)
+    "endTime": "2025-07-15 16:00:00",           // 结束时间 (必填)
+    "interval": 1,                              // 查询间隔 (必填) 1=15分钟,2=30分钟,3=60分钟,4=120分钟
+    "displayMode": 1,                           // 显示方式 (必填) 1=统一显示,2=分开显示
+    "fileName": "实时数据导出"                    // 文件名 (可选，默认为"实时数据导出")
+}
+```
+
+#### 导出Excel响应
+```
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="实时数据导出_20250723.xlsx"
+
+[Excel文件二进制数据]
+```
+
+#### Excel文件格式说明
+
+**表格结构**：
+- **第一行**: 标题行，包含时间列和各仪表参数列
+- **数据行**: 按时间顺序排列的数据，每行对应一个时间点的所有参数值
+
+**列结构示例**：
+```
+| 时间              | 中电电气1号变压器/A相电流(A) | 中电电气1号变压器/B相电流(A) | 中电电气1号变压器/C相电流(A) |
+|------------------|---------------------------|---------------------------|---------------------------|
+| 2025-07-23 00:00 | 4.48                      | 0                         | 5.14                      |
+| 2025-07-23 00:05 | 4.48                      | 0                         | 5.14                      |
+| 2025-07-23 00:10 | 4.48                      | 0                         | 5.14                      |
+```
+
+**命名规则**：
+- **列名格式**: `{仪表名称}/{参数名称}({单位})`
+- **时间格式**: `yyyy-MM-dd HH:mm`
+- **数值格式**: 保留2位小数，空值显示为"-"
 
 ## 💻 核心实现逻辑
 
@@ -694,6 +743,22 @@ Content-Type: application/json
 }
 ```
 
+### 示例4: 导出Excel数据
+```bash
+POST /energy/monitor/exportRealTimeData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_12"],
+    "parameters": [1, 4, 7],
+    "startTime": "2025-07-23 00:00:00",
+    "endTime": "2025-07-23 15:55:00",
+    "interval": 1,
+    "displayMode": 1,
+    "fileName": "中电电气实时数据导出"
+}
+```
+
 ## 🔍 测试用例
 
 ### 1. 功能测试
@@ -742,6 +807,7 @@ Content-Type: application/json
 4. ✅ InfluxDB 1.8兼容性问题修复
 5. ✅ 时区转换和数据格式化
 6. ✅ 异常处理和参数验证
+7. ✅ 实时数据导出Excel接口 `/energy/monitor/exportRealTimeData` - 已实现
 
 **⚠️ 注意事项**:
 1. ✅ InfluxDB连接配置正确

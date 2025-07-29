@@ -11,6 +11,7 @@ import org.jeecg.modules.energy.vo.monitor.RealTimeDataRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -89,5 +90,42 @@ public class EnergyMonitorController {
         }
     }
 
+    /**
+     * 导出实时数据到Excel
+     *
+     * @param request 查询请求参数
+     * @param response HTTP响应
+     */
+    @ApiOperation(value = "导出实时数据到Excel", notes = "导出指定仪表、参数、时间范围的实时数据为Excel文件")
+    @PostMapping("/exportRealTimeData")
+    public void exportRealTimeData(@Valid @RequestBody RealTimeDataRequest request, HttpServletResponse response) {
+        log.info("📊 导出实时数据开始，请求参数：{}", request);
+        try {
+            energyMonitorService.exportRealTimeData(request, response);
+            log.info("✅ 导出实时数据成功");
+        } catch (Exception e) {
+            log.error("❌ 导出实时数据失败", e);
+            throw new RuntimeException("导出实时数据失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 调试接口：检查仪表ID和InfluxDB数据
+     *
+     * @param moduleIds 仪表ID列表（逗号分隔）
+     * @return 调试信息
+     */
+    @ApiOperation(value = "调试接口：检查仪表ID和数据", notes = "用于调试导出问题，检查仪表ID是否正确以及InfluxDB中是否有数据")
+    @GetMapping("/debugModuleData")
+    public Result<Map<String, Object>> debugModuleData(@RequestParam String moduleIds) {
+        log.info("🔍 调试接口被调用，仪表ID：{}", moduleIds);
+        try {
+            Map<String, Object> debugInfo = energyMonitorService.debugModuleData(moduleIds);
+            return Result.OK(debugInfo);
+        } catch (Exception e) {
+            log.error("❌ 调试接口执行失败", e);
+            return Result.error("调试失败: " + e.getMessage());
+        }
+    }
 
 }

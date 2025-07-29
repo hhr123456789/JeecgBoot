@@ -13,9 +13,11 @@ import org.jeecg.modules.energy.mapper.TbEquEleDataMapper;
 import org.jeecg.modules.energy.mapper.TbEquEnergyDataMapper;
 import org.jeecg.modules.energy.mapper.TbEpEquEnergyDaycountMapper;
 import org.jeecg.modules.energy.mapper.TbModuleMapper;
+import org.jeecg.modules.energy.config.ParameterConfig;
 import org.jeecg.modules.energy.service.IDataFormatService;
 import org.jeecg.modules.energy.service.IEnergyMonitorService;
 import org.jeecg.modules.energy.service.IInfluxDBQueryService;
+import org.jeecg.modules.energy.util.ExcelExportUtil;
 import org.jeecg.modules.energy.utils.EnergyCalculationUtils;
 import org.jeecg.modules.energy.vo.monitor.*;
 import org.jeecg.modules.system.entity.SysDepart;
@@ -24,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import javax.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -623,6 +626,403 @@ public class EnergyMonitorServiceImpl implements IEnergyMonitorService {
         }
 
         return moduleNameMap;
+    }
+
+    @Override
+    public void exportRealTimeData(RealTimeDataRequest request, HttpServletResponse response) {
+        log.info("📊 开始导出实时数据，请求参数：{}", request);
+
+        try {
+            // 1. 参数验证
+            validateRequest(request);
+
+            // 2. 查询InfluxDB数据
+            log.info("🔍 查询InfluxDB数据，仪表：{}，参数：{}，时间：{} ~ {}",
+                request.getModuleIds(), request.getParameters(), request.getStartTime(), request.getEndTime());
+            List<Map<String, Object>> influxResults = influxDBQueryService.queryRealTimeData(
+                    request.getModuleIds(),
+                    request.getParameters(),
+                    request.getStartTime(),
+                    request.getEndTime(),
+                    request.getInterval()
+            );
+
+            log.info("📊 InfluxDB查询结果数量：{}", influxResults.size());
+
+            // 调试：打印前几条查询结果
+            if (!influxResults.isEmpty()) {
+                log.info("📊 查询结果示例（前5条）：");
+                for (int i = 0; i < Math.min(5, influxResults.size()); i++) {
+                    Map<String, Object> record = influxResults.get(i);
+                    log.info("📊   记录{}：tagname={}, time={}, value={}",
+                        i+1, record.get("tagname"), record.get("time"), record.get("value"));
+                }
+
+                // 统计不同tagname的数据量
+                Map<String, Long> tagnameCount = influxResults.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(
+                        record -> (String) record.get("tagname"),
+                        java.util.stream.Collectors.counting()
+                    ));
+                log.info("📊 各tagname数据量统计：{}", tagnameCount);
+
+                // 统计时间范围
+                String minTime = influxResults.stream()
+                    .map(record -> (String) record.get("time"))
+                    .filter(Objects::nonNull)
+                    .min(String::compareTo)
+                    .orElse("无");
+                String maxTime = influxResults.stream()
+                    .map(record -> (String) record.get("time"))
+                    .filter(Objects::nonNull)
+                    .max(String::compareTo)
+                    .orElse("无");
+                log.info("📊 数据时间范围：{} ~ {}", minTime, maxTime);
+
+            } else {
+                log.warn("📊 InfluxDB查询结果为空！请检查：");
+                log.warn("📊   1. 仪表ID是否正确：{}", request.getModuleIds());
+                log.warn("📊   2. 参数编号是否正确：{}", request.getParameters());
+                log.warn("📊   3. 时间范围是否有数据：{} ~ {}", request.getStartTime(), request.getEndTime());
+                log.warn("📊   4. InfluxDB数据库是否存在当前月份的数据");
+            }
+
+            // 3. 查询仪表名称映射
+            Map<String, String> moduleNameMap = getModuleNameMap(request.getModuleIds());
+            log.info("📊 仪表名称映射：{}", moduleNameMap);
+
+            // 4. 构建Excel数据
+            ExcelData excelData = buildExcelData(influxResults, moduleNameMap, request.getParameters());
+
+            // 5. 生成文件名
+            String fileName = request.getFileName();
+            if (!StringUtils.hasText(fileName)) {
+                fileName = "实时数据导出";
+            }
+            fileName = ExcelExportUtil.generateFileName(fileName);
+
+            // 6. 导出Excel
+            ExcelExportUtil.exportRealTimeData(response, fileName, excelData.getHeaders(), excelData.getDataList());
+
+            log.info("✅ 实时数据导出成功，文件名：{}", fileName);
+
+        } catch (Exception e) {
+            log.error("❌ 导出实时数据失败", e);
+            throw new RuntimeException("导出实时数据失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, Object> debugModuleData(String moduleIds) {
+        log.info("🔍 开始调试仪表数据，仪表ID：{}", moduleIds);
+
+        Map<String, Object> debugInfo = new HashMap<>();
+        List<String> moduleIdList = Arrays.asList(moduleIds.split(","));
+
+        try {
+            // 1. 检查仪表是否存在于数据库
+            Map<String, String> moduleNameMap = getModuleNameMap(moduleIdList);
+            debugInfo.put("moduleNameMap", moduleNameMap);
+            debugInfo.put("foundModules", moduleNameMap.size());
+            debugInfo.put("requestedModules", moduleIdList.size());
+
+            // 2. 检查InfluxDB中是否有数据（最近1小时）
+            String endTime = "2025-07-23 21:51:21";
+            String startTime = "2025-07-23 20:51:21"; // 1小时前
+
+            List<Map<String, Object>> influxResults = influxDBQueryService.queryRealTimeData(
+                moduleIdList,
+                Arrays.asList(1), // A相电流
+                startTime,
+                endTime,
+                1 // 15分钟间隔
+            );
+
+            debugInfo.put("influxDataCount", influxResults.size());
+
+            // 3. 统计各仪表的数据量
+            Map<String, Long> tagnameCount = influxResults.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    record -> (String) record.get("tagname"),
+                    java.util.stream.Collectors.counting()
+                ));
+            debugInfo.put("tagnameDataCount", tagnameCount);
+
+            // 4. 提供示例数据
+            List<Map<String, Object>> sampleData = influxResults.stream()
+                .limit(5)
+                .collect(java.util.stream.Collectors.toList());
+            debugInfo.put("sampleData", sampleData);
+
+            // 5. 构建预期的tagname列表
+            List<String> expectedTagnames = new ArrayList<>();
+            for (String moduleId : moduleIdList) {
+                expectedTagnames.add(moduleId.toUpperCase() + "#IA");
+            }
+            debugInfo.put("expectedTagnames", expectedTagnames);
+
+            log.info("🔍 调试信息收集完成：{}", debugInfo);
+
+        } catch (Exception e) {
+            log.error("🔍 调试过程中出现异常", e);
+            debugInfo.put("error", e.getMessage());
+        }
+
+        return debugInfo;
+    }
+
+    /**
+     * 构建Excel数据
+     */
+    private ExcelData buildExcelData(List<Map<String, Object>> influxResults,
+                                   Map<String, String> moduleNameMap,
+                                   List<Integer> parameters) {
+
+        log.info("📊 开始构建Excel数据，原始数据量：{}", influxResults.size());
+
+        // 1. 从InfluxDB查询结果中提取实际的tagname列表
+        Set<String> actualTagnames = new HashSet<>();
+        for (Map<String, Object> record : influxResults) {
+            String tagname = (String) record.get("tagname");
+            if (tagname != null) {
+                actualTagnames.add(tagname);
+            }
+        }
+
+        log.info("📊 从查询结果中提取到的tagname列表：{}", actualTagnames);
+
+        // 2. 构建表头和列键映射
+        List<String> headers = new ArrayList<>();
+        List<String> columnKeys = new ArrayList<>();
+        headers.add("时间"); // 第一列是时间
+        columnKeys.add("time"); // 时间列的key
+
+        // 为每个实际存在的tagname构建表头
+        for (String tagname : actualTagnames) {
+            try {
+                // 解析tagname格式：MODULE_ID#FIELD_NAME
+                String[] parts = tagname.split("#");
+                if (parts.length == 2) {
+                    String moduleId = parts[0].toLowerCase(); // 转换为小写匹配数据库
+                    String fieldName = parts[1];
+
+                    String moduleName = moduleNameMap.get(moduleId);
+                    if (moduleName == null) {
+                        moduleName = moduleId; // 如果找不到名称，使用ID
+                    }
+
+                    // 根据字段名找到对应的参数信息
+                    String displayName = getDisplayNameByFieldName(fieldName);
+                    String unit = getUnitByFieldName(fieldName);
+
+                    String header = moduleName + "/" + displayName;
+                    if (StringUtils.hasText(unit)) {
+                        header += "(" + unit + ")";
+                    }
+
+                    headers.add(header);
+                    columnKeys.add(tagname);
+                    log.info("📊 添加列：{} -> tagname: {}", header, tagname);
+                }
+            } catch (Exception e) {
+                log.warn("📊 解析tagname失败：{}", tagname, e);
+            }
+        }
+
+        log.info("📊 表头构建完成，列数：{}，表头：{}", headers.size(), headers);
+        log.info("📊 列键映射：{}", columnKeys);
+
+        // 2. 按时间分组数据
+        Map<String, Map<String, Object>> timeGroupedData = new LinkedHashMap<>();
+
+        for (Map<String, Object> record : influxResults) {
+            String tagname = (String) record.get("tagname");
+            String time = (String) record.get("time");
+            Object value = record.get("value");
+
+            log.debug("📊 处理记录：tagname={}, time={}, value={}", tagname, time, value);
+
+            // 修复：包含0值数据，只要tagname和time不为空就处理
+            if (tagname != null && time != null) {
+                // 转换时间格式
+                String formattedTime = formatTimeForExcel(time);
+
+                // 处理value为null的情况，设置为0或"-"
+                Object processedValue = value;
+                if (value == null) {
+                    processedValue = 0.0; // 或者使用 "-" 字符串
+                    log.debug("📊 value为null，设置为0：tagname={}, time={}", tagname, formattedTime);
+                }
+
+                timeGroupedData.computeIfAbsent(formattedTime, k -> new HashMap<>()).put(tagname, processedValue);
+                log.debug("📊 添加数据：时间={}, tagname={}, value={}", formattedTime, tagname, processedValue);
+            } else {
+                log.warn("📊 跳过无效记录（tagname或time为空）：tagname={}, time={}, value={}", tagname, time, value);
+            }
+        }
+
+        log.info("📊 数据按时间分组完成，时间点数量：{}", timeGroupedData.size());
+
+        // 3. 构建Excel行数据
+        List<Map<String, Object>> dataList = new ArrayList<>();
+
+        // 按时间排序
+        List<String> sortedTimes = new ArrayList<>(timeGroupedData.keySet());
+        sortedTimes.sort(String::compareTo);
+
+        log.info("📊 时间范围：{} ~ {}",
+            sortedTimes.isEmpty() ? "无" : sortedTimes.get(0),
+            sortedTimes.isEmpty() ? "无" : sortedTimes.get(sortedTimes.size() - 1));
+
+        for (String time : sortedTimes) {
+            Map<String, Object> timeData = timeGroupedData.get(time);
+
+            Map<String, Object> rowData = new HashMap<>();
+            rowData.put("col_0", time); // 时间列
+
+            for (int i = 1; i < columnKeys.size(); i++) {
+                String columnKey = columnKeys.get(i);
+                Object value = timeData.get(columnKey);
+
+                // 处理数值格式化，包括0值
+                Object formattedValue;
+                if (value != null) {
+                    if (value instanceof Number) {
+                        double numValue = ((Number) value).doubleValue();
+                        if (numValue == 0.0) {
+                            formattedValue = "0.00"; // 明确显示0值
+                        } else {
+                            BigDecimal bd = new BigDecimal(value.toString());
+                            formattedValue = bd.setScale(2, BigDecimal.ROUND_HALF_UP);
+                        }
+                    } else {
+                        formattedValue = value;
+                    }
+                } else {
+                    formattedValue = "-"; // 没有数据时显示"-"
+                }
+
+                rowData.put("col_" + i, formattedValue);
+            }
+
+            dataList.add(rowData);
+            log.debug("📊 添加Excel行：时间={}, 列数={}", time, rowData.size());
+        }
+
+        log.info("📊 Excel数据构建完成，数据行数：{}", dataList.size());
+
+        // 调试：显示前几行数据
+        if (!dataList.isEmpty()) {
+            log.info("📊 Excel数据示例（前3行）：");
+            for (int i = 0; i < Math.min(3, dataList.size()); i++) {
+                Map<String, Object> row = dataList.get(i);
+                log.info("📊   行{}：{}", i+1, row);
+            }
+        }
+
+        return new ExcelData(headers, dataList);
+    }
+
+    /**
+     * 格式化时间用于Excel显示
+     */
+    private String formatTimeForExcel(String influxTime) {
+        try {
+            log.debug("📊 原始InfluxDB时间：{}", influxTime);
+
+            // InfluxDB时间格式转换为Excel显示格式
+            if (influxTime.contains("T") && influxTime.endsWith("Z")) {
+                // ISO格式：2025-07-24T04:30:00Z -> 需要转换为本地时间
+                // InfluxDB存储的是UTC时间，需要加8小时转换为北京时间
+                try {
+                    java.time.format.DateTimeFormatter inputFormatter =
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                    java.time.LocalDateTime utcTime = java.time.LocalDateTime.parse(influxTime, inputFormatter);
+
+                    // UTC时间转换为北京时间（+8小时）
+                    java.time.LocalDateTime beijingTime = utcTime.plusHours(8);
+
+                    // 格式化为Excel显示格式
+                    String formattedTime = beijingTime.format(
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
+                    log.debug("📊 时间转换：{} -> {}", influxTime, formattedTime);
+                    return formattedTime;
+
+                } catch (Exception e) {
+                    log.warn("📊 ISO时间格式解析失败：{}", influxTime, e);
+                    // 降级处理：简单替换
+                    String fallback = influxTime.replace("T", " ").replace("Z", "");
+                    if (fallback.length() > 16) {
+                        fallback = fallback.substring(0, 16);
+                    }
+                    return fallback;
+                }
+            } else {
+                // 已经是本地时间格式
+                if (influxTime.length() > 16) {
+                    return influxTime.substring(0, 16);
+                }
+                return influxTime;
+            }
+
+        } catch (Exception e) {
+            log.warn("📊 时间格式转换失败：{}", influxTime, e);
+            return influxTime;
+        }
+    }
+
+    /**
+     * 根据字段名获取显示名称
+     */
+    private String getDisplayNameByFieldName(String fieldName) {
+        // 遍历所有参数配置，找到匹配的字段名
+        for (int i = 1; i <= 20; i++) { // 假设参数编号范围是1-20
+            ParameterConfig.ParameterInfo paramInfo = ParameterConfig.getParameterInfo(i);
+            if (paramInfo != null && fieldName.equals(paramInfo.getFieldName())) {
+                return paramInfo.getDisplayName();
+            }
+        }
+
+        // 如果找不到，返回字段名本身
+        return fieldName;
+    }
+
+    /**
+     * 根据字段名获取单位
+     */
+    private String getUnitByFieldName(String fieldName) {
+        // 遍历所有参数配置，找到匹配的字段名
+        for (int i = 1; i <= 20; i++) { // 假设参数编号范围是1-20
+            ParameterConfig.ParameterInfo paramInfo = ParameterConfig.getParameterInfo(i);
+            if (paramInfo != null && fieldName.equals(paramInfo.getFieldName())) {
+                return paramInfo.getUnit();
+            }
+        }
+
+        // 如果找不到，返回空字符串
+        return "";
+    }
+
+    /**
+     * Excel数据封装类
+     */
+    private static class ExcelData {
+        private List<String> headers;
+        private List<Map<String, Object>> dataList;
+
+        public ExcelData(List<String> headers, List<Map<String, Object>> dataList) {
+            this.headers = headers;
+            this.dataList = dataList;
+        }
+
+        public List<String> getHeaders() {
+            return headers;
+        }
+
+        public List<Map<String, Object>> getDataList() {
+            return dataList;
+        }
     }
 
     /**

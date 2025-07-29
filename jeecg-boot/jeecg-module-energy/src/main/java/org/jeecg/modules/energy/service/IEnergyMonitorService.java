@@ -3,6 +3,7 @@ package org.jeecg.modules.energy.service;
 import org.jeecg.modules.energy.vo.monitor.ModuleVO;
 import org.jeecg.modules.energy.vo.monitor.RealTimeDataRequest;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Map;
 
@@ -37,5 +38,18 @@ public interface IEnergyMonitorService {
      */
     Object getRealTimeMonitorData(RealTimeDataRequest request);
 
+    /**
+     * 导出实时数据到Excel
+     * @param request 查询请求参数
+     * @param response HTTP响应
+     */
+    void exportRealTimeData(RealTimeDataRequest request, HttpServletResponse response);
+
+    /**
+     * 调试方法：检查仪表ID和数据
+     * @param moduleIds 仪表ID列表（逗号分隔）
+     * @return 调试信息
+     */
+    Map<String, Object> debugModuleData(String moduleIds);
 
 }
