@@ -1,46 +1,64 @@
 <template>
-  <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+  <div :id="chartId" class="chart-container" style="width: 100%; height: 400px;"></div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
-import type { EChartsOption } from 'echarts';
 
-// 定义props
-const props = defineProps<{
+// Props定义
+interface Props {
   chartData: {
     xAxis: {
       type: string;
       data: string[];
     };
-    series: {
+    series: Array<{
       name: string;
       type: string;
       data: number[];
-      itemStyle: {
+      itemStyle?: {
         color: string;
       };
       unit?: string;
       deviceName?: string;
-    }[];
+    }>;
   };
-}>();
+  chartId: string;
+}
 
-// 图表DOM引用
-const chartRef = ref<HTMLElement | null>(null);
+const props = withDefaults(defineProps<Props>(), {
+  chartId: 'line-chart'
+});
+
 // 图表实例
 let chartInstance: echarts.ECharts | null = null;
 
 // 初始化图表
 const initChart = () => {
-  if (!chartRef.value) return;
-  
-  // 创建图表实例
-  chartInstance = echarts.init(chartRef.value);
-  
-  // 设置图表配置
-  const options: EChartsOption = {
+  const chartDom = document.getElementById(props.chartId);
+  if (!chartDom) {
+    console.error(`Chart container with id "${props.chartId}" not found`);
+    return;
+  }
+
+  // 销毁已存在的图表实例
+  if (chartInstance) {
+    chartInstance.dispose();
+  }
+
+  chartInstance = echarts.init(chartDom);
+  updateChart();
+};
+
+// 更新图表数据
+const updateChart = () => {
+  if (!chartInstance) return;
+
+  const option = {
+    title: {
+      show: false
+    },
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -50,119 +68,132 @@ const initChart = () => {
         }
       },
       formatter: function(params: any) {
-        if (Array.isArray(params) && params.length > 0) {
-          const param = params[0];
-          const seriesData = props.chartData.series.find((s: any) => s.name === param.seriesName);
-          const unit = seriesData?.unit || '';
-          const deviceName = seriesData?.deviceName || '1号设备';
-
-          // 根据不同的数据类型显示不同的格式
-          let displayText = '';
-          if (param.seriesName === '负荷率') {
-            displayText = `负荷：${param.value}${unit}`;
-          } else if (param.seriesName === '有功功率') {
-            displayText = `有功功率：${param.value}${unit}`;
-          } else {
-            displayText = `${param.seriesName}：${param.value}${unit}`;
-          }
-
-          return `
-            <div style="padding: 6px 10px; background: rgba(50, 50, 50, 0.9); border-radius: 4px; color: white; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-              <div style="margin-bottom: 2px;">${deviceName}</div>
-              <div>${displayText}</div>
-            </div>
-          `;
-        }
-        return '';
+        let html = `<div style="font-weight: bold; margin-bottom: 5px;">${params[0].axisValue}</div>`;
+        params.forEach((param: any) => {
+          const unit = param.data?.unit || getUnitFromSeriesName(param.seriesName);
+          html += `<div style="margin: 2px 0;">
+            ${param.marker}
+            <span style="display: inline-block; width: 100px;">${param.seriesName}:</span>
+            <span style="font-weight: bold;">${param.value}${unit}</span>
+          </div>`;
+        });
+        return html;
       }
     },
     legend: {
-      data: props.chartData.series.map(item => item.name)
+      data: props.chartData.series.map(s => s.name),
+      top: 10,
+      type: 'scroll'
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '15%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: props.chartData.xAxis.data,
-      axisLine: {
-        lineStyle: {
-          color: '#999'
-        }
-      },
       axisLabel: {
-        color: '#666'
+        rotate: props.chartData.xAxis.data.length > 12 ? 45 : 0
       }
     },
     yAxis: {
       type: 'value',
-      axisLine: {
-        show: true,
-        lineStyle: {
-          color: '#999'
-        }
-      },
       axisLabel: {
-        color: '#666'
+        formatter: function(value: number) {
+          // 根据数据范围自动格式化
+          if (value >= 1000) {
+            return (value / 1000).toFixed(1) + 'k';
+          }
+          return value.toString();
+        }
       },
       splitLine: {
         lineStyle: {
-          type: 'dashed',
-          color: '#eee'
+          color: '#f0f0f0',
+          type: 'dashed'
         }
       }
     },
-    series: props.chartData.series.map(item => ({
-      name: item.name,
+    series: props.chartData.series.map(seriesItem => ({
+      name: seriesItem.name,
       type: 'line',
-      data: item.data,
-      itemStyle: item.itemStyle,
+      data: seriesItem.data,
       smooth: true,
       symbol: 'circle',
-      symbolSize: 8,
-      areaStyle: {
-        opacity: 0.1
+      symbolSize: 6,
+      lineStyle: {
+        width: 2
+      },
+      itemStyle: {
+        color: seriesItem.itemStyle?.color || getDefaultColor(seriesItem.name)
+      },
+      emphasis: {
+        focus: 'series',
+        blurScope: 'coordinateSystem'
       }
     }))
   };
-  
-  // 应用配置
-  chartInstance.setOption(options);
+
+  chartInstance.setOption(option, true);
 };
 
-// 监听数据变化
-watch(
-  () => props.chartData,
-  () => {
-    if (chartInstance) {
-      chartInstance.setOption({
-        xAxis: {
-          data: props.chartData.xAxis.data
-        },
-        series: props.chartData.series.map(item => ({
-          name: item.name,
-          data: item.data
-        }))
-      });
+// 根据系列名称获取单位
+const getUnitFromSeriesName = (seriesName: string): string => {
+  if (seriesName.includes('功率') || seriesName.includes('负荷')) {
+    if (seriesName.includes('率')) {
+      return '%';
     }
-  },
-  { deep: true }
-);
+    return 'kW';
+  }
+  return '';
+};
 
-// 监听窗口大小变化
+// 获取默认颜色
+const getDefaultColor = (seriesName: string): string => {
+  const colors = [
+    '#1890ff', '#52c41a', '#faad14', '#f5222d', 
+    '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'
+  ];
+  
+  // 根据系列名称生成一个稳定的颜色索引
+  let hash = 0;
+  for (let i = 0; i < seriesName.length; i++) {
+    hash = seriesName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
+
+// 响应式处理
 const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize();
   }
 };
 
+// 监听数据变化
+watch(() => props.chartData, () => {
+  nextTick(() => {
+    updateChart();
+  });
+}, { deep: true });
+
+// 监听chartId变化
+watch(() => props.chartId, () => {
+  nextTick(() => {
+    initChart();
+  });
+});
+
 onMounted(() => {
-  initChart();
-  window.addEventListener('resize', handleResize);
+  nextTick(() => {
+    initChart();
+    window.addEventListener('resize', handleResize);
+  });
 });
 
 onUnmounted(() => {
@@ -172,4 +203,11 @@ onUnmounted(() => {
   }
   window.removeEventListener('resize', handleResize);
 });
-</script> 
+</script>
+
+<style scoped>
+.chart-container {
+  width: 100%;
+  height: 400px;
+}
+</style>

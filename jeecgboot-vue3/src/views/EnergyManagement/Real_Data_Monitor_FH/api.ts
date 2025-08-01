@@ -1,90 +1,48 @@
 import { defHttp } from '/@/utils/http/axios';
 
-enum Api {
-  // 根据维度获取仪表列表
-  getModulesByDimension = '/energy/realtime/getModulesByDimension',
-  // 获取参数配置
-  getParameterConfig = '/energy/realtime/getParameterConfig',
-  // 时序数据查询
-  getTimeSeriesData = '/energy/realtime/getTimeSeriesData',
-  // 获取实时状态
-  getCurrentStatus = '/energy/realtime/getCurrentStatus',
-}
-
-/**
- * 根据维度获取仪表列表
- */
-export const getModulesByDimension = (params: {
-  dimensionCode: string;
-  energyType?: number;
-  includeChildren?: boolean;
-}) => {
-  return defHttp.get({ url: Api.getModulesByDimension, params });
-};
-
-/**
- * 获取参数配置
- */
-export const getParameterConfig = (params: {
-  energyType: number;
-}) => {
-  return defHttp.get({ url: Api.getParameterConfig, params });
-};
-
-/**
- * 查询时序数据
- */
-export const getTimeSeriesData = (data: {
-  moduleIds: string[];
-  parameters: number[];
-  timeGranularity: string;
-  queryDate: string;
-  startTime?: string;
-  endTime?: string;
-}) => {
-  return defHttp.post({ url: Api.getTimeSeriesData, data });
-};
-
-/**
- * 获取实时状态
- */
-export const getCurrentStatus = (data: {
-  moduleIds: string[];
-  parameters: number[];
-}) => {
-  return defHttp.post({ url: Api.getCurrentStatus, data });
-};
-
-// 类型定义
+// 仪表信息接口
 export interface ModuleInfo {
   moduleId: string;
   moduleName: string;
   energyType: number;
-  energyTypeName: string;
   dimensionCode: string;
   dimensionName: string;
   ratedPower: number;
+  currentPower: number;
+  loadRate: number;
   isOnline: boolean;
-  lastUpdateTime: string;
+  isAction: string;
+  updateTime: string;
 }
 
-export interface ParameterConfig {
-  paramCode: number;
-  paramName: string;
-  fieldName: string;
-  unit: string;
-  category: string;
-  isDefault: boolean;
+// 负荷时序数据查询请求参数
+export interface LoadTimeSeriesRequest {
+  moduleIds: string[];
+  timeGranularity: string; // day/month/year
+  queryDate: string;
+  startTime?: string;
+  endTime?: string;
 }
 
-export interface TimeSeriesData {
-  chartData: {
+// 负荷时序数据响应
+export interface LoadTimeSeriesData {
+  powerChartData: {
+    title: string;
     timeLabels: string[];
     series: Array<{
       moduleId: string;
       moduleName: string;
-      paramCode: number;
-      paramName: string;
+      unit: string;
+      data: number[];
+      color: string;
+    }>;
+  };
+  loadRateChartData: {
+    title: string;
+    timeLabels: string[];
+    series: Array<{
+      moduleId: string;
+      moduleName: string;
       unit: string;
       data: number[];
       color: string;
@@ -96,12 +54,11 @@ export interface TimeSeriesData {
     modules: Array<{
       moduleId: string;
       moduleName: string;
-      parameters: Array<{
-        paramCode: number;
-        paramName: string;
-        value: number;
-        unit: string;
-      }>;
+      ratedPower: number;
+      currentPower: number;
+      loadRate: number;
+      powerUnit: string;
+      loadRateUnit: string;
     }>;
   }>;
   summary: {
@@ -109,21 +66,88 @@ export interface TimeSeriesData {
     timeRange: string;
     granularity: string;
     moduleCount: number;
-    parameterCount: number;
+    dataType: string;
   };
 }
 
-export interface ModuleStatus {
+// 仪表负荷状态
+export interface ModuleLoadStatus {
   moduleId: string;
   moduleName: string;
   isOnline: boolean;
   lastUpdateTime: string;
-  parameters: Array<{
-    paramCode: number;
-    paramName: string;
-    currentValue: number;
-    unit: string;
-    status: string;
-    updateTime: string;
-  }>;
+  ratedPower: number;
+  currentPower: number;
+  loadRate: number;
+  powerUnit: string;
+  loadRateUnit: string;
+  status: string;
+  loadLevel: string;
+}
+
+/**
+ * 根据维度获取电力仪表列表
+ */
+export function getModulesByDimension(params: {
+  dimensionCode: string;
+  energyType: number;
+  includeChildren?: boolean;
+}) {
+  return defHttp.get<ModuleInfo[]>({
+    url: '/energy/realtime/getModulesByDimension',
+    params
+  });
+}
+
+/**
+ * 获取负荷时序数据
+ */
+export function getLoadTimeSeriesData(data: LoadTimeSeriesRequest) {
+  return defHttp.post<LoadTimeSeriesData>({
+    url: '/energy/realtime/getLoadTimeSeriesData',
+    data
+  });
+}
+
+/**
+ * 获取实时负荷状态
+ */
+export function getCurrentLoadStatus(data: { moduleIds: string[] }) {
+  return defHttp.post<ModuleLoadStatus[]>({
+    url: '/energy/realtime/getCurrentLoadStatus',
+    data
+  });
+}
+
+/**
+ * 获取负荷数据表格
+ */
+export function getLoadTableData(data: {
+  moduleIds: string[];
+  timeType: string;
+  startTime: string;
+  endTime: string;
+  pageNum?: number;
+  pageSize?: number;
+}) {
+  return defHttp.post({
+    url: '/energy/realtime/getLoadTableData',
+    data
+  });
+}
+
+/**
+ * 导出负荷数据
+ */
+export function exportLoadData(data: {
+  moduleIds: string[];
+  timeGranularity: string;
+  queryDate: string;
+  fileName?: string;
+}) {
+  return defHttp.post({
+    url: '/energy/realtime/exportLoadData',
+    data,
+    responseType: 'blob'
+  });
 }

@@ -1,0 +1,80 @@
+### 负荷监控年查询功能测试
+
+### 1. 根据维度获取电力仪表列表（含额定功率）
+GET http://localhost:8080/energy/realtime/getModulesByDimension?dimensionCode=A02A02A01&energyType=1&includeChildren=true
+Content-Type: application/json
+
+### 2. 获取参数配置
+GET http://localhost:8080/energy/realtime/getParameterConfig?energyType=1
+Content-Type: application/json
+
+### 3. 查询负荷时序数据 - 日粒度（测试单月查询）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"],
+    "timeGranularity": "day",
+    "queryDate": "2025-07-25",
+    "startTime": "2025-07-25 00:00:00",
+    "endTime": "2025-07-25 23:59:59"
+}
+
+### 4. 查询负荷时序数据 - 月粒度（测试单月查询）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"],
+    "timeGranularity": "month",
+    "queryDate": "2025-07-01",
+    "startTime": "2025-07-01 00:00:00",
+    "endTime": "2025-07-31 23:59:59"
+}
+
+### 5. 查询负荷时序数据 - 年粒度（测试跨月查询）
+POST http://localhost:8080/energy/realtime/getLoadTimeSeriesData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"],
+    "timeGranularity": "year",
+    "queryDate": "2025-01-01",
+    "startTime": "2025-01-01 00:00:00",
+    "endTime": "2025-12-31 23:59:59"
+}
+
+### 6. 获取实时负荷状态
+POST http://localhost:8080/energy/realtime/getCurrentLoadStatus
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"]
+}
+
+### 7. 获取负荷数据表格（统计数据）
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+    "timeType": "year",
+    "startTime": "2025-01-01 00:00:00",
+    "endTime": "2025-12-31 23:59:59",
+    "pageNum": 1,
+    "pageSize": 100
+}
+
+### 测试说明：
+# 1. 年查询功能主要体现在接口5和7中
+# 2. 年查询会自动跨多个月份的数据库进行查询
+# 3. 数据库命名格式：hist202501, hist202502, ..., hist202512
+# 4. tagname格式：MODULE_ID#PP（如：YJ0001_1202#PP）
+# 5. 查询结果会按月份聚合，每月一个数据点
+# 6. 时间会自动从UTC转换为北京时间显示
+
+### 预期结果：
+# - 日查询：24个数据点（每小时一个）
+# - 月查询：30-31个数据点（每天一个）
+# - 年查询：12个数据点（每月一个）
+# - 负荷率 = 有功功率 / 额定功率 × 100%

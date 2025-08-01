@@ -63,4 +63,11 @@ public interface IRealtimeMonitorService {
      * @return 负荷表格结果
      */
     LoadTableResultVO getLoadTableData(LoadTableQueryVO query);
+    
+    /**
+     * 导出负荷数据
+     * @param exportVO 导出参数
+     * @return Excel字节数组
+     */
+    byte[] exportLoadData(LoadDataExportVO exportVO) throws Exception;
 }

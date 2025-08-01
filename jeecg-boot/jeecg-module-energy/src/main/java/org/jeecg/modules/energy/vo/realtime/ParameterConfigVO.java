@@ -2,7 +2,9 @@ package org.jeecg.modules.energy.vo.realtime;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * @Description: 参数配置VO
@@ -11,27 +13,20 @@ import lombok.Data;
  * @Version: V1.0
  */
 @Data
-@ApiModel(value = "ParameterConfigVO", description = "参数配置信息")
+@NoArgsConstructor
+@AllArgsConstructor
+@ApiModel(value = "参数配置VO", description = "参数配置信息")
 public class ParameterConfigVO {
-    
-    @ApiModelProperty(value = "参数编码")
+
+    @ApiModelProperty(value = "参数编码", example = "1")
     private Integer paramCode;
-    
-    @ApiModelProperty(value = "参数名称")
+
+    @ApiModelProperty(value = "参数名称", example = "A相电流")
     private String paramName;
-    
-    @ApiModelProperty(value = "字段名称")
+
+    @ApiModelProperty(value = "字段名称", example = "IA")
     private String fieldName;
-    
-    @ApiModelProperty(value = "单位")
+
+    @ApiModelProperty(value = "单位", example = "A")
     private String unit;
-    
-    @ApiModelProperty(value = "参数类别")
-    private String category;
-    
-    @ApiModelProperty(value = "是否默认选中")
-    private Boolean isDefault;
-    
-    @ApiModelProperty(value = "能源类型")
-    private Integer energyType;
 }

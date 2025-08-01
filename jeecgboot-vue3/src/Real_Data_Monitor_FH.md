@@ -29,14 +29,10 @@
 - **Method**: `GET`
 - **功能**: 根据维度编码获取该维度下的所有启用电力仪表，支持多选
 
-#### 请求参数
-```json
-{
-    "dimensionCode": "A02A02A01",  // 维度编码 (必填)
-    "energyType": 1,              // 能源类型 (固定为1:电力)
-    "includeChildren": true       // 是否包含子维度 (可选，默认true)
-}
-```
+#### 请求参数（URL参数）
+- `dimensionCode`: 维度编码 (必填，例如: "A02A02A01")
+- `energyType`: 能源类型 (必填，1:电力,2:天然气,3:压缩空气,4:企业用水)
+- `includeChildren`: 是否包含子维度 (可选，默认true)
 
 #### 响应数据
 ```json
@@ -49,46 +45,62 @@
             "moduleId": "yj0001_1202",
             "moduleName": "1号注塑机",
             "energyType": 1,
-            "energyTypeName": "电力",
             "dimensionCode": "A02A02A01A01",
             "dimensionName": "1号注塑机",
             "ratedPower": 1000.00,
             "currentPower": 850.5,
             "loadRate": 85.05,
             "isOnline": true,
-            "lastUpdateTime": "2025-07-25 14:30:00"
+            "isAction": "Y",
+            "updateTime": "2025-07-25 14:30:00"
         },
         {
             "moduleId": "yj0001_1203",
             "moduleName": "2号注塑机",
             "energyType": 1,
-            "energyTypeName": "电力",
             "dimensionCode": "A02A02A01A02",
             "dimensionName": "2号注塑机",
             "ratedPower": 1200.00,
             "currentPower": 920.8,
             "loadRate": 76.73,
             "isOnline": true,
-            "lastUpdateTime": "2025-07-25 14:29:00"
+            "isAction": "Y",
+            "updateTime": "2025-07-25 14:29:00"
         }
     ]
 }
 ```
 
-### 2. 设备负荷数据查询接口
+### 2. 获取参数配置接口
 
 #### 接口信息
-- **URL**: `/energy/realtime/queryLoadData`
-- **Method**: `POST`
-- **功能**: 查询多仪表的负荷时序数据（有功功率和负荷率）
+- **URL**: `/energy/realtime/getParameterConfig`
+- **Method**: `GET`
+- **功能**: 根据能源类型获取可选的参数配置列表
 
-#### 请求参数
+#### 请求参数（URL参数）
+- `energyType`: 能源类型 (必填，1:电力,2:天然气,3:压缩空气,4:企业用水)
+
+#### 响应数据
 ```json
 {
-    "moduleIds": ["yj0001_1202", "yj0001_1203"],  // 仪表ID数组 (必填)
-    "timeType": "day",                           // 时间类型 (必填: day/month/year)
-    "startTime": "2025-07-25 00:00:00",         // 开始时间 (必填)
-    "endTime": "2025-07-25 23:59:59"            // 结束时间 (必填)
+    "success": true,
+    "message": "查询成功",
+    "code": 200,
+    "result": [
+        {
+            "paramCode": 1,
+            "paramName": "A相电流",
+            "fieldName": "IA",
+            "unit": "A"
+        },
+        {
+            "paramCode": 7,
+            "paramName": "总有功功率",
+            "fieldName": "P",
+            "unit": "kW"
+        }
+    ]
 }
 ```
 
@@ -288,7 +300,110 @@
 }
 ```
 
-### 5. 负荷数据表格查询接口
+### 5. 通用时序数据查询接口
+
+#### 接口信息
+- **URL**: `/energy/realtime/getTimeSeriesData`
+- **Method**: `POST`
+- **功能**: 根据时间粒度查询多仪表、多参数的时序数据，用于通用图表和表格展示
+
+#### 请求参数
+```json
+{
+    "moduleIds": ["yj0001_13", "yj0001_14"],     // 仪表ID列表 (必填)
+    "parameters": [1, 2, 7],                    // 参数编码列表 (必填)
+    "timeGranularity": "day",                   // 时间粒度 (必填: day/month/year)
+    "queryDate": "2025-07-25",                 // 查询日期 (必填)
+    "startTime": "2025-07-25 00:00:00",        // 开始时间 (可选)
+    "endTime": "2025-07-25 23:59:59"           // 结束时间 (可选)
+}
+```
+
+#### 响应数据
+```json
+{
+    "success": true,
+    "message": "查询成功",
+    "code": 200,
+    "result": {
+        "chartData": {
+            "timeLabels": ["00:00", "01:00", "02:00", "..."],
+            "series": [
+                {
+                    "moduleId": "yj0001_13",
+                    "moduleName": "1号设备",
+                    "paramCode": 1,
+                    "paramName": "A相电流",
+                    "unit": "A",
+                    "data": [10.5, 11.2, 10.8, "..."],
+                    "color": "#1890ff"
+                }
+            ]
+        },
+        "tableData": [
+            {
+                "time": "00:00",
+                "timeLabel": "2025-07-25 00:00",
+                "data": {
+                    "yj0001_13_IA": 10.5,
+                    "yj0001_13_IB": 10.3,
+                    "yj0001_13_PP": 850.5
+                }
+            }
+        ]
+    }
+}
+```
+
+### 6. 获取实时状态接口
+
+#### 接口信息
+- **URL**: `/energy/realtime/getCurrentStatus`
+- **Method**: `POST`
+- **功能**: 获取选中仪表的当前实时状态和最新数值
+
+#### 请求参数
+```json
+{
+    "moduleIds": ["yj0001_13", "yj0001_14"],    // 仪表ID列表 (必填)
+    "parameters": [1, 2, 7]                    // 参数编码列表 (必填)
+}
+```
+
+#### 响应数据
+```json
+{
+    "success": true,
+    "message": "查询成功",
+    "code": 200,
+    "result": [
+        {
+            "moduleId": "yj0001_13",
+            "moduleName": "1号设备",
+            "isOnline": true,
+            "lastUpdateTime": "2025-07-25 14:30:15",
+            "parameters": [
+                {
+                    "paramCode": 1,
+                    "paramName": "A相电流",
+                    "currentValue": 10.5,
+                    "unit": "A",
+                    "status": "normal"
+                },
+                {
+                    "paramCode": 7,
+                    "paramName": "总有功功率",
+                    "currentValue": 850.5,
+                    "unit": "kW",
+                    "status": "normal"
+                }
+            ]
+        }
+    ]
+}
+```
+
+### 7. 负荷数据表格查询接口
 
 #### 接口信息
 - **URL**: `/energy/realtime/getLoadTableData`
@@ -318,38 +433,38 @@
             {
                 "序号": 1,
                 "设备名称": "1号设备",
-                "最大功率(kW)": 90.25,
-                "最大功率率(%)": 90.3,
+                "最大功率": 90.25,
+                "最大功率率": 90.3,
                 "最大功率发生时间": "14:30",
-                "最小功率(kW)": 65.12,
-                "最小功率率(%)": 65.1,
+                "最小功率": 65.12,
+                "最小功率率": 65.1,
                 "最小功率发生时间": "02:30",
-                "平均功率(kW)": 78.45,
-                "平均功率率(%)": 78.5
+                "平均功率": 78.45,
+                "平均功率率": 78.5
             },
             {
                 "序号": 2,
                 "设备名称": "2号设备",
-                "最大功率(kW)": 82.4,
-                "最大功率率(%)": 82.4,
+                "最大功率": 82.4,
+                "最大功率率": 82.4,
                 "最大功率发生时间": "15:45",
-                "最小功率(kW)": 62.33,
-                "最小功率率(%)": 62.1,
+                "最小功率": 62.33,
+                "最小功率率": 62.1,
                 "最小功率发生时间": "03:30",
-                "平均功率(kW)": 73.69,
-                "平均功率率(%)": 73.5
+                "平均功率": 73.69,
+                "平均功率率": 73.5
             },
             {
                 "序号": 3,
                 "设备名称": "3号设备",
-                "最大功率(kW)": 95.12,
-                "最大功率率(%)": 95.2,
+                "最大功率": 95.12,
+                "最大功率率": 95.2,
                 "最大功率发生时间": "16:20",
-                "最小功率(kW)": 59.67,
-                "最小功率率(%)": 61.5,
+                "最小功率": 59.67,
+                "最小功率率": 61.5,
                 "最小功率发生时间": "04:15",
-                "平均功率(kW)": 82.34,
-                "平均功率率(%)": 85.7
+                "平均功率": 82.34,
+                "平均功率率": 85.7
             }
         ],
         "pagination": {
@@ -375,7 +490,7 @@
 ```sql
 SELECT MEAN(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value
 FROM hist
-WHERE tagname IN ('YJ0001_1202#P', 'YJ0001_1203#P')
+WHERE (tagname = 'YJ0001_1202#P' OR tagname = 'YJ0001_1203#P')
   AND time >= '2025-07-25T00:00:00Z'
   AND time < '2025-07-26T00:00:00Z'
 GROUP BY time(1h), tagname
@@ -386,7 +501,7 @@ ORDER BY time ASC
 ```sql
 SELECT MEAN(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value
 FROM hist
-WHERE tagname IN ('YJ0001_1202#P', 'YJ0001_1203#P')
+WHERE (tagname = 'YJ0001_1202#P' OR tagname = 'YJ0001_1203#P')
   AND time >= '2025-07-01T00:00:00Z'
   AND time < '2025-08-01T00:00:00Z'
 GROUP BY time(1d), tagname
@@ -397,7 +512,7 @@ ORDER BY time ASC
 ```sql
 SELECT MEAN(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value
 FROM hist
-WHERE tagname IN ('YJ0001_1202#P', 'YJ0001_1203#P')
+WHERE (tagname = 'YJ0001_1202#P' OR tagname = 'YJ0001_1203#P')
   AND time >= '2025-01-01T00:00:00Z'
   AND time < '2026-01-01T00:00:00Z'
 GROUP BY time(30d), tagname
@@ -405,7 +520,7 @@ ORDER BY time ASC
 ```
 
 #### 负荷率计算说明
-- **有功功率**: 直接从InfluxDB的P字段获取
+- **有功功率**: 直接从InfluxDB的P字段获取（总有功功率）
 - **负荷率**: 有功功率 ÷ 额定功率 × 100%
 - **额定功率**: 从MySQL的tb_module表的rated_power字段获取
 
@@ -801,14 +916,15 @@ public class LoadMonitorService {
     public LoadTimeSeriesResult getLoadTimeSeriesData(LoadTimeSeriesQuery query) {
         // 1. 参数验证
         // 2. 从MySQL获取仪表的额定功率信息
-        // 3. 构建InfluxDB查询语句（只查询P字段）
+        // 3. 构建InfluxDB查询语句（只查询PP字段）
         // 4. 根据时间粒度设置GROUP BY间隔
-        // 5. 执行查询并处理结果
-        // 6. 时区转换（UTC -> 北京时间）
-        // 7. 计算负荷率（功率/额定功率×100%）
-        // 8. 组装有功功率图表数据和负荷率图表数据
-        // 9. 生成表格数据
-        // 10. 返回完整的负荷监控数据
+        // 5. 使用OR语法构建tagname条件
+        // 6. 执行查询并处理结果
+        // 7. 时区转换（UTC -> 北京时间）
+        // 8. 计算负荷率（功率/额定功率×100%）
+        // 9. 组装有功功率图表数据和负荷率图表数据
+        // 10. 生成表格数据
+        // 11. 返回完整的负荷监控数据
     }
 
     /**
@@ -830,18 +946,19 @@ public class LoadMonitorService {
         // 1. 参数验证
         // 2. 从MySQL获取仪表基本信息和额定功率
         // 3. 构建InfluxDB查询语句，查询指定时间范围内的P字段数据
-        // 4. 执行查询并处理结果
-        // 5. 对每个仪表计算统计数据：
+        // 4. 使用OR语法构建tagname条件
+        // 5. 执行查询并处理结果
+        // 6. 对每个仪表计算统计数据：
         //    - 最大功率及发生时间
         //    - 最小功率及发生时间
         //    - 平均功率
         //    - 最大负荷率及发生时间
         //    - 最小负荷率及发生时间
         //    - 平均负荷率
-        // 6. 时区转换（UTC -> 北京时间）
-        // 7. 组装表格数据，按序号排列
-        // 8. 支持分页处理
-        // 9. 返回表格统计结果
+        // 7. 时区转换（UTC -> 北京时间）
+        // 8. 组装表格数据，按序号排列
+        // 9. 支持分页处理
+        // 10. 返回表格统计结果
     }
 }
 ```
@@ -850,27 +967,31 @@ public class LoadMonitorService {
 
 ```java
 @Component
-public class InfluxDBLoadQueryBuilder {
+public class InfluxDBQueryBuilder {
 
     /**
-     * 构建负荷时序数据查询语句（只查询有功功率P）
+     * 构建时序数据查询语句
      */
-    public String buildLoadTimeSeriesQuery(List<String> moduleIds,
-                                         String timeGranularity, String startTime, String endTime) {
+    public String buildTimeSeriesQuery(List<String> moduleIds, List<Integer> parameters,
+                                     String timeGranularity, String startTime, String endTime) {
 
-        // 1. 构建功率tagname列表（只查询P字段）
-        List<String> tagnames = buildPowerTagnames(moduleIds);
+        // 1. 构建tagname列表
+        List<String> tagnames = buildTagnames(moduleIds, parameters);
 
         // 2. 根据时间粒度设置GROUP BY间隔
         String interval = getTimeInterval(timeGranularity);
 
-        // 3. 构建查询语句
+        // 3. 转换时间格式
+        String utcStartTime = convertToUTC(startTime);
+        String utcEndTime = convertToUTC(endTime);
+
+        // 4. 构建查询语句 - 使用OR语法（与InfluxDBQueryServiceImpl保持一致）
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT MEAN(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value ");
         sql.append("FROM hist ");
-        sql.append("WHERE tagname IN (").append(buildInClause(tagnames)).append(") ");
-        sql.append("AND time >= '").append(convertToUTC(startTime)).append("' ");
-        sql.append("AND time < '").append(convertToUTC(endTime)).append("' ");
+        sql.append("WHERE (").append(buildOrCondition(tagnames)).append(") ");
+        sql.append("AND time >= '").append(utcStartTime).append("' ");
+        sql.append("AND time < '").append(utcEndTime).append("' ");
         sql.append("GROUP BY time(").append(interval).append("), tagname ");
         sql.append("ORDER BY time ASC");
 
@@ -887,24 +1008,62 @@ public class InfluxDBLoadQueryBuilder {
     }
 
     /**
-     * 构建功率tagname列表（只包含P字段）
+     * 构建tagname列表
      */
-    private List<String> buildPowerTagnames(List<String> moduleIds) {
+    private List<String> buildTagnames(List<String> moduleIds, List<Integer> parameters) {
         List<String> tagnames = new ArrayList<>();
         for (String moduleId : moduleIds) {
-            // 只查询有功功率P字段
-            tagnames.add(moduleId.toUpperCase() + "#P");
+            for (Integer param : parameters) {
+                String fieldName = getFieldNameByParam(param);
+                String tagname = moduleId.trim().toUpperCase() + "#" + fieldName;
+                tagnames.add(tagname);
+            }
         }
         return tagnames;
     }
 
     /**
-     * 构建IN子句
+     * 根据参数编码获取字段名称
      */
-    private String buildInClause(List<String> tagnames) {
-        return tagnames.stream()
-                .map(tag -> "'" + tag + "'")
-                .collect(Collectors.joining(", "));
+    private String getFieldNameByParam(Integer paramCode) {
+        switch (paramCode) {
+            case 1: return "IA";        // A相电流
+            case 2: return "IB";        // B相电流
+            case 3: return "IC";        // C相电流
+            case 4: return "UA";        // A相电压
+            case 5: return "UB";        // B相电压
+            case 6: return "UC";        // C相电压
+            case 7: return "P";         // 总有功功率 - 修复：从PP改为P
+            case 8: return "Q";        // 总无功功率
+            case 9: return "S";        // 总视在功率
+            case 10: return "PFS";      // 总功率因数
+            case 11: return "HZ";       // 频率
+            case 12: return "KWH";      // 正向有功总电能
+            case 13: return "KVARH";    // 正向无功总电能
+            // 其他能源参数
+            case 20: return "TEMP";     // 温度
+            case 21: return "PRE";    // 压力
+            case 22: return "PV";     // 瞬时流量
+            case 23: return "SV";    // 累计值
+            default: return "VALUE";    // 默认值
+        }
+    }
+
+    /**
+     * 构建OR条件语句
+     * 将多个tagname转换为OR条件，例如：tagname = 'YJ0001_13#IA' OR tagname = 'YJ0001_13#PP'
+     */
+    private String buildOrCondition(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "tagname = 'EMPTY'";
+        }
+        
+        List<String> conditions = values.stream()
+                .filter(value -> value != null && !value.trim().isEmpty())
+                .map(value -> "tagname = '" + value.trim() + "'")
+                .collect(Collectors.toList());
+        
+        return String.join(" OR ", conditions);
     }
 }
 ```
@@ -971,6 +1130,9 @@ public class TimeZoneUtil {
 1. 🔧 **性能优化**（缓存、分页）
 2. 🔧 **异常处理和日志**
 3. 🔧 **负荷数据导出功能**
+   - 支持导出Excel格式的负荷数据
+   - 支持按日/月/年粒度导出
+   - 包含功率和负荷率数据
 4. 🔧 **负荷预警功能**
 
 ## 📝 注意事项
@@ -1000,14 +1162,68 @@ public class TimeZoneUtil {
 - 🎨 **图表自适应**：根据仪表数量调整颜色和图例
 - ⚡ **加载状态**：查询过程中显示加载动画
 
+### 8. 负荷数据导出接口
+
+#### 接口信息
+- **URL**: `/energy/realtime/exportLoadData`
+- **Method**: `POST`
+- **功能**: 导出负荷数据为Excel文件，支持日/月/年不同时间粒度
+
+#### 请求参数
+```json
+{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"],  // 仪表ID列表 (必填)
+    "timeGranularity": "day",                    // 时间粒度 (必填: day/month/year)
+    "queryDate": "2025-07-25",                   // 查询日期 (必填)
+    "fileName": "负荷数据_2025-07-25"             // 导出文件名 (可选，默认为"负荷数据_日期")
+}
+```
+
+#### 响应数据
+- 直接返回Excel文件流，Content-Type为application/vnd.ms-excel
+- 文件名格式：负荷数据_2025-07-25.xlsx
+
+#### Excel文件内容
+- **Sheet1**: 有功功率数据
+  - 第一行：时间点
+  - 第一列：仪表名称
+  - 数据单位：kW
+- **Sheet2**: 负荷率数据
+  - 第一行：时间点
+  - 第一列：仪表名称
+  - 数据单位：%
+
 ## 🧪 测试用例
 
 ### 1. 接口测试
 ```bash
 # 1. 获取电力仪表列表
-curl -X GET "http://localhost:8080/energy/realtime/getModulesByDimension?dimensionCode=A02A02A01&energyType=1"
+curl -X GET "http://localhost:8080/energy/realtime/getModulesByDimension?dimensionCode=A02A02A01&energyType=1&includeChildren=true"
 
-# 2. 查询负荷时序数据
+# 2. 获取参数配置
+curl -X GET "http://localhost:8080/energy/realtime/getParameterConfig?energyType=1"
+
+# 3. 查询通用时序数据
+curl -X POST "http://localhost:8080/energy/realtime/getTimeSeriesData" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "moduleIds": ["yj0001_13", "yj0001_14"],
+    "parameters": [1, 2, 7],
+    "timeGranularity": "day",
+    "queryDate": "2025-07-25",
+    "startTime": "2025-07-25 00:00:00",
+    "endTime": "2025-07-25 23:59:59"
+  }'
+
+# 4. 获取实时状态
+curl -X POST "http://localhost:8080/energy/realtime/getCurrentStatus" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "moduleIds": ["yj0001_13", "yj0001_14"],
+    "parameters": [1, 2, 7]
+  }'
+
+# 5. 查询负荷时序数据
 curl -X POST "http://localhost:8080/energy/realtime/getLoadTimeSeriesData" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1016,14 +1232,14 @@ curl -X POST "http://localhost:8080/energy/realtime/getLoadTimeSeriesData" \
     "queryDate": "2025-07-25"
   }'
 
-# 3. 获取实时负荷状态
+# 6. 获取实时负荷状态
 curl -X POST "http://localhost:8080/energy/realtime/getCurrentLoadStatus" \
   -H "Content-Type: application/json" \
   -d '{
     "moduleIds": ["yj0001_1202", "yj0001_1203"]
   }'
 
-# 4. 获取负荷统计表格数据
+# 7. 获取负荷统计表格数据
 curl -X POST "http://localhost:8080/energy/realtime/getLoadTableData" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1034,6 +1250,17 @@ curl -X POST "http://localhost:8080/energy/realtime/getLoadTableData" \
     "pageNum": 1,
     "pageSize": 100
   }'
+
+# 8. 导出负荷数据
+curl -X POST "http://localhost:8080/energy/realtime/exportLoadData" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "moduleIds": ["yj0001_1202", "yj0001_1203"],
+    "timeGranularity": "day",
+    "queryDate": "2025-07-25",
+    "fileName": "负荷数据_2025-07-25"
+  }' \
+  --output "负荷数据_2025-07-25.xlsx"
 ```
 
 ### 2. 数据验证
@@ -1048,12 +1275,20 @@ curl -X POST "http://localhost:8080/energy/realtime/getLoadTableData" \
 
 ## 📋 总结
 
-这个负荷监控接口文档专门针对设备负荷情况监控，主要特点：
+这个实时数据监控接口文档涵盖了完整的能源监控功能，主要特点：
 
-1. **专注负荷监控**：只关注有功功率P和负荷率两个核心指标
-2. **双图表展示**：分别显示有功功率曲线和负荷率曲线
-3. **多仪表支持**：支持同时监控多个设备的负荷情况
-4. **负荷率计算**：自动计算并显示设备利用率
-5. **完整的时间粒度**：支持日/月/年不同时间维度的负荷分析
+1. **多能源类型支持**：支持电力、天然气、压缩空气、企业用水等多种能源类型
+2. **通用时序查询**：支持多仪表、多参数的时序数据查询和可视化
+3. **专业负荷监控**：专门针对电力设备的负荷情况监控，包含有功功率PP和负荷率
+4. **双图表展示**：分别显示有功功率曲线和负荷率曲线
+5. **多仪表支持**：支持同时监控多个设备的实时状态和历史数据
+6. **负荷率计算**：自动计算并显示设备利用率
+7. **完整的时间粒度**：支持日/月/年不同时间维度的数据分析
+8. **统一的查询语法**：使用OR语法构建InfluxDB查询，保证语法兼容性
 
-您可以直接使用这个文档来指导开发具体的负荷监控API接口代码。
+### 接口分类
+- **基础接口**：仪表列表、参数配置
+- **通用监控**：时序数据查询、实时状态获取
+- **负荷监控**：负荷时序数据、负荷状态、负荷统计表格
+
+您可以直接使用这个文档来指导开发具体的实时数据监控API接口代码。

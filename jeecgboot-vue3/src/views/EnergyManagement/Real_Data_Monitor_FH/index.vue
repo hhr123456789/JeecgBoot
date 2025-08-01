@@ -3,7 +3,7 @@
     <!-- 左侧树形菜单 -->
     <div class="w-80 bg-white p-2 mr-2 rounded overflow-auto mt-4" style="width:310px;">
       <a-col :xl="6" :lg="8" :md="10" :sm="24" style="flex: 1;height: 100%;background-color: white;padding-left: 10px;">
-        <a-tabs defaultActiveKey="info1" @change="handleTabChange" style="height: 100%;width:300px;">
+        <a-tabs v-model:activeKey="activeTabKey" @change="handleTabChange" style="height: 100%;width:300px;">
           <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title" :forceRender="item.key === 'info1'">
             <a-card :bordered="false" style="height: 100%">
               <MultiSelectDimensionTree
@@ -12,6 +12,7 @@
                 :nowtype="item.nowtype"
                 :select-level="2"
                 style="margin-top:-20px ;"
+                :key="`tree-${item.key}-${item.nowtype}`"
               />
             </a-card>
           </a-tab-pane>
@@ -20,7 +21,7 @@
     </div>
 
     <!-- 右侧内容区域 -->
-    <div class="flex-1">
+    <div class="flex-1" style="margin-top: 10px;">
       <!-- 查询条件区域 -->
       <div class="bg-white rounded p-3 mb-4">
         <div class="flex flex-wrap items-center gap-4">
@@ -43,6 +44,7 @@
               placeholder="选择日期"
               class="custom-picker"
               style="width: 140px"
+              @change="handleDateChange"
             />
             <a-date-picker
               v-else-if="timeRange === 'month'"
@@ -51,6 +53,7 @@
               placeholder="选择月份"
               class="custom-picker"
               style="width: 140px"
+              @change="handleDateChange"
             />
             <a-date-picker
               v-else-if="timeRange === 'year'"
@@ -59,6 +62,7 @@
               placeholder="选择年份"
               class="custom-picker"
               style="width: 140px"
+              @change="handleDateChange"
             />
           </div>
 
@@ -68,11 +72,13 @@
             <a-select
               v-model:value="selectedMeters"
               mode="multiple"
-              style="width: 180px"
+              style="width: 200px"
               class="custom-select"
               placeholder="请选择仪表"
               :maxTagCount="1"
               :maxTagTextLength="10"
+              @change="handleMeterChange"
+              :loading="meterLoading"
             >
               <a-select-option v-for="meter in meters" :key="meter.value" :value="meter.value">
                 {{ meter.label }}
@@ -80,28 +86,10 @@
             </a-select>
           </div>
 
-          <!-- 参数选择 -->
-          <div class="flex items-center">
-            <span class="text-sm mr-2">参数选择：</span>
-            <a-select
-              v-model:value="selectedParameters"
-              mode="multiple"
-              style="width: 200px"
-              class="custom-select"
-              placeholder="请选择参数"
-              :maxTagCount="2"
-              :maxTagTextLength="8"
-            >
-              <a-select-option v-for="param in parameterConfigs" :key="param.paramCode" :value="param.paramCode">
-                {{ param.paramName }}({{ param.unit }})
-              </a-select-option>
-            </a-select>
-          </div>
-
           <!-- 查询和导出按钮 -->
           <div class="flex gap-2">
             <a-button type="primary" class="custom-button" @click="handleQuery" :loading="loading">查询</a-button>
-            <a-button type="default" class="custom-button">导出数据</a-button>
+            <a-button type="default" class="custom-button" @click="handleExport" :loading="exportLoading">导出数据</a-button>
           </div>
         </div>
       </div>
@@ -113,7 +101,23 @@
           <span class="mr-2">有功功率趋势</span>
           <span class="text-xs text-gray-400">(kW)</span>
         </div>
-        <LineChart :chartData="activePowerChartData" />
+        <template v-if="hasChartData()">
+          <LineChart :chartData="activePowerChartData" chartId="power-chart" />
+        </template>
+        <template v-else>
+          <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+            <div class="text-6xl mb-4">📊</div>
+            <div class="text-lg font-medium mb-2">暂无功率数据</div>
+            <div class="text-sm text-center max-w-md">
+              <p class="mb-2">当前条件下没有找到功率数据，可能的原因：</p>
+              <ul class="text-left space-y-1">
+                <li>• 请先选择维度和仪表</li>
+                <li>• 选择的时间范围内没有数据记录</li>
+                <li>• 仪表设备离线或数据传输异常</li>
+              </ul>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- 负荷率图表 -->
@@ -122,44 +126,74 @@
           <span class="mr-2">负荷率趋势</span>
           <span class="text-xs text-gray-400">(%)</span>
         </div>
-        <LineChart :chartData="loadRateChartData" />
+        <template v-if="hasLoadRateChartData()">
+          <LineChart :chartData="loadRateChartData" chartId="loadrate-chart" />
+        </template>
+        <template v-else>
+          <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+            <div class="text-6xl mb-4">📈</div>
+            <div class="text-lg font-medium mb-2">暂无负荷率数据</div>
+            <div class="text-sm text-center max-w-md">
+              <p class="mb-2">当前条件下没有找到负荷率数据，可能的原因：</p>
+              <ul class="text-left space-y-1">
+                <li>• 请先选择维度和仪表</li>
+                <li>• 选择的时间范围内没有数据记录</li>
+                <li>• 仪表设备离线或数据传输异常</li>
+              </ul>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- 数据统计表格 -->
       <div class="bg-white rounded-lg p-4 mb-4 shadow-sm">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="bg-gray-50">
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">序号</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">设备名称</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷 (kw)</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷率 (%)</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷发生时间</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷 (kw)</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷率 (%)</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷发生时间</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">平均负荷 (kW)</th>
-              <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">平均负荷率 (%)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in statisticsData" :key="index" class="hover:bg-gray-50">
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.id }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.deviceName }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoad }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoadRate }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoadTime }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoad }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoadRate }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoadTime }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.avgLoad }}</td>
-              <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.avgLoadRate }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="text-gray-600 text-sm mb-3 flex items-center">
+          <span>负荷统计数据</span>
+          <span class="ml-2 text-xs text-gray-400">
+            ({{ timeRange === 'day' && selectedDate ? dayjs(selectedDate).format('YYYY-MM-DD') : 
+                timeRange === 'month' && selectedMonth ? dayjs(selectedMonth).format('YYYY-MM') : 
+                timeRange === 'year' && selectedYear ? dayjs(selectedYear).format('YYYY') : '未选择日期' }})
+          </span>
+        </div>
+        <template v-if="statisticsData.length > 0">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">序号</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">设备名称</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷 (kW)</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷率 (%)</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最大负荷发生时间</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷 (kW)</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷率 (%)</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">最小负荷发生时间</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">平均负荷 (kW)</th>
+                <th class="border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-700">平均负荷率 (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in statisticsData" :key="index" class="hover:bg-gray-50">
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.id }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.deviceName }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoad }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoadRate }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.maxLoadTime }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoad }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoadRate }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.minLoadTime }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.avgLoad }}</td>
+                <td class="border border-gray-200 px-4 py-2 text-sm text-gray-900 text-center">{{ item.avgLoadRate }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+        <template v-else>
+          <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+            <div class="text-4xl mb-2">📋</div>
+            <div class="text-sm">暂无统计数据</div>
+          </div>
+        </template>
       </div>
-
-
     </div>
   </div>
 </template>
@@ -172,15 +206,13 @@ import LineChart from './components/LineChart.vue';
 import MultiSelectDimensionTree from '../Real_Data_Monitor/components/MultiSelectDimensionTree.vue';
 import { defHttp } from '/@/utils/http/axios';
 import { useMessage } from '/@/hooks/web/useMessage';
-import {
-  getModulesByDimension,
-  getParameterConfig,
-  getTimeSeriesData,
-  getCurrentStatus,
+import { 
+  getModulesByDimension, 
+  getLoadTimeSeriesData, 
+  getCurrentLoadStatus,
   type ModuleInfo,
-  type ParameterConfig,
-  type TimeSeriesData,
-  type ModuleStatus
+  type LoadTimeSeriesRequest,
+  type LoadTimeSeriesData
 } from './api';
 import dayjs from 'dayjs';
 
@@ -204,15 +236,16 @@ const selectedDevices = ref<any[]>([]);
 
 // 仪表相关变量
 const meters = ref<Array<{ label: string; value: string }>>([]);
-const allModules = ref<ModuleInfo[]>([]);
+const allModules = ref<any[]>([]);
 const selectedMeters = ref<string[]>([]);
+const meterLoading = ref(false);
 
-// 参数配置
-const parameterConfigs = ref<ParameterConfig[]>([]);
-const selectedParameters = ref<number[]>([]);
+// 负荷监控固定参数（有功功率，参数编码7）
+const LOAD_PARAMETER_CODE = 7;
 
 // 加载状态
 const loading = ref(false);
+const exportLoading = ref(false);
 
 // 设置树组件引用
 const setTreeRef = (el: any, key: string) => {
@@ -223,29 +256,48 @@ const setTreeRef = (el: any, key: string) => {
 
 // 处理标签页切换
 function handleTabChange(key: string) {
+  console.log('🔄 标签页切换:', key);
   activeTabKey.value = key;
 
   // 根据选中的标签页设置当前能源类型
   const selectedDimension = dimensionList.value.find(item => item.key === key);
   if (selectedDimension) {
+    const oldNowtype = currentNowtype.value;
     currentNowtype.value = selectedDimension.nowtype;
     console.log('🎯 切换到维度类型:', currentNowtype.value);
 
-    // 清空仪表选择，等待用户重新选择设备
-    meters.value = [];
-    allModules.value = [];
-    selectedMeters.value = [];
+    // 如果维度类型发生变化，清空所有相关数据
+    if (oldNowtype !== selectedDimension.nowtype) {
+      console.log('🧹 维度类型变化，清空所有数据');
+      
+      // 清空设备选择
+      selectedDevices.value = [];
+      
+      // 清空仪表选择
+      meters.value = [];
+      allModules.value = [];
+      selectedMeters.value = [];
 
-    // 加载对应能源类型的参数配置
-    loadParameterConfig(currentNowtype.value);
+      // 清空图表数据
+      clearChartData();
+      
+      console.log('✅ 数据清空完成，等待用户重新选择设备');
+    }
   }
 }
 
 // 左侧树选择后触发 - 支持多选
 function onDepartTreeSelect(data: any) {
-  console.log('onDepartTreeSelect received:', data);
-  console.log('Current nowtype:', currentNowtype.value);
-  console.log('Current tab:', activeTabKey.value);
+  console.log('🌳 树选择事件触发:', data);
+  console.log('当前维度类型:', currentNowtype.value);
+  console.log('当前标签页:', activeTabKey.value);
+
+  // 先清空之前的仪表选择
+  console.log('🧹 清空之前的仪表选择');
+  meters.value = [];
+  allModules.value = [];
+  selectedMeters.value = [];
+  clearChartData();
 
   if (Array.isArray(data) && data.length > 0) {
     selectedDevices.value = data;
@@ -253,25 +305,20 @@ function onDepartTreeSelect(data: any) {
 
     // 根据选中的设备加载仪表列表
     const dimensionCodes = data.map(item => item.orgCode);
+    console.log('📡 准备加载仪表，维度编码:', dimensionCodes);
     loadModulesByDimensionCodes(dimensionCodes);
   } else {
     selectedDevices.value = [];
-    console.log('❌ 未选中任何设备');
-    // 清空仪表列表
-    meters.value = [];
-    allModules.value = [];
-    selectedMeters.value = [];
-    // 清空图表数据
-    clearChartData();
+    console.log('❌ 未选中任何设备，保持清空状态');
   }
 }
 
-// 根据维度编码加载仪表列表
+// 根据维度编码加载仪表列表 - 修改为支持多个维度编码
 async function loadModulesByDimensionCodes(dimensionCodes: string[]) {
-  console.log('loadModulesByDimensionCodes called with:', dimensionCodes);
+  console.log('🔍 loadModulesByDimensionCodes called with:', dimensionCodes);
 
   if (!dimensionCodes || dimensionCodes.length === 0) {
-    console.log('No dimensionCodes provided, clearing meters');
+    console.log('❌ No dimensionCodes provided, clearing meters');
     meters.value = [];
     allModules.value = [];
     selectedMeters.value = [];
@@ -279,110 +326,127 @@ async function loadModulesByDimensionCodes(dimensionCodes: string[]) {
   }
 
   try {
-    loading.value = true;
+    meterLoading.value = true;
 
-    // 使用第一个维度编码进行查询（如果需要支持多个维度，可以循环查询）
-    const dimensionCode = dimensionCodes[0];
-    console.log('请求参数:', {
-      dimensionCode: dimensionCode,
-      energyType: currentNowtype.value || 1,
-      includeChildren: true
+    // 获取所有维度编码的仪表数据
+    console.log('📡 批量请求仪表数据，维度编码数量:', dimensionCodes.length);
+    
+    // 创建所有API请求的Promise数组
+    const apiPromises = dimensionCodes.map(dimensionCode => {
+      console.log('📡 请求参数:', {
+        dimensionCode: dimensionCode,
+        energyType: currentNowtype.value || 1,
+        includeChildren: true
+      });
+
+      return getModulesByDimension({
+        dimensionCode: dimensionCode,
+        energyType: currentNowtype.value || 1,
+        includeChildren: true
+      }).catch(error => {
+        console.error(`获取维度${dimensionCode}的仪表失败:`, error);
+        return []; // 返回空数组，避免Promise.all失败
+      });
     });
 
-    const response = await getModulesByDimension({
-      dimensionCode: dimensionCode,
-      energyType: currentNowtype.value || 1,
-      includeChildren: true
+    // 并行执行所有API请求
+    const responses = await Promise.all(apiPromises);
+    console.log('📡 批量API响应:', responses);
+
+    // 合并所有响应的仪表数据
+    let allModuleList: any[] = [];
+    
+    responses.forEach((response, index) => {
+      console.log(`处理维度${dimensionCodes[index]}的响应:`, response);
+      
+      let moduleList: any[] = [];
+      
+      if (response && typeof response === 'object') {
+        if ('success' in response && response.success && Array.isArray(response.result)) {
+          moduleList = response.result;
+        } else if (Array.isArray(response)) {
+          moduleList = response;
+        } else if ('data' in response && Array.isArray(response.data)) {
+          moduleList = response.data;
+        }
+      }
+
+      if (moduleList.length > 0) {
+        console.log(`维度${dimensionCodes[index]}获取到${moduleList.length}个仪表`);
+        allModuleList = allModuleList.concat(moduleList);
+      }
     });
 
-    console.log('API响应:', response);
+    // 去重处理，避免重复的仪表
+    const uniqueModules: any[] = [];
+    const moduleIdSet = new Set();
+    
+    allModuleList.forEach(module => {
+      if (!moduleIdSet.has(module.moduleId)) {
+        moduleIdSet.add(module.moduleId);
+        uniqueModules.push(module);
+      }
+    });
 
-    if (response && response.success && Array.isArray(response.result)) {
-      allModules.value = response.result;
-      console.log(`成功获取 ${response.result.length} 个仪表`);
-    } else {
-      console.log('响应格式不正确或无数据:', response);
-      allModules.value = [];
-    }
+    allModules.value = uniqueModules;
+    console.log(`✅ 合并后获取 ${uniqueModules.length} 个仪表（去重后）`);
 
     // 转换为下拉框选项格式
     meters.value = allModules.value.map(module => ({
-      label: module.moduleName,
+      label: module.moduleName || `仪表${module.moduleId}`,
       value: module.moduleId
     }));
 
-    // 默认选择所有仪表（如果有的话）
-    if (meters.value.length > 0) {
-      selectedMeters.value = meters.value.map(m => m.value);
-    } else {
-      selectedMeters.value = [];
-    }
+    // 默认选择所有仪表
+    selectedMeters.value = meters.value.map(m => m.value);
 
-    console.log(`加载了 ${allModules.value.length} 个仪表，默认选中 ${selectedMeters.value.length} 个`);
-    console.log('仪表详情:', meters.value);
+    console.log(`🏷️ 转换后的仪表选项:`, meters.value);
+    console.log(`🎯 默认选中所有仪表:`, selectedMeters.value);
 
     // 如果没有仪表数据，显示友好提示
     if (allModules.value.length === 0) {
-      console.log('💡 提示：当前维度下暂无仪表数据，请尝试切换其他维度或联系管理员配置仪表');
-      createMessage.warning('当前维度下暂无仪表数据');
+      console.log('💡 提示：当前维度下暂无仪表数据');
+      createMessage.warning('当前维度下暂无仪表数据，请检查维度配置或联系管理员');
+    } else {
+      createMessage.success(`成功加载 ${allModules.value.length} 个仪表，已默认全选`);
+      
+      // 如果有默认日期，自动执行查询
+      if (selectedDate.value) {
+        console.log('🚀 有默认日期，自动执行查询');
+        // 延迟一下让界面更新完成
+        setTimeout(() => {
+          handleQuery();
+        }, 500);
+      }
     }
 
   } catch (error) {
-    console.error('获取仪表列表失败:', error);
-    createMessage.error('获取仪表列表失败');
-    meters.value = [];
+    console.error('❌ 获取仪表列表失败:', error);
+    
+    // 清空仪表数据
     allModules.value = [];
+    meters.value = [];
     selectedMeters.value = [];
+    
+    createMessage.error('获取仪表列表失败，请检查网络连接或联系管理员');
   } finally {
-    loading.value = false;
-  }
-}
-
-// 加载参数配置
-async function loadParameterConfig(energyType: number) {
-  try {
-    const response = await getParameterConfig({ energyType });
-    if (response && response.success && Array.isArray(response.result)) {
-      parameterConfigs.value = response.result;
-      // 默认选择有功功率和负荷率相关参数
-      selectedParameters.value = parameterConfigs.value
-        .filter(param => param.isDefault || param.paramName.includes('有功') || param.paramName.includes('负荷'))
-        .map(param => param.paramCode);
-      console.log('加载参数配置成功:', parameterConfigs.value);
-    }
-  } catch (error) {
-    console.error('加载参数配置失败:', error);
-    // 使用默认参数
-    selectedParameters.value = [1]; // 默认选择第一个参数
+    meterLoading.value = false;
   }
 }
 
 // 清空图表数据
 function clearChartData() {
+  console.log('🧹 清空图表数据');
   activePowerChartData.value = {
-    xAxis: { type: 'category', data: [] },
-    series: []
+    xAxis: { type: 'category' as const, data: [] as string[] },
+    series: [] as any[]
   };
   loadRateChartData.value = {
-    xAxis: { type: 'category', data: [] },
-    series: []
+    xAxis: { type: 'category' as const, data: [] as string[] },
+    series: [] as any[]
   };
   statisticsData.value = [];
 }
-
-// 实时数据接口定义（简化版，只保留必要数据）
-interface RealTimeData {
-  activePower: number;      // 有功功率
-  powerFactor: number;      // 功率因数
-  loadRate: number;         // 负荷率
-}
-
-// 实时数据（静态数据）
-const realTimeData = ref<RealTimeData>({
-  activePower: 75.54,
-  powerFactor: 0.95,
-  loadRate: 85.6
-});
 
 // 时间范围选择
 const timeRange = ref('day');
@@ -392,108 +456,100 @@ const selectedDate = ref<Dayjs | null>(null);
 const selectedMonth = ref<Dayjs | null>(null);
 const selectedYear = ref<Dayjs | null>(null);
 
-
-
 // 有功功率图表数据
 const activePowerChartData = ref({
   xAxis: {
-    type: 'category',
-    data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-           '14:00', '16:00', '18:00', '20:00', '22:00']
+    type: 'category' as const,
+    data: [] as string[]
   },
-  series: [
-    {
-      name: '有功功率',
-      type: 'line',
-      data: [75.54, 78.23, 80.67, 79.45, 78.92, 80.34, 81.78,
-             79.89, 78.45, 77.89, 79.23, 78.67],
-      itemStyle: {
-        color: '#1890ff'
-      },
-      unit: 'kW',
-      deviceName: '1号设备'
-    }
-  ]
+  series: [] as any[]
 });
 
 // 负荷率图表数据
 const loadRateChartData = ref({
   xAxis: {
-    type: 'category',
-    data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-           '14:00', '16:00', '18:00', '20:00', '22:00']
+    type: 'category' as const,
+    data: [] as string[]
   },
-  series: [
-    {
-      name: '负荷率',
-      type: 'line',
-      data: [85.6, 87.2, 89.1, 88.3, 87.8, 89.5, 90.2,
-             88.9, 87.4, 86.8, 88.1, 87.6],
-      itemStyle: {
-        color: '#52c41a'
-      },
-      unit: '%',
-      deviceName: '1号设备'
-    }
-  ]
+  series: [] as any[]
 });
 
 // 统计数据表格
-const statisticsData = ref([
-  {
-    id: 1,
-    deviceName: '1号设备',
-    maxLoad: 90.25,
-    maxLoadRate: 95.8,
-    maxLoadTime: '14:30',
-    minLoad: 65.12,
-    minLoadRate: 68.9,
-    minLoadTime: '03:15',
-    avgLoad: 78.45,
-    avgLoadRate: 83.2
-  },
-  {
-    id: 2,
-    deviceName: '2号设备',
-    maxLoad: 88.76,
-    maxLoadRate: 92.4,
-    maxLoadTime: '15:45',
-    minLoad: 62.34,
-    minLoadRate: 65.1,
-    minLoadTime: '02:30',
-    avgLoad: 75.89,
-    avgLoadRate: 79.8
-  },
-  {
-    id: 3,
-    deviceName: '3号设备',
-    maxLoad: 95.12,
-    maxLoadRate: 98.2,
-    maxLoadTime: '16:20',
-    minLoad: 58.67,
-    minLoadRate: 61.5,
-    minLoadTime: '04:45',
-    avgLoad: 82.34,
-    avgLoadRate: 86.7
-  }
-]);
+const statisticsData = ref<any[]>([]);
 
+// 检查是否有图表数据
+const hasChartData = (): boolean => {
+  return activePowerChartData.value.series.length > 0 && 
+         activePowerChartData.value.xAxis.data.length > 0;
+};
 
-
-// 定时更新数据
-let timer: number | null = null;
+// 检查是否有负荷率图表数据
+const hasLoadRateChartData = (): boolean => {
+  return loadRateChartData.value.series.length > 0 && 
+         loadRateChartData.value.xAxis.data.length > 0;
+};
 
 // 时间范围变化处理
 const handleTimeRangeChange = () => {
-  // 清空日期选择
+  console.log('📅 时间范围变化:', timeRange.value);
+  
+  // 清空所有日期选择
   selectedDate.value = null;
   selectedMonth.value = null;
   selectedYear.value = null;
+  
+  // 设置默认日期
+  if (timeRange.value === 'day') {
+    selectedDate.value = dayjs();
+    console.log('📅 设置默认日期:', dayjs().format('YYYY-MM-DD'));
+  } else if (timeRange.value === 'month') {
+    selectedMonth.value = dayjs();
+    console.log('📅 设置默认月份:', dayjs().format('YYYY-MM'));
+  } else if (timeRange.value === 'year') {
+    selectedYear.value = dayjs();
+    console.log('📅 设置默认年份:', dayjs().format('YYYY'));
+  }
+  
+  // 如果有选中的仪表，自动触发查询
+  if (selectedMeters.value && selectedMeters.value.length > 0) {
+    console.log('🚀 时间范围变化后自动查询');
+    // 延迟一点时间确保日期设置完成
+    setTimeout(() => {
+      handleQuery();
+    }, 100);
+  }
 };
 
-// 查询处理
+
+// 日期变化处理 - 也需要修改
+const handleDateChange = () => {
+  console.log('📅 日期变化事件触发');
+  console.log('当前时间范围:', timeRange.value);
+  console.log('选中的日期:', {
+    day: selectedDate.value ? dayjs(selectedDate.value).format('YYYY-MM-DD') : null,
+    month: selectedMonth.value ? dayjs(selectedMonth.value).format('YYYY-MM') : null,
+    year: selectedYear.value ? dayjs(selectedYear.value).format('YYYY') : null
+  });
+  
+  // 如果有选中的仪表，自动查询
+  if (selectedMeters.value && selectedMeters.value.length > 0) {
+    console.log('🚀 日期变化后自动查询');
+    handleQuery();
+  }
+};
+
+
+// 仪表选择变化处理
+const handleMeterChange = () => {
+  // 如果有选择的日期，自动查询
+  if (selectedDate.value || selectedMonth.value || selectedYear.value) {
+    handleQuery();
+  }
+};
+
+// 查询处理 - 修改日期格式处理部分
 const handleQuery = async () => {
-  console.log('开始查询数据...');
+  console.log('🔍 开始查询负荷数据...');
 
   // 验证查询参数
   if (!selectedMeters.value || selectedMeters.value.length === 0) {
@@ -501,14 +557,263 @@ const handleQuery = async () => {
     return;
   }
 
-  if (!selectedParameters.value || selectedParameters.value.length === 0) {
-    createMessage.warning('请选择至少一个参数');
+  try {
+    loading.value = true;
+
+    // 构建查询日期 - 修改这部分逻辑
+    let queryDate: string;
+    let timeGranularity: string;
+
+    if (timeRange.value === 'day') {
+      if (!selectedDate.value) {
+        createMessage.warning('请选择查询日期');
+        return;
+      }
+      queryDate = dayjs(selectedDate.value).format('YYYY-MM-DD');
+      timeGranularity = 'day';
+    } else if (timeRange.value === 'month') {
+      if (!selectedMonth.value) {
+        createMessage.warning('请选择查询月份');
+        return;
+      }
+      queryDate = dayjs(selectedMonth.value).format('YYYY-MM');
+      timeGranularity = 'month';
+    } else if (timeRange.value === 'year') {
+      if (!selectedYear.value) {
+        createMessage.warning('请选择查询年份');
+        return;
+      }
+      queryDate = dayjs(selectedYear.value).format('YYYY');
+      timeGranularity = 'year';
+    } else {
+      createMessage.warning('请选择查询时间范围');
+      return;
+    }
+
+    console.log('📊 查询参数构建完成:', {
+      timeRange: timeRange.value,
+      queryDate: queryDate,
+      timeGranularity: timeGranularity,
+      selectedMeters: selectedMeters.value
+    });
+
+    // 构建负荷监控请求参数
+    const requestData: LoadTimeSeriesRequest = {
+      moduleIds: selectedMeters.value,
+      timeGranularity: timeGranularity,
+      queryDate: queryDate
+    };
+
+    console.log('📊 负荷查询参数:', requestData);
+
+    // 调用负荷时序数据查询API
+    const response = await getLoadTimeSeriesData(requestData);
+
+    console.log('📊 负荷查询响应:', response);
+
+    // 处理响应数据
+    if (response && typeof response === 'object') {
+      let loadData: LoadTimeSeriesData | null = null;
+      
+      if ('success' in response && response.success && response.result) {
+        loadData = response.result;
+      } else if ('powerChartData' in response || 'loadRateChartData' in response) {
+        loadData = response as LoadTimeSeriesData;
+      }
+
+      if (loadData) {
+        // 更新负荷图表数据
+        updateLoadChartData(loadData);
+        createMessage.success(`${timeRange.value === 'day' ? '日' : timeRange.value === 'month' ? '月' : '年'}负荷数据查询成功`);
+      } else {
+        console.error('负荷查询失败: 无有效数据', response);
+        // 清空图表数据
+        clearChartData();
+        createMessage.warning(`查询成功，但${queryDate}期间暂无数据`);
+      }
+    } else {
+      console.error('负荷查询失败: 响应格式错误', response);
+      // 清空图表数据
+      clearChartData();
+      createMessage.error('查询失败，响应数据格式错误');
+    }
+
+  } catch (error) {
+    console.error('❌ 查询负荷数据失败:', error);
+    // 清空图表数据
+    clearChartData();
+    createMessage.error('查询失败，请检查网络连接或联系管理员');
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 更新负荷图表数据
+function updateLoadChartData(data: LoadTimeSeriesData) {
+  console.log('📊 更新负荷图表数据:', data);
+
+  if (!data) {
+    console.warn('❌ 无效的负荷数据');
+    clearChartData();
+    return;
+  }
+
+  // 更新有功功率图表数据
+  if (data.powerChartData && data.powerChartData.series && data.powerChartData.series.length > 0) {
+    activePowerChartData.value = {
+      xAxis: {
+        type: 'category',
+        data: data.powerChartData.timeLabels || []
+      },
+      series: data.powerChartData.series.map((series: any) => ({
+        name: series.moduleName,
+        type: 'line',
+        data: series.data || [],
+        itemStyle: {
+          color: series.color || '#1890ff'
+        },
+        unit: series.unit || 'kW',
+        deviceName: series.moduleName
+      }))
+    };
+    console.log('✅ 有功功率图表数据更新完成');
+  } else {
+    console.log('⚠️ 无有功功率数据');
+    activePowerChartData.value = {
+      xAxis: { type: 'category' as const, data: [] as string[] },
+      series: [] as any[]
+    };
+  }
+
+  // 更新负荷率图表数据
+  if (data.loadRateChartData && data.loadRateChartData.series && data.loadRateChartData.series.length > 0) {
+    loadRateChartData.value = {
+      xAxis: {
+        type: 'category',
+        data: data.loadRateChartData.timeLabels || []
+      },
+      series: data.loadRateChartData.series.map((series: any) => ({
+        name: series.moduleName,
+        type: 'line',
+        data: series.data || [],
+        itemStyle: {
+          color: series.color || '#52c41a'
+        },
+        unit: series.unit || '%',
+        deviceName: series.moduleName
+      }))
+    };
+    console.log('✅ 负荷率图表数据更新完成');
+  } else {
+    console.log('⚠️ 无负荷率数据');
+    loadRateChartData.value = {
+      xAxis: { type: 'category' as const, data: [] as string[] },
+      series: [] as any[]
+    };
+  }
+
+  // 更新统计数据表格
+  if (data.tableData && Array.isArray(data.tableData) && data.tableData.length > 0) {
+    updateLoadStatisticsData(data.tableData);
+    console.log('✅ 统计数据更新完成');
+  } else {
+
+
+
+    // 更新统计数据表格 - 继续
+    console.log('⚠️ 无统计数据');
+    statisticsData.value = [];
+  }
+}
+
+// 更新负荷统计数据表格
+function updateLoadStatisticsData(tableData: any[]) {
+  console.log('📊 更新负荷统计数据:', tableData);
+  
+  const stats: any[] = [];
+
+  // 处理表格数据，计算每个设备的统计信息
+  const deviceStats = new Map();
+
+  tableData.forEach((timePoint: any) => {
+    if (timePoint.modules && Array.isArray(timePoint.modules)) {
+      timePoint.modules.forEach((module: any) => {
+        const moduleId = module.moduleId;
+        if (!deviceStats.has(moduleId)) {
+          deviceStats.set(moduleId, {
+            moduleName: module.moduleName,
+            powerData: [],
+            loadRateData: [],
+            timePoints: []
+          });
+        }
+
+        const stats = deviceStats.get(moduleId);
+        if (module.currentPower !== null && module.currentPower !== undefined) {
+          stats.powerData.push(module.currentPower);
+        }
+        if (module.loadRate !== null && module.loadRate !== undefined) {
+          stats.loadRateData.push(module.loadRate);
+        }
+        stats.timePoints.push({
+          time: timePoint.timeLabel || timePoint.time,
+          power: module.currentPower,
+          loadRate: module.loadRate
+        });
+      });
+    }
+  });
+
+  let index = 1;
+  deviceStats.forEach((deviceData: any, moduleId: string) => {
+    const powerData = deviceData.powerData.filter((p: any) => p !== null && p !== undefined && !isNaN(p));
+    const loadRateData = deviceData.loadRateData.filter((r: any) => r !== null && r !== undefined && !isNaN(r));
+
+    if (powerData.length > 0) {
+      // 计算功率统计
+      const maxPower = Math.max(...powerData);
+      const minPower = Math.min(...powerData);
+      const avgPower = powerData.reduce((sum: number, val: number) => sum + val, 0) / powerData.length;
+
+      // 计算负荷率统计
+      const maxLoadRate = loadRateData.length > 0 ? Math.max(...loadRateData) : 0;
+      const minLoadRate = loadRateData.length > 0 ? Math.min(...loadRateData) : 0;
+      const avgLoadRate = loadRateData.length > 0 ? loadRateData.reduce((sum: number, val: number) => sum + val, 0) / loadRateData.length : 0;
+
+      // 找到最大最小功率发生的时间
+      const maxPowerPoint = deviceData.timePoints.find((p: any) => p.power === maxPower);
+      const minPowerPoint = deviceData.timePoints.find((p: any) => p.power === minPower);
+
+      stats.push({
+        id: index++,
+        deviceName: deviceData.moduleName,
+        maxLoad: Number(maxPower.toFixed(2)),
+        maxLoadRate: Number(maxLoadRate.toFixed(1)),
+        maxLoadTime: maxPowerPoint ? maxPowerPoint.time : '--',
+        minLoad: Number(minPower.toFixed(2)),
+        minLoadRate: Number(minLoadRate.toFixed(1)),
+        minLoadTime: minPowerPoint ? minPowerPoint.time : '--',
+        avgLoad: Number(avgPower.toFixed(2)),
+        avgLoadRate: Number(avgLoadRate.toFixed(1))
+      });
+    }
+  });
+
+  statisticsData.value = stats;
+  console.log('✅ 统计数据生成完成:', stats);
+}
+
+// 导出数据
+const handleExport = async () => {
+  if (!selectedMeters.value || selectedMeters.value.length === 0) {
+    createMessage.warning('请选择至少一个仪表');
     return;
   }
 
   try {
-    loading.value = true;
-
+    exportLoading.value = true;
+    createMessage.loading('正在导出数据，请稍候...', 2);
+    
     // 构建查询日期
     let queryDate: string;
     let timeGranularity: string;
@@ -527,160 +832,100 @@ const handleQuery = async () => {
       return;
     }
 
-    // 构建请求参数
-    const requestData = {
+    console.log('📤 开始导出数据:', {
       moduleIds: selectedMeters.value,
-      parameters: selectedParameters.value,
       timeGranularity: timeGranularity,
-      queryDate: queryDate
-    };
+      queryDate: queryDate,
+      fileName: `负荷数据_${queryDate}`,
+      statisticsDataCount: statisticsData.value ? statisticsData.value.length : 0
+    });
+    
+    console.log('📤 当前统计数据:', statisticsData.value);
 
-    console.log('📊 查询参数:', requestData);
-
-    // 调用查询API
-    const response = await getTimeSeriesData(requestData);
-    console.log('📊 查询响应:', response);
-
-    if (response && response.success) {
-      // 更新图表数据
-      updateChartData(response.result);
-      createMessage.success('查询成功');
+    // 使用defHttp但配置为不转换响应
+    const response = await defHttp.post(
+      {
+        url: '/energy/realtime/exportLoadData',
+        data: {
+          moduleIds: selectedMeters.value,
+          timeGranularity: timeGranularity,
+          queryDate: queryDate,
+          fileName: `负荷数据_${queryDate}`,
+          // 添加统计数据，如果前端有的话
+          statisticsData: statisticsData.value && statisticsData.value.length > 0 ? statisticsData.value : null
+        },
+        responseType: 'blob',
+        timeout: 60000,
+      },
+      {
+        isTransformResponse: false,
+        isReturnNativeResponse: true,
+      }
+    );
+    
+    console.log('📤 导出API响应:', response);
+    
+    // 处理响应
+    let blob: Blob;
+    
+    if (response.data instanceof Blob) {
+      blob = response.data;
+    } else if (response instanceof Blob) {
+      blob = response;
     } else {
-      console.error('查询失败:', response);
-      createMessage.error('查询失败：' + (response?.message || '未知错误'));
+      // 如果不是blob，尝试从response中获取
+      const responseData = response.data || response;
+      if (responseData instanceof ArrayBuffer) {
+        blob = new Blob([responseData], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+      } else {
+        throw new Error('响应数据格式不正确');
+      }
     }
 
-  } catch (error) {
-    console.error('查询数据失败:', error);
-    createMessage.error('查询数据失败');
+    console.log('📤 文件大小:', blob.size, '字节');
+
+    if (blob.size === 0) {
+      createMessage.error('导出的文件为空，请检查数据');
+      return;
+    }
+
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `负荷数据_${queryDate}.xlsx`;
+    link.style.display = 'none';
+    
+    // 添加到DOM并触发下载
+    document.body.appendChild(link);
+    link.click();
+    
+    // 清理
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+    
+    createMessage.success('导出成功');
+
+  } catch (error: any) {
+    console.error('导出失败:', error);
+    
+    // 检查是否是认证错误
+    if (error.response && error.response.status === 401) {
+      createMessage.error('导出失败：用户未登录或登录已过期，请重新登录');
+    } else if (error.response && error.response.status) {
+      createMessage.error(`导出失败：服务器错误 (${error.response.status})`);
+    } else if (error.message) {
+      createMessage.error(`导出失败: ${error.message}`);
+    } else {
+      createMessage.error('导出失败：未知错误');
+    }
   } finally {
-    loading.value = false;
+    exportLoading.value = false;
   }
-};
-
-// 更新图表数据
-function updateChartData(data: TimeSeriesData) {
-  console.log('更新图表数据:', data);
-
-  if (!data || !data.chartData) {
-    console.warn('无效的图表数据');
-    return;
-  }
-
-  const { chartData } = data;
-
-  // 更新有功功率图表数据
-  const activePowerSeries = chartData.series.filter(series =>
-    series.paramName.includes('有功') || series.paramName.includes('功率')
-  );
-
-  if (activePowerSeries.length > 0) {
-    activePowerChartData.value = {
-      xAxis: {
-        type: 'category',
-        data: chartData.timeLabels
-      },
-      series: activePowerSeries.map(series => ({
-        name: `${series.moduleName}-${series.paramName}`,
-        type: 'line',
-        data: series.data,
-        itemStyle: {
-          color: series.color
-        },
-        unit: series.unit,
-        deviceName: series.moduleName
-      }))
-    };
-  }
-
-  // 更新负荷率图表数据（如果有负荷率参数）
-  const loadRateSeries = chartData.series.filter(series =>
-    series.paramName.includes('负荷') || series.paramName.includes('率')
-  );
-
-  if (loadRateSeries.length > 0) {
-    loadRateChartData.value = {
-      xAxis: {
-        type: 'category',
-        data: chartData.timeLabels
-      },
-      series: loadRateSeries.map(series => ({
-        name: `${series.moduleName}-${series.paramName}`,
-        type: 'line',
-        data: series.data,
-        itemStyle: {
-          color: series.color
-        },
-        unit: series.unit,
-        deviceName: series.moduleName
-      }))
-    };
-  }
-
-  // 更新统计数据表格
-  updateStatisticsData(chartData.series);
-}
-
-// 更新统计数据表格
-function updateStatisticsData(series: any[]) {
-  const stats: any[] = [];
-
-  // 按设备分组统计
-  const deviceGroups = new Map();
-  series.forEach(s => {
-    if (!deviceGroups.has(s.moduleId)) {
-      deviceGroups.set(s.moduleId, {
-        moduleId: s.moduleId,
-        moduleName: s.moduleName,
-        series: []
-      });
-    }
-    deviceGroups.get(s.moduleId).series.push(s);
-  });
-
-  let index = 1;
-  deviceGroups.forEach(group => {
-    // 计算该设备的统计数据
-    const allData = group.series.flatMap((s: any) => s.data.filter((v: number) => v !== null && v !== undefined));
-
-    if (allData.length > 0) {
-      const maxLoad = Math.max(...allData);
-      const minLoad = Math.min(...allData);
-      const avgLoad = allData.reduce((sum: number, val: number) => sum + val, 0) / allData.length;
-
-      // 假设额定功率为100kW，计算负荷率
-      const ratedPower = 100;
-      const maxLoadRate = (maxLoad / ratedPower) * 100;
-      const minLoadRate = (minLoad / ratedPower) * 100;
-      const avgLoadRate = (avgLoad / ratedPower) * 100;
-
-      stats.push({
-        id: index++,
-        deviceName: group.moduleName,
-        maxLoad: Number(maxLoad.toFixed(2)),
-        maxLoadRate: Number(maxLoadRate.toFixed(1)),
-        maxLoadTime: '14:30', // 这里需要根据实际数据计算
-        minLoad: Number(minLoad.toFixed(2)),
-        minLoadRate: Number(minLoadRate.toFixed(1)),
-        minLoadTime: '03:15', // 这里需要根据实际数据计算
-        avgLoad: Number(avgLoad.toFixed(2)),
-        avgLoadRate: Number(avgLoadRate.toFixed(1))
-      });
-    }
-  });
-
-  statisticsData.value = stats;
-}
-
-// 更新数据的方法
-const updateData = () => {
-  // 模拟数据更新
-  realTimeData.value = {
-    ...realTimeData.value,
-    activePower: Number((realTimeData.value.activePower * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2)),
-    powerFactor: Number((realTimeData.value.powerFactor * (1 + (Math.random() - 0.5) * 0.001)).toFixed(2)),
-    loadRate: Number((realTimeData.value.loadRate * (1 + (Math.random() - 0.5) * 0.01)).toFixed(2))
-  };
 };
 
 // 获取字典数据
@@ -740,38 +985,40 @@ function useDefaultDimensions() {
   console.log('✅ 已设置默认维度列表:', dimensionList.value);
 }
 
-
-
-// 监听仪表选择变化，自动查询数据
-watch([selectedMeters, selectedParameters], ([newMeters, newParams]) => {
-  if (newMeters && newMeters.length > 0 && newParams && newParams.length > 0) {
-    // 如果有选择的日期，自动查询
-    if (selectedDate.value || selectedMonth.value || selectedYear.value) {
-      handleQuery();
-    }
+// 监听维度类型变化，重新渲染树组件
+watch(() => currentNowtype.value, (newValue, oldValue) => {
+  if (newValue !== oldValue) {
+    console.log('🔄 维度类型变化，从', oldValue, '到', newValue);
+    // 维度类型变化时，需要重新渲染对应的树组件
+    nextTick(() => {
+      const currentTreeRef = treeRefs.value[activeTabKey.value];
+      if (currentTreeRef && typeof currentTreeRef.refresh === 'function') {
+        currentTreeRef.refresh();
+      }
+    });
   }
-}, { deep: true });
+}, { immediate: false });
 
 onMounted(() => {
   // 加载维度字典数据
   loadDimensionDictData();
 
-  // 加载默认参数配置（电力类型）
-  loadParameterConfig(1);
-
   // 设置默认日期为今天
   selectedDate.value = dayjs();
-
-  // 启动定时更新
-  timer = window.setInterval(updateData, 5000);
+  
+  // 等待DOM渲染完成后，触发默认选择
+  nextTick(() => {
+    setTimeout(() => {
+      // 如果有维度数据，尝试触发默认选择
+      if (dimensionList.value.length > 0) {
+        console.log('📋 页面加载完成，准备触发默认选择');
+      }
+    }, 1000);
+  });
 });
 
 onUnmounted(() => {
-  // 清理定时器
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  // 清理资源
 });
 </script>
 
@@ -858,4 +1105,4 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
 }
-</style> 
+</style>
