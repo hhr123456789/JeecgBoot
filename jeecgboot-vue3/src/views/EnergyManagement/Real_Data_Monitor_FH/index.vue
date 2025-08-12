@@ -27,7 +27,7 @@
         <div class="flex flex-wrap items-center gap-4">
           <!-- 时间范围选择 -->
           <div class="flex items-center">
-            <span class="text-sm mr-2">时间范围:</span>
+            
             <a-radio-group v-model:value="timeRange" button-style="solid" class="custom-radio-group" @change="handleTimeRangeChange">
               <a-radio-button value="day">日</a-radio-button>
               <a-radio-button value="month">月</a-radio-button>
@@ -266,22 +266,25 @@ function handleTabChange(key: string) {
     currentNowtype.value = selectedDimension.nowtype;
     console.log('🎯 切换到维度类型:', currentNowtype.value);
 
-    // 如果维度类型发生变化，清空所有相关数据
+    // 负荷功能只有用电维度（1和2），切换时保持设备选择，重新加载仪表
     if (oldNowtype !== selectedDimension.nowtype) {
-      console.log('🧹 维度类型变化，清空所有数据');
+      console.log('🔄 用电维度切换，保持设备选择，重新加载仪表');
       
-      // 清空设备选择
-      selectedDevices.value = [];
-      
-      // 清空仪表选择
+      // 清空仪表选择和图表数据
       meters.value = [];
       allModules.value = [];
       selectedMeters.value = [];
-
-      // 清空图表数据
       clearChartData();
       
-      console.log('✅ 数据清空完成，等待用户重新选择设备');
+      // 如果有选中的设备，重新加载对应维度的仪表
+      if (selectedDevices.value && selectedDevices.value.length > 0) {
+        console.log('🔄 重新加载选中设备的仪表数据');
+        const dimensionCodes = selectedDevices.value.map(item => item.orgCode);
+        console.log('hhrmichael='+dimensionCodes);
+        loadModulesByDimensionCodes(dimensionCodes);
+      } else {
+        console.log('💡 无选中设备，等待用户选择');
+      }
     }
   }
 }
@@ -335,13 +338,13 @@ async function loadModulesByDimensionCodes(dimensionCodes: string[]) {
     const apiPromises = dimensionCodes.map(dimensionCode => {
       console.log('📡 请求参数:', {
         dimensionCode: dimensionCode,
-        energyType: currentNowtype.value || 1,
+        energyType: 1,
         includeChildren: true
       });
 
       return getModulesByDimension({
         dimensionCode: dimensionCode,
-        energyType: currentNowtype.value || 1,
+        energyType:  1,
         includeChildren: true
       }).catch(error => {
         console.error(`获取维度${dimensionCode}的仪表失败:`, error);
@@ -943,23 +946,36 @@ function loadDimensionDictData() {
     if (res && Array.isArray(res) && res.length > 0) {
       console.log('📋 维度字典原始数据:', res);
 
-      // 将字典数据转换为维度列表
-      dimensionList.value = res.map((item, index) => {
-        return {
-          key: `info${index + 1}`,
-          title: item.text,
-          nowtype: Number(item.value), // 使用字典中的value作为nowtype值
-          value: Number(item.value)
-        };
+      // 过滤只保留用电相关的维度（value为1和2）
+      const filteredRes = res.filter(item => {
+        const value = Number(item.value);
+        return value === 1 || value === 2;
       });
 
-      console.log('🏷️ 转换后的维度列表:', dimensionList.value);
+      console.log('🔍 过滤后的用电维度数据:', filteredRes);
 
-      // 默认选中第一个标签页
-      if (dimensionList.value.length > 0) {
-        activeTabKey.value = dimensionList.value[0].key;
-        currentNowtype.value = dimensionList.value[0].nowtype;
-        console.log('🎯 使用字典数据，默认选中维度类型:', currentNowtype.value);
+      if (filteredRes.length > 0) {
+        // 将过滤后的字典数据转换为维度列表
+        dimensionList.value = filteredRes.map((item, index) => {
+          return {
+            key: `info${index + 1}`,
+            title: item.text,
+            nowtype: Number(item.value), // 使用字典中的value作为nowtype值
+            value: Number(item.value)
+          };
+        });
+
+        console.log('🏷️ 转换后的维度列表（仅用电）:', dimensionList.value);
+
+        // 默认选中第一个标签页
+        if (dimensionList.value.length > 0) {
+          activeTabKey.value = dimensionList.value[0].key;
+          currentNowtype.value = dimensionList.value[0].nowtype;
+          console.log('🎯 使用字典数据，默认选中维度类型:', currentNowtype.value);
+        }
+      } else {
+        console.log('⚠️ 过滤后无用电维度数据，使用默认配置');
+        useDefaultDimensions();
       }
     } else {
       console.log('⚠️ 维度字典数据为空或格式不正确，继续使用默认配置');
@@ -971,18 +987,15 @@ function loadDimensionDictData() {
   });
 }
 
-// 使用默认维度配置
+// 使用默认维度配置 - 负荷功能只显示用电相关维度
 function useDefaultDimensions() {
   dimensionList.value = [
     { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
-    { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
-    { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
-    { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
-    { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
+    { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 }
   ];
   activeTabKey.value = 'info1';
   currentNowtype.value = 1;
-  console.log('✅ 已设置默认维度列表:', dimensionList.value);
+  console.log('✅ 已设置负荷功能维度列表（仅用电）:', dimensionList.value);
 }
 
 // 监听维度类型变化，重新渲染树组件

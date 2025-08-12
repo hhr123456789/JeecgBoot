@@ -1,0 +1,22 @@
+### 热部署功能测试
+
+### 1. 热部署测试接口
+GET http://localhost:8080/jeecg-boot/energy/realtime/test/hotdeploy
+Content-Type: application/json
+
+### 测试步骤：
+# 1. 启动应用（使用dev profile）
+# 2. 访问上面的接口，记录返回的时间戳
+# 3. 修改 RealtimeTestController.java 中的 testHotDeploy 方法
+# 4. 保存文件，观察控制台是否有重启信息
+# 5. 再次访问接口，确认修改生效
+
+### 示例修改：
+# 在 testHotDeploy 方法中修改返回信息：
+# return Result.OK("热部署测试成功！修改版本 v2 - 当前时间: " + timestamp);
+
+### 预期结果：
+# - 修改后应该看到控制台输出类似：
+#   "Restarting due to 1 class path change"
+# - 接口返回的信息应该包含修改后的内容
+# - 重启时间应该在3-10秒内

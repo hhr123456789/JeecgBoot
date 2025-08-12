@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -107,5 +108,35 @@ public class RealtimeTestController {
             log.error("测试获取实时状态失败", e);
             return Result.error("测试失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 热部署测试接口
+     */
+    @ApiOperation(value = "热部署测试", notes = "用于测试热部署功能是否正常工作")
+    @GetMapping("/hotdeploy")
+    public Result<String> testHotDeploy() {
+        String timestamp = new Date().toString();
+        log.info("🔥 热部署测试 - 当前时间: {}", timestamp);
+        return Result.OK("热部署测试成功！当前时间: " + timestamp);
+    }
+
+    /**
+     * 日志测试接口
+     */
+    @ApiOperation(value = "日志测试", notes = "用于测试日志文件写入是否正常")
+    @GetMapping("/log-test")
+    public Result<String> testLogging() {
+        String timestamp = new Date().toString();
+
+        log.debug("📝 DEBUG级别日志测试 - {}", timestamp);
+        log.info("📋 INFO级别日志测试 - {}", timestamp);
+        log.warn("⚠️ WARN级别日志测试 - {}", timestamp);
+        log.error("❌ ERROR级别日志测试 - {}", timestamp);
+
+        String message = "日志测试完成！请检查logs目录中的日志文件。时间: " + timestamp;
+        log.info("🎯 {}", message);
+
+        return Result.OK(message);
     }
 }

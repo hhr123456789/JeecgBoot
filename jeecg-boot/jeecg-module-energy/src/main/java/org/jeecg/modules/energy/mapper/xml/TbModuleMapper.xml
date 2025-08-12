@@ -11,9 +11,50 @@
     
     <!-- 根据模块ID查询仪表信息 -->
     <select id="selectByModuleId" resultType="org.jeecg.modules.energy.entity.TbModule">
-        SELECT * FROM tb_module 
+        SELECT * FROM tb_module
         WHERE module_id = #{moduleId}
         AND isaction = 'Y'
     </select>
 
-</mapper> 
+    <!-- 根据维度ID列表获取仪表列表 -->
+    <select id="selectModulesByDimensionIds" resultType="org.jeecg.modules.energy.vo.analysis.ModuleVO">
+        SELECT
+            m.module_id as moduleId,
+            m.module_name as moduleName,
+            m.energy_type as energyType,
+            m.rated_power as ratedPower,
+            m.gateway_code as gatewayCode,
+            m.meter_id as meterId,
+            d.depart_name as dimensionName,
+            d.id as dimensionId
+        FROM tb_module m
+        LEFT JOIN sys_depart d ON m.sys_org_code = d.id
+        WHERE m.sys_org_code IN
+        <foreach collection="dimensionIds" item="dimensionId" open="(" separator="," close=")">
+            #{dimensionId}
+        </foreach>
+        AND m.isaction = 'Y'
+        <if test="energyType != null">
+            AND m.energy_type = #{energyType}
+        </if>
+        ORDER BY m.module_id
+    </select>
+
+    <!-- 根据仪表编号获取仪表详细信息 -->
+    <select id="selectModuleDetailByModuleId" resultType="org.jeecg.modules.energy.vo.analysis.ModuleVO">
+        SELECT
+            m.module_id as moduleId,
+            m.module_name as moduleName,
+            m.energy_type as energyType,
+            m.rated_power as ratedPower,
+            m.gateway_code as gatewayCode,
+            m.meter_id as meterId,
+            d.depart_name as dimensionName,
+            d.id as dimensionId
+        FROM tb_module m
+        LEFT JOIN sys_depart d ON m.sys_org_code = d.id
+        WHERE m.module_id = #{moduleId}
+        AND m.isaction = 'Y'
+    </select>
+
+</mapper>

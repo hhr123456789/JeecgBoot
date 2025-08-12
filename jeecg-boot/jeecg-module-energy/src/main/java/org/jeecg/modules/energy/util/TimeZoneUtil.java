@@ -17,19 +17,38 @@ import java.time.format.DateTimeFormatter;
 public class TimeZoneUtil {
     
     /**
-     * UTC时间转北京时间
+     * UTC时间转北京时间（支持多种格式）
      */
     public String convertUTCToBeijing(String utcTimeStr) {
+        if (utcTimeStr == null || utcTimeStr.trim().isEmpty()) {
+            return utcTimeStr;
+        }
+
         try {
-            DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
             DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            
-            LocalDateTime utcTime = LocalDateTime.parse(utcTimeStr, inputFormatter);
+            LocalDateTime utcTime;
+
+            // 尝试不同的输入格式
+            if (utcTimeStr.contains(".")) {
+                // 包含毫秒的格式：2025-07-12T10:50:21.212Z
+                DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                utcTime = LocalDateTime.parse(utcTimeStr, inputFormatter);
+                log.debug("✅ 解析带毫秒的UTC时间: {}", utcTimeStr);
+            } else {
+                // 标准格式：2025-07-12T10:50:21Z
+                DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                utcTime = LocalDateTime.parse(utcTimeStr, inputFormatter);
+                log.debug("✅ 解析标准UTC时间: {}", utcTimeStr);
+            }
+
             LocalDateTime beijingTime = utcTime.plusHours(8); // UTC+8
-            
-            return beijingTime.format(outputFormatter);
+            String result = beijingTime.format(outputFormatter);
+
+            log.debug("🕐 时间转换成功: {} -> {}", utcTimeStr, result);
+            return result;
+
         } catch (Exception e) {
-            log.error("时间转换失败: {}", utcTimeStr, e);
+            log.error("❌ 时间转换失败: {}", utcTimeStr, e);
             return utcTimeStr;
         }
     }

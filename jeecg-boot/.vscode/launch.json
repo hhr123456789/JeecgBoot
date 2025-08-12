@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot App (Dev)",
+            "request": "launch",
+            "mainClass": "org.jeecg.JeecgSystemApplication",
+            "projectName": "jeecg-system-start",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": "-Dspring.profiles.active=dev -Dspring.devtools.restart.enabled=true",
+            "console": "internalConsole",
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}

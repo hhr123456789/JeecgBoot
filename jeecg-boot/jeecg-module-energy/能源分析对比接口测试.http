@@ -1,0 +1,143 @@
+### 能源分析对比功能接口测试
+
+### 1. 健康检查
+GET http://localhost:8080/jeecg-boot/energy/analysis/health
+Accept: application/json
+
+### 2. 获取能源类型配置
+GET http://localhost:8080/jeecg-boot/energy/analysis/getEnergyTypes
+Accept: application/json
+
+### 3. 根据维度获取仪表列表 - 注塑部门
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01&energyType=1&includeChildren=false
+Accept: application/json
+
+### 4. 根据维度获取仪表列表 - 涂装部门
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A04&includeChildren=false
+Accept: application/json
+
+### 5. 根据维度获取仪表列表 - 包装部门
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A05&includeChildren=false
+Accept: application/json
+
+### 6. 根据维度获取仪表列表 - 包含子维度
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01&includeChildren=true
+Accept: application/json
+
+### 7. 日对比数据查询 - 1号注塑机
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0001_1202",
+  "timeType": "day",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02",
+  "compareType": "compare"
+}
+
+### 8. 月对比数据查询 - 1号注塑机
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0001_1202",
+  "timeType": "month",
+  "startTime": "2025-01",
+  "endTime": "2025-07",
+  "compareType": "compare"
+}
+
+### 9. 年对比数据查询 - 1号注塑机
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0001_1202",
+  "timeType": "year",
+  "startTime": "2023",
+  "endTime": "2025",
+  "compareType": "compare"
+}
+
+### 10. 日对比数据查询 - 2号注塑机
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0001_12",
+  "timeType": "day",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02",
+  "compareType": "compare"
+}
+
+### 11. 涂装1号线数据查询
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0002_11",
+  "timeType": "day",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02",
+  "compareType": "compare"
+}
+
+### 12. 包装1号设备数据查询
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0003_11",
+  "timeType": "day",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02",
+  "compareType": "compare"
+}
+
+### 13. 错误测试 - 缺少仪表ID
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "",
+  "timeType": "day",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02"
+}
+
+### 14. 错误测试 - 错误的时间类型
+POST http://localhost:8080/jeecg-boot/energy/analysis/getCompareData
+Content-Type: application/json
+
+{
+  "moduleId": "yj0001_1202",
+  "timeType": "invalid",
+  "startTime": "2025-07-26",
+  "endTime": "2025-08-02"
+}
+
+### 15. 错误测试 - 缺少维度编码
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=&energyType=1
+Accept: application/json
+
+### 16. 测试不存在的维度编码
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=INVALID_CODE&energyType=1
+Accept: application/json
+
+### 17. 测试特定能源类型筛选 - 只查询电类型
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01&energyType=1
+Accept: application/json
+
+### 18. 测试特定能源类型筛选 - 只查询水类型
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01&energyType=2
+Accept: application/json
+
+### 19. 测试特定能源类型筛选 - 只查询气类型
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01&energyType=3
+Accept: application/json
+
+### 20. 测试不筛选能源类型 - 查询所有类型
+GET http://localhost:8080/jeecg-boot/energy/analysis/getModulesByDimension?orgCode=A02A02A01
+Accept: application/json

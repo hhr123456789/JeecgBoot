@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.Stream;
 
 /**
  * @Description: 实时数据监控Service实现类
@@ -617,28 +618,33 @@ public class RealtimeMonitorServiceImpl implements IRealtimeMonitorService {
             LoadTableQueryVO tableQuery = new LoadTableQueryVO();
             tableQuery.setModuleIds(exportVO.getModuleIds());
             tableQuery.setTimeType(exportVO.getTimeGranularity());
-            
+
             // 构建时间范围
             String[] timeRange = buildTimeRange(exportVO.getQueryDate(), exportVO.getTimeGranularity());
             tableQuery.setStartTime(timeRange[0]);
             tableQuery.setEndTime(timeRange[1]);
             tableQuery.setPageNum(1);
             tableQuery.setPageSize(1000);
-            
-            // 查询统计数据
+
+            log.info("📋 Excel导出查询参数 - timeType: {}, queryDate: {}, timeRange: {} ~ {}",
+                    exportVO.getTimeGranularity(), exportVO.getQueryDate(), timeRange[0], timeRange[1]);
+            log.info("🔍 DEBUG - Excel导出完整查询参数：{}", tableQuery);
+
+            // 查询统计数据（会根据timeGranularity自动选择查询策略）
             LoadTableResultVO tableData = getLoadTableData(tableQuery);
             
             // 填充统计数据
             // 填充统计数据
             List<LoadTableResultVO.LoadStatisticsRowVO> stats = tableData.getTableData();
-            log.info("准备写入Excel统计数据，数据行数：{}", stats.size());
-            
+            log.info("📊 准备写入Excel统计数据，数据行数：{}", stats.size());
+
             for (int i = 0; i < stats.size(); i++) {
                 LoadTableResultVO.LoadStatisticsRowVO stat = stats.get(i);
                 Row row = statsSheet.createRow(i + 1);
-                
-                log.info("写入Excel第{}行数据：设备={}, 最大功率={}, 最小功率={}, 平均功率={}", 
-                        i+1, stat.get设备名称(), stat.get最大功率(), stat.get最小功率(), stat.get平均功率());
+
+                log.info("📝 写入Excel第{}行数据：设备={}, 最大功率={}@{}, 最小功率={}@{}, 平均功率={}",
+                        i+1, stat.get设备名称(), stat.get最大功率(), stat.get最大功率发生时间(),
+                        stat.get最小功率(), stat.get最小功率发生时间(), stat.get平均功率());
                 
                 row.createCell(0).setCellValue(stat.get序号());
                 row.createCell(1).setCellValue(stat.get设备名称());
@@ -711,7 +717,10 @@ public class RealtimeMonitorServiceImpl implements IRealtimeMonitorService {
 
 @Override
 public LoadTableResultVO getLoadTableData(LoadTableQueryVO query) {
-    log.info("获取负荷数据表格，参数：{}", query);
+    log.info("🔍 获取负荷数据表格，参数：{}", query);
+    log.info("📊 查询详情 - timeType: {}, startTime: {}, endTime: {}, moduleIds: {}",
+            query.getTimeType(), query.getStartTime(), query.getEndTime(), query.getModuleIds());
+    log.info("🔍 DEBUG - 调用来源追踪，当前线程：{}", Thread.currentThread().getName());
 
     // 参数验证
     validateLoadTableQuery(query);
@@ -722,15 +731,15 @@ public LoadTableResultVO getLoadTableData(LoadTableQueryVO query) {
 
         // ✨ 关键优化：根据时间类型智能选择查询策略
         if ("year".equals(query.getTimeType())) {
-            log.info("年查询使用跨月查询策略");
+            log.info("🗓️ 年查询使用跨月查询策略");
             return processLoadTableFromTimeSeriesData(query, modules);
         } else {
-            log.info("日/月查询使用单月查询策略");
+            log.info("📅 日/月查询使用单月查询策略");
             return processLoadTableFromSingleQuery(query, modules);
         }
 
     } catch (Exception e) {
-        log.error("获取负荷数据表格失败", e);
+        log.error("❌ 获取负荷数据表格失败", e);
         throw new RuntimeException("获取负荷数据表格失败: " + e.getMessage(), e);
     }
 }
@@ -753,24 +762,36 @@ private LoadTableResultVO processLoadTableFromSingleQuery(LoadTableQueryVO query
 }
 
 /**
- * 跨月查询处理统计数据（复用时序查询逻辑）
+ * 统一的原始数据查询处理（适用于日/月/年查询）
  */
 private LoadTableResultVO processLoadTableFromTimeSeriesData(LoadTableQueryVO query, List<TbModule> modules) {
-    log.info("年查询复用时序数据查询逻辑");
-    
-    // ✨ 复用现有的跨月查询逻辑
+    log.info("🔍 使用原始数据查询策略（确保时间精度），timeType: {}", query.getTimeType());
+    log.info("🔍 DEBUG - 查询参数详情：moduleIds={}, startTime={}, endTime={}",
+            query.getModuleIds(), query.getStartTime(), query.getEndTime());
+    log.info("🔍 DEBUG - 仪表信息：{}", modules.stream().map(m -> m.getModuleId() + ":" + m.getModuleName()).toArray());
+
+    // ✨ 关键修改：使用原始数据查询而不是聚合查询
     List<Integer> powerParams = Arrays.asList(7); // 7代表P字段
-    List<Map<String, Object>> influxResults = queryTimeSeriesDataCrossMonth(
-        query.getModuleIds(), 
+    List<Map<String, Object>> influxResults = queryRawDataCrossMonth(
+        query.getModuleIds(),
         powerParams,
-        query.getTimeType(), 
-        query.getStartTime(), 
+        query.getStartTime(),
         query.getEndTime()
     );
-    
-    log.info("年查询获取到 {} 条跨月数据", influxResults.size());
-    
-    // ✨ 复用现有的统计数据计算逻辑
+
+    log.info("📊 {} 查询获取到 {} 条原始数据", query.getTimeType(), influxResults.size());
+
+    // 🔍 DEBUG - 打印前几条原始数据
+    if (!influxResults.isEmpty()) {
+        log.info("🔍 DEBUG - 前3条原始数据样例：");
+        for (int i = 0; i < Math.min(3, influxResults.size()); i++) {
+            Map<String, Object> data = influxResults.get(i);
+            log.info("  数据{}: time={}, value={}, tagname={}", i+1,
+                    data.get("time"), data.get("value"), data.get("tagname"));
+        }
+    }
+
+    // ✨ 使用原始数据计算统计信息
     return calculateStatisticsFromTimeSeriesData(influxResults, query, modules);
 }
 
@@ -851,14 +872,24 @@ private Map<String, List<Map<String, Object>>> groupDataByModule(List<Map<String
  */
 private LoadTableResultVO.LoadStatisticsRowVO calculateModuleStatistics(TbModule module, int index, List<Map<String, Object>> moduleData) {
     LoadTableResultVO.LoadStatisticsRowVO row = new LoadTableResultVO.LoadStatisticsRowVO();
-    
+
     row.set序号(index);
     row.set设备名称(module.getModuleName());
-    
+
     Double ratedPower = module.getRatedPower() != null ? module.getRatedPower() : 100.0;
-    
+
+    log.info("🔍 DEBUG - 开始计算仪表 {} ({}) 的统计数据", module.getModuleId(), module.getModuleName());
+    log.info("🔍 DEBUG - 仪表额定功率：{}", ratedPower);
+
     if (moduleData != null && !moduleData.isEmpty()) {
         log.info("计算仪表 {} 的统计数据，数据点数量：{}", module.getModuleId(), moduleData.size());
+
+        // 🔍 DEBUG - 打印该仪表的前几条数据
+        log.info("🔍 DEBUG - 仪表 {} 前3条数据样例：", module.getModuleId());
+        for (int i = 0; i < Math.min(3, moduleData.size()); i++) {
+            Map<String, Object> data = moduleData.get(i);
+            log.info("  数据{}: time={}, value={}", i+1, data.get("time"), data.get("value"));
+        }
         
         // 计算统计数据
         StatisticsResult stats = calculatePowerStatistics(moduleData);
@@ -1033,12 +1064,27 @@ private StatisticsResult calculatePowerStatistics(List<Map<String, Object>> modu
  * 从数据点中获取正确的值
  */
 private Object getValueFromDataPoint(Map<String, Object> dataPoint) {
-    // 优先使用 avg_value，如果没有则使用 value
-    Object value = dataPoint.get("avg_value");
-    if (value == null) {
-        value = dataPoint.get("value");
+    // ✨ 修复：优先使用原始数据，确保时间精度
+    Object value = dataPoint.get("value");
+    Object avgValue = dataPoint.get("avg_value");
+    Object maxValue = dataPoint.get("max_value");
+    Object minValue = dataPoint.get("min_value");
+
+    // 优先使用原始value（来自原始数据查询）
+    if (value != null) {
+        log.debug("✅ 使用原始数据：value={}", value);
+        return value;
     }
-    return value;
+
+    // 如果没有原始数据，使用聚合数据（但会记录警告）
+    if (avgValue != null || maxValue != null || minValue != null) {
+        log.warn("⚠️ 使用聚合数据，时间精度可能不准确：avg={}, max={}, min={}",
+                avgValue, maxValue, minValue);
+        return avgValue != null ? avgValue : (maxValue != null ? maxValue : minValue);
+    }
+
+    log.debug("❌ 数据点无有效值");
+    return null;
 }
 
 /**
@@ -1048,13 +1094,13 @@ private String convertTimeToBeijing(String utcTimeStr) {
     if (utcTimeStr == null || utcTimeStr.trim().isEmpty()) {
         return "";
     }
-    
+
     try {
         String beijingTime = timeZoneUtil.convertUTCToBeijing(utcTimeStr);
-        log.debug("时间转换：UTC={} -> Beijing={}", utcTimeStr, beijingTime);
+        log.info("🕐 时间转换：UTC={} -> Beijing={}", utcTimeStr, beijingTime);
         return beijingTime;
     } catch (Exception e) {
-        log.error("时间转换失败：{}", utcTimeStr, e);
+        log.error("❌ 时间转换失败：{}", utcTimeStr, e);
         return utcTimeStr; // 转换失败时返回原始时间
     }
 }
@@ -1210,6 +1256,100 @@ private List<Map<String, Object>> queryTimeSeriesDataCrossMonth(List<String> mod
     
     return allResults;
 }
+
+/**
+ * 智能原始数据查询（适用于日/月/年查询，自动跨月处理）
+ * 用于统计分析，保留精确时间，确保最大/最小功率发生时间的准确性
+ */
+private List<Map<String, Object>> queryRawDataCrossMonth(List<String> moduleIds, List<Integer> parameters,
+        String startTime, String endTime) {
+
+    log.info("🔍 执行智能原始数据查询，时间范围：{} ~ {}", startTime, endTime);
+
+    List<Map<String, Object>> allResults = new ArrayList<>();
+
+    try {
+        // 解析时间范围，确定需要查询的月份
+        LocalDate startDate = LocalDate.parse(startTime.substring(0, 10));
+        LocalDate endDate = LocalDate.parse(endTime.substring(0, 10));
+
+        YearMonth startYearMonth = YearMonth.from(startDate);
+        YearMonth endYearMonth = YearMonth.from(endDate);
+
+        log.info("📅 跨月原始数据查询范围：{} ~ {}", startYearMonth, endYearMonth);
+
+        // 遍历每个月份
+        for (YearMonth yearMonth = startYearMonth;
+             !yearMonth.isAfter(endYearMonth);
+             yearMonth = yearMonth.plusMonths(1)) {
+
+            String dbName = "hist" + yearMonth.format(DateTimeFormatter.ofPattern("yyyyMM"));
+            log.info("🗂️ 准备查询月份：{}，数据库：{}", yearMonth, dbName);
+
+            // 检查数据库是否存在
+            try {
+                QueryResult result = influxDB.query(new Query("SHOW DATABASES"));
+                boolean dbExists = result.getResults().stream()
+                    .flatMap(r -> r.getSeries() != null ? r.getSeries().stream() : Stream.empty())
+                    .flatMap(s -> s.getValues() != null ? s.getValues().stream() : Stream.empty())
+                    .anyMatch(values -> values.size() > 0 && dbName.equals(values.get(0)));
+
+                if (!dbExists) {
+                    log.warn("⚠️ 原始数据查询 - 数据库 {} 不存在，跳过该月份", dbName);
+                    continue;
+                } else {
+                    log.info("✅ 原始数据查询 - 数据库 {} 存在，开始查询", dbName);
+                }
+            } catch (Exception e) {
+                log.warn("❌ 原始数据查询 - 检查数据库 {} 是否存在时出错: {}", dbName, e.getMessage());
+                continue;
+            }
+
+            // 构建该月的查询时间范围
+            String monthStartTime, monthEndTime;
+            if (yearMonth.equals(startYearMonth)) {
+                monthStartTime = startTime;
+                monthEndTime = yearMonth.atEndOfMonth().toString() + " 23:59:59";
+            } else if (yearMonth.equals(endYearMonth)) {
+                monthStartTime = yearMonth.atDay(1).toString() + " 00:00:00";
+                monthEndTime = endTime;
+            } else {
+                monthStartTime = yearMonth.atDay(1).toString() + " 00:00:00";
+                monthEndTime = yearMonth.atEndOfMonth().toString() + " 23:59:59";
+            }
+
+            // ✨ 关键：使用原始数据查询
+            String queryStr = influxDBQueryBuilder.buildRawDataQuery(moduleIds, parameters,
+                    monthStartTime, monthEndTime);
+
+            log.info("🔍 执行月份 {} 的原始数据查询：{}", yearMonth, queryStr);
+
+            // 执行查询
+            QueryResult queryResult = influxDB.query(new Query(queryStr, dbName));
+
+            // 解析结果
+            List<Map<String, Object>> monthResults = InfluxDBUtil.parseQueryResult(queryResult);
+            log.info("📊 月份 {} 查询到 {} 条原始数据", yearMonth, monthResults.size());
+
+            // 为每条数据添加来源信息
+            for (Map<String, Object> resultData : monthResults) {
+                resultData.put("sourceDatabase", dbName);
+                resultData.put("sourceYearMonth", yearMonth.toString());
+            }
+
+            allResults.addAll(monthResults);
+        }
+
+        log.info("🎯 跨月原始数据查询完成，总共查询到 {} 条数据", allResults.size());
+
+    } catch (Exception e) {
+        log.error("❌ 跨月原始数据查询失败", e);
+        throw new RuntimeException("跨月原始数据查询失败: " + e.getMessage(), e);
+    }
+
+    return allResults;
+}
+
     /**
      * 单月查询时序数据（用于日/月查询）
      */
@@ -2221,13 +2361,13 @@ private String parseYearMonthFromDatabase(String databaseName) {
                         // 计算平均功率
                         double avgPower = totalPower / validDataCount;
                         
-                        // 转换时间格式
+                        // 转换时间格式 - 使用统一的时间转换方法
                         if (!maxPowerTime.isEmpty()) {
-                            maxPowerTime = timeZoneUtil.convertUTCToBeijing(maxPowerTime);
+                            maxPowerTime = convertTimeToBeijing(maxPowerTime);
                         }
-                        
+
                         if (!minPowerTime.isEmpty()) {
-                            minPowerTime = timeZoneUtil.convertUTCToBeijing(minPowerTime);
+                            minPowerTime = convertTimeToBeijing(minPowerTime);
                         }
                         
                         // 保留两位小数
@@ -2249,16 +2389,16 @@ private String parseYearMonthFromDatabase(String databaseName) {
                         row.set最大功率(maxPower);
                         row.set最大功率率(maxPowerRate);
                         row.set最大功率发生时间(maxPowerTime);
-                        
+
                         row.set最小功率(minPower);
                         row.set最小功率率(minPowerRate);
                         row.set最小功率发生时间(minPowerTime);
-                        
+
                         row.set平均功率(avgPower);
                         row.set平均功率率(avgPowerRate);
-                        
-                        log.info("仪表 {} 最终统计：最大功率={}, 最小功率={}, 平均功率={}", 
-                                moduleId, maxPower, minPower, avgPower);
+
+                        log.info("仪表 {} 最终统计：最大功率={}@{}, 最小功率={}@{}, 平均功率={}",
+                                moduleId, maxPower, maxPowerTime, minPower, minPowerTime, avgPower);
                     } else {
                         log.warn("仪表 {} 没有有效数据，设置默认值", moduleId);
                         // 如果没有有效数据，设置默认值

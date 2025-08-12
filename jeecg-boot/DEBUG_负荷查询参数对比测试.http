@@ -1,0 +1,62 @@
+### 负荷查询参数对比调试测试
+
+### 1. 网页查询测试 - 使用具体的时间范围
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+  "timeType": "day",
+  "startTime": "2025-07-12 00:00:00",
+  "endTime": "2025-07-12 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 2. Excel导出测试 - 使用相同的日期
+POST http://localhost:8080/energy/realtime/exportLoadData
+Content-Type: application/json
+
+{
+  "fileName": "负荷数据测试_2025-07-12",
+  "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+  "queryDate": "2025-07-12",
+  "timeGranularity": "day"
+}
+
+### 3. 测试月查询 - 网页
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+  "timeType": "month",
+  "startTime": "2025-07-01 00:00:00",
+  "endTime": "2025-07-31 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 4. 测试月查询 - Excel导出
+POST http://localhost:8080/energy/realtime/exportLoadData
+Content-Type: application/json
+
+{
+  "fileName": "负荷数据测试_2025-07",
+  "moduleIds": ["yj0001_1202", "yj0001_1203", "yj0001_1204"],
+  "queryDate": "2025-07",
+  "timeGranularity": "month"
+}
+
+### 调试要点：
+# 1. 检查日志中的查询参数是否一致
+# 2. 检查 buildTimeRange 方法生成的时间范围
+# 3. 检查 InfluxDB 查询语句是否相同
+# 4. 检查查询到的原始数据数量
+# 5. 检查统计计算结果
+
+### 预期结果：
+# - 网页查询和Excel导出应该返回相同的统计数据
+# - 最大/最小功率值应该一致
+# - 最大/最小功率发生时间应该一致
+# - 如果不一致，说明查询参数或数据处理有问题

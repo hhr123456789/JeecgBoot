@@ -20,21 +20,21 @@ import java.util.stream.Collectors;
 public class InfluxDBQueryBuilder {
     
     /**
-     * 构建时序数据查询语句
+     * 构建时序数据查询语句（聚合查询）
      */
-    public String buildTimeSeriesQuery(List<String> moduleIds, List<Integer> parameters, 
+    public String buildTimeSeriesQuery(List<String> moduleIds, List<Integer> parameters,
                                      String timeGranularity, String startTime, String endTime) {
-        
+
         // 1. 构建tagname列表
         List<String> tagnames = buildTagnames(moduleIds, parameters);
-        
+
         // 2. 根据时间粒度设置GROUP BY间隔
         String interval = getTimeInterval(timeGranularity);
-        
+
         // 3. 转换时间格式
         String utcStartTime = convertToUTC(startTime);
         String utcEndTime = convertToUTC(endTime);
-        
+
         // 4. 构建查询语句 - 使用OR语法（与InfluxDBQueryServiceImpl保持一致）
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT MEAN(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value ");
@@ -44,9 +44,36 @@ public class InfluxDBQueryBuilder {
         sql.append("AND time < '").append(utcEndTime).append("' ");
         sql.append("GROUP BY time(").append(interval).append("), tagname ");
         sql.append("ORDER BY time ASC");
-        
+
         log.info("构建的InfluxDB查询语句: {}", sql.toString());
         log.info("原始时间: {} -> {}, UTC时间: {} -> {}", startTime, endTime, utcStartTime, utcEndTime);
+        return sql.toString();
+    }
+
+    /**
+     * 构建原始数据查询语句（用于统计分析，保留精确时间）
+     */
+    public String buildRawDataQuery(List<String> moduleIds, List<Integer> parameters,
+                                   String startTime, String endTime) {
+
+        // 1. 构建tagname列表
+        List<String> tagnames = buildTagnames(moduleIds, parameters);
+
+        // 2. 转换时间格式
+        String utcStartTime = convertToUTC(startTime);
+        String utcEndTime = convertToUTC(endTime);
+
+        // 3. 构建查询语句 - 查询原始数据，不进行聚合
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT time, value, tagname ");
+        sql.append("FROM hist ");
+        sql.append("WHERE (").append(buildOrCondition(tagnames)).append(") ");
+        sql.append("AND time >= '").append(utcStartTime).append("' ");
+        sql.append("AND time < '").append(utcEndTime).append("' ");
+        sql.append("ORDER BY time ASC");
+
+        log.info("🔍 构建的原始数据查询语句: {}", sql.toString());
+        log.info("🕐 原始时间: {} -> {}, UTC时间: {} -> {}", startTime, endTime, utcStartTime, utcEndTime);
         return sql.toString();
     }
 

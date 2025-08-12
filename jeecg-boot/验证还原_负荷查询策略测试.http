@@ -1,0 +1,82 @@
+### 验证还原 - 负荷查询策略测试
+
+### 1. 测试日查询（应该使用原有单月查询策略）
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeType": "day",
+  "startTime": "2025-07-12 00:00:00",
+  "endTime": "2025-07-12 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 2. 测试月查询（应该使用原有单月查询策略）
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeType": "month",
+  "startTime": "2025-07-01 00:00:00",
+  "endTime": "2025-07-31 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 3. 测试年查询（应该使用新的跨月查询策略）
+POST http://localhost:8080/energy/realtime/getLoadTableData
+Content-Type: application/json
+
+{
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "timeType": "year",
+  "startTime": "2025-01-01 00:00:00",
+  "endTime": "2025-12-31 23:59:59",
+  "pageNum": 1,
+  "pageSize": 100
+}
+
+### 4. 测试Excel导出 - 日查询
+POST http://localhost:8080/energy/realtime/exportLoadData
+Content-Type: application/json
+
+{
+  "fileName": "日查询测试_2025-07-12",
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "queryDate": "2025-07-12",
+  "timeGranularity": "day"
+}
+
+### 5. 测试Excel导出 - 月查询
+POST http://localhost:8080/energy/realtime/exportLoadData
+Content-Type: application/json
+
+{
+  "fileName": "月查询测试_2025-07",
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "queryDate": "2025-07",
+  "timeGranularity": "month"
+}
+
+### 6. 测试Excel导出 - 年查询
+POST http://localhost:8080/energy/realtime/exportLoadData
+Content-Type: application/json
+
+{
+  "fileName": "年查询测试_2025",
+  "moduleIds": ["yj0001_1202", "yj0001_1203"],
+  "queryDate": "2025",
+  "timeGranularity": "year"
+}
+
+### 预期日志输出：
+# 日查询和月查询应该显示：📅 日/月查询使用单月查询策略
+# 年查询应该显示：🗓️ 年查询使用跨月查询策略
+
+### 预期结果：
+# 1. 日查询和月查询应该恢复到之前的正确结果
+# 2. 年查询仍然使用新的跨月查询策略
+# 3. Excel导出应该与对应的网页查询结果一致

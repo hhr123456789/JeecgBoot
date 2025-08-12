@@ -22,6 +22,17 @@ management:
 spring:
   main:
     allow-bean-definition-overriding: true
+  # 热部署配置
+  devtools:
+    restart:
+      enabled: false
+      # 设置重启的目录，添加那个目录的文件需要restart
+      additional-paths: src/main/java
+      # 排除那个目录的文件不需要restart
+      exclude: WEB-INF/**
+    livereload:
+      enabled: false
+      port: 35729
   # flyway配置
   flyway:
     # 是否启用flyway
@@ -322,6 +333,13 @@ logging:
   level:
     org.flywaydb: debug
     org.jeecg.modules.system.mapper: info
+    root: info
+  # 日志文件配置
+  file:
+    name: ../logs/jeecgboot.log
+  pattern:
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50}:%L - %msg%n'
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{50}:%L) - %msg%n'
 #swagger
 knife4j:
   #开启增强配置

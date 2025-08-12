@@ -1,0 +1,17 @@
+{
+  "name": "jeecg-boot-hotdeploy",
+  "version": "1.0.0",
+  "description": "VSCode热部署支持",
+  "scripts": {
+    "watch": "node watch-and-compile.js",
+    "dev": "concurrently \"npm run watch\" \"mvn spring-boot:run -f jeecg-module-system/jeecg-system-start/pom.xml -Dspring.profiles.active=dev -Dfile.encoding=UTF-8\"",
+    "dev-win": "concurrently \"npm run watch\" \"mvn spring-boot:run -f jeecg-module-system/jeecg-system-start/pom.xml -Dspring.profiles.active=dev -Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8\"",
+    "compile": "mvn compile -f jeecg-module-energy/pom.xml -Dfile.encoding=UTF-8"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  },
+  "keywords": ["spring-boot", "hot-deploy", "vscode"],
+  "author": "jeecg-boot",
+  "license": "MIT"
+}

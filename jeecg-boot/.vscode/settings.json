@@ -1,3 +1,14 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.saveActions.organizeImports": true,
+    "files.watcherExclude": {
+        "**/target/**": true,
+        "**/.git/**": true,
+        "**/node_modules/**": true
+    },
+    "java.autobuild.enabled": true,
+    "java.maxConcurrentBuilds": 1,
+    "spring-boot.ls.problem.application-properties.enabled": true,
+    "spring-boot.ls.problem.application-yaml.enabled": true
 }
