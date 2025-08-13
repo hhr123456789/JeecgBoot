@@ -16,27 +16,31 @@
         AND isaction = 'Y'
     </select>
 
-    <!-- 根据维度ID列表获取仪表列表 -->
+    <!-- 根据维度ID列表获取仪表列表（sys_org_code 为逗号分隔的维度ID字符串） -->
     <select id="selectModulesByDimensionIds" resultType="org.jeecg.modules.energy.vo.analysis.ModuleVO">
         SELECT
-            m.module_id as moduleId,
-            m.module_name as moduleName,
-            m.energy_type as energyType,
-            m.rated_power as ratedPower,
-            m.gateway_code as gatewayCode,
-            m.meter_id as meterId,
-            d.depart_name as dimensionName,
-            d.id as dimensionId
+            m.module_id AS moduleId,
+            m.module_name AS moduleName,
+            m.energy_type AS energyType,
+            m.rated_power AS ratedPower,
+            m.gateway_code AS gatewayCode,
+            m.meter_id AS meterId,
+            MAX(d.depart_name) AS dimensionName,
+            MAX(d.id) AS dimensionId
         FROM tb_module m
-        LEFT JOIN sys_depart d ON m.sys_org_code = d.id
-        WHERE m.sys_org_code IN
-        <foreach collection="dimensionIds" item="dimensionId" open="(" separator="," close=")">
-            #{dimensionId}
-        </foreach>
-        AND m.isaction = 'Y'
+        LEFT JOIN sys_depart d ON FIND_IN_SET(d.id, m.sys_org_code)
+        WHERE m.isaction = 'Y'
         <if test="energyType != null">
             AND m.energy_type = #{energyType}
         </if>
+        <if test="dimensionIds != null and dimensionIds.size() > 0">
+            AND (
+            <foreach collection="dimensionIds" item="dimensionId" separator=" OR ">
+                FIND_IN_SET(#{dimensionId}, m.sys_org_code)
+            </foreach>
+            )
+        </if>
+        GROUP BY m.module_id, m.module_name, m.energy_type, m.rated_power, m.gateway_code, m.meter_id
         ORDER BY m.module_id
     </select>
 

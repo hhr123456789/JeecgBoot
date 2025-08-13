@@ -33,10 +33,26 @@ let chartInstance: echarts.ECharts | null = null;
 // 初始化图表
 const initChart = () => {
   if (!chartRef.value) return;
-  
+
   // 创建图表实例
   chartInstance = echarts.init(chartRef.value);
-  
+
+  // 更新图表配置
+  updateChart();
+};
+
+// 更新图表配置
+const updateChart = () => {
+  if (!chartInstance) return;
+
+  console.log('📊 CompareChart 更新图表数据:', props.chartData);
+
+  // 检查数据是否有效
+  if (!props.chartData || !props.chartData.xAxis || !props.chartData.series) {
+    console.warn('⚠️ 图表数据无效:', props.chartData);
+    return;
+  }
+
   // 设置图表配置
   const options: EChartsOption = {
     tooltip: {
@@ -105,28 +121,21 @@ const initChart = () => {
       }
     }))
   };
-  
+
+  console.log('📈 ECharts配置:', options);
+
   // 应用配置
-  chartInstance.setOption(options);
+  chartInstance.setOption(options, true); // 第二个参数true表示不合并，完全替换
 };
 
 // 监听数据变化
 watch(
   () => props.chartData,
-  () => {
-    if (chartInstance) {
-      chartInstance.setOption({
-        xAxis: {
-          data: props.chartData.xAxis.data
-        },
-        series: props.chartData.series.map(item => ({
-          name: item.name,
-          data: item.data
-        }))
-      });
-    }
+  (newData) => {
+    console.log('👀 CompareChart 监听到数据变化:', newData);
+    updateChart();
   },
-  { deep: true }
+  { deep: true, immediate: true }
 );
 
 // 监听窗口大小变化
@@ -137,6 +146,7 @@ const handleResize = () => {
 };
 
 onMounted(() => {
+  console.log('🚀 CompareChart 组件挂载，初始化图表');
   initChart();
   window.addEventListener('resize', handleResize);
 });

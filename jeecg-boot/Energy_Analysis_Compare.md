@@ -22,7 +22,7 @@ tb_module:
   - module_id: 仪表编号 (如: yj0001_1202)
   - module_name: 仪表名称 (如: 1号注塑机)
   - energy_type: 能源类型 (1=电, 2=水, 3=气等)
-  - sys_org_code: 维度ID (对应sys_depart表的id)
+  - sys_org_code: 维度ID列表(逗号分隔) (对应sys_depart表的id)
   - rated_power: 额定功率
   - gateway_code: 采集器名称
   - meter_id: 仪表id
@@ -207,14 +207,17 @@ public class CompareDataRequest {
     @ApiModelProperty(value = "时间类型", required = true)
     private String timeType;         // 必填，时间类型：day/month/year
 
-    @ApiModelProperty(value = "开始时间", required = true)
-    private String startTime;        // 必填，开始时间
+    @ApiModelProperty(value = "基准期-开始时间", required = true)
+    private String baselineStartTime; // 必填，根据 timeType：YYYY-MM-DD | YYYY-MM | YYYY
 
-    @ApiModelProperty(value = "结束时间", required = true)
-    private String endTime;          // 必填，结束时间
+    @ApiModelProperty(value = "基准期-结束时间", required = true)
+    private String baselineEndTime;   // 必填，根据 timeType：YYYY-MM-DD | YYYY-MM | YYYY
 
-    @ApiModelProperty(value = "对比类型")
-    private String compareType;      // 可选，对比类型：current(当期)/compare(同比)
+    @ApiModelProperty(value = "对比期-开始时间", required = true)
+    private String compareStartTime;  // 必填，根据 timeType：YYYY-MM-DD | YYYY-MM | YYYY
+
+    @ApiModelProperty(value = "对比期-结束时间", required = true)
+    private String compareEndTime;    // 必填，根据 timeType：YYYY-MM-DD | YYYY-MM | YYYY
 }
 ```
 
@@ -369,12 +372,19 @@ SELECT id FROM depart_tree;
 
 -- 第三步：根据维度ID获取仪表列表
 SELECT m.module_id, m.module_name, m.energy_type, m.rated_power,
-       m.gateway_code, m.meter_id, d.depart_name, d.id as dimension_id
+       m.gateway_code, m.meter_id,
+       MAX(d.depart_name) AS dimension_name,
+       MAX(d.id) AS dimension_id
 FROM tb_module m
-LEFT JOIN sys_depart d ON m.sys_org_code = d.id
-WHERE m.sys_org_code IN (#{dimensionIds})
-  AND m.isaction = 'Y'  -- 只查询启用的仪表
+LEFT JOIN sys_depart d ON FIND_IN_SET(d.id, m.sys_org_code)
+WHERE m.isaction = 'Y'  -- 只查询启用的仪表
   AND (#{energyType} IS NULL OR m.energy_type = #{energyType})  -- 可选筛选条件
+  AND (
+      /* 维度ID列表用 OR + FIND_IN_SET 逐一匹配 */
+      FIND_IN_SET(#{dimensionIds[0]}, m.sys_org_code)
+      /* OR FIND_IN_SET(#{dimensionIds[1]}, m.sys_org_code) ... */
+  )
+GROUP BY m.module_id, m.module_name, m.energy_type, m.rated_power, m.gateway_code, m.meter_id
 ORDER BY m.module_id
 ```
 
@@ -382,32 +392,53 @@ ORDER BY m.module_id
 
 #### 日统计查询
 ```sql
--- 查询日统计数据
+-- 基准期（日）
 SELECT module_id, DATE(dt) as stat_date, energy_count
 FROM tb_ep_equ_energy_daycount
 WHERE module_id = #{moduleId}
-  AND DATE(dt) BETWEEN #{startTime} AND #{endTime}
-ORDER BY dt ASC
+  AND DATE(dt) BETWEEN #{baselineStartTime} AND #{baselineEndTime}
+ORDER BY dt ASC;
+
+-- 对比期（日）
+SELECT module_id, DATE(dt) as stat_date, energy_count
+FROM tb_ep_equ_energy_daycount
+WHERE module_id = #{moduleId}
+  AND DATE(dt) BETWEEN #{compareStartTime} AND #{compareEndTime}
+ORDER BY dt ASC;
 ```
 
 #### 月统计查询
 ```sql
--- 查询月统计数据
+-- 基准期（月）
 SELECT module_id, DATE_FORMAT(dt, '%Y-%m') as stat_month, energy_count
 FROM tb_ep_equ_energy_monthcount
 WHERE module_id = #{moduleId}
-  AND DATE_FORMAT(dt, '%Y-%m') BETWEEN #{startMonth} AND #{endMonth}
-ORDER BY dt ASC
+  AND DATE_FORMAT(dt, '%Y-%m') BETWEEN #{baselineStartTime} AND #{baselineEndTime}
+ORDER BY dt ASC;
+
+-- 对比期（月）
+SELECT module_id, DATE_FORMAT(dt, '%Y-%m') as stat_month, energy_count
+FROM tb_ep_equ_energy_monthcount
+WHERE module_id = #{moduleId}
+  AND DATE_FORMAT(dt, '%Y-%m') BETWEEN #{compareStartTime} AND #{compareEndTime}
+ORDER BY dt ASC;
 ```
 
 #### 年统计查询
 ```sql
--- 查询年统计数据
+-- 基准期（年）
 SELECT module_id, YEAR(dt) as stat_year, energy_count
 FROM tb_ep_equ_energy_yearcount
 WHERE module_id = #{moduleId}
-  AND YEAR(dt) BETWEEN #{startYear} AND #{endYear}
-ORDER BY dt ASC
+  AND YEAR(dt) BETWEEN #{baselineStartTime} AND #{baselineEndTime}
+ORDER BY dt ASC;
+
+-- 对比期（年）
+SELECT module_id, YEAR(dt) as stat_year, energy_count
+FROM tb_ep_equ_energy_yearcount
+WHERE module_id = #{moduleId}
+  AND YEAR(dt) BETWEEN #{compareStartTime} AND #{compareEndTime}
+ORDER BY dt ASC;
 ```
 
 ### 3. 同比数据计算
@@ -589,9 +620,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02",
-  "compareType": "compare"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 # 响应示例
@@ -616,9 +648,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "month",
-  "startTime": "2025-01",
-  "endTime": "2025-07",
-  "compareType": "compare"
+  "baselineStartTime": "2025-01",
+  "baselineEndTime": "2025-07",
+  "compareStartTime": "2024-01",
+  "compareEndTime": "2024-07"
 }
 ```
 
@@ -630,9 +663,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "year",
-  "startTime": "2023",
-  "endTime": "2025",
-  "compareType": "compare"
+  "baselineStartTime": "2023",
+  "baselineEndTime": "2025",
+  "compareStartTime": "2020",
+  "compareEndTime": "2022"
 }
 ```
 
@@ -669,7 +703,7 @@ Content-Type: application/json
 
 ### 1. 数据关联关系
 - **重要**：前端传递的是 `sys_depart.org_code`，后端需要先查询获取对应的 `sys_depart.id`
-- `tb_module.sys_org_code` 字段保存的是 `sys_depart.id`，不是 `org_code`
+- `tb_module.sys_org_code` 字段保存的是逗号分隔的 `sys_depart.id` 列表，不是 `org_code`；查询需使用 `FIND_IN_SET(id, sys_org_code)` 逐一匹配
 - 查询仪表时必须使用 `sys_depart.id` 进行关联
 - 接口处理流程：`org_code` → `sys_depart.id` → `tb_module` 仪表列表
 
@@ -734,17 +768,18 @@ if (!previousData) {
 #### 1.2 请求参数（QueryString）
 - `moduleId` String 必填，仪表编号（tb_module.module_id）
 - `timeType` String 必填，`day|month|year`
-- `startTime` String 必填，时间格式与 timeType 对应（`YYYY-MM-DD|YYYY-MM|YYYY`）
-- `endTime` String 必填，时间格式与 timeType 对应
-- `compareType` String 可选，默认 `compare`（同比）。预留：`current` 仅导出本期
+- `baselineStartTime` String 必填，根据 timeType：`YYYY-MM-DD|YYYY-MM|YYYY`
+- `baselineEndTime` String 必填，根据 timeType：`YYYY-MM-DD|YYYY-MM|YYYY`
+- `compareStartTime` String 必填，根据 timeType：`YYYY-MM-DD|YYYY-MM|YYYY`
+- `compareEndTime` String 必填，根据 timeType：`YYYY-MM-DD|YYYY-MM|YYYY`
 - `orgCode` String 可选，仅用于导出标题/参数区展示（不参与统计）
 
 示例：
-- `GET /energy/analysis/exportCompareData?moduleId=yj0001_1202&timeType=day&startTime=2025-07-26&endTime=2025-08-02&compareType=compare`
+- `GET /energy/analysis/exportCompareData?moduleId=yj0001_1202&timeType=day&baselineStartTime=2025-07-03&baselineEndTime=2025-07-13&compareStartTime=2024-07-03&compareEndTime=2024-07-13`
 
 #### 1.3 返回
 - Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
-- Content-Disposition: `attachment; filename="能源对比_1号注塑机_日_2025-07-26至2025-08-02_20250811-213000.xlsx"`
+- Content-Disposition: `attachment; filename="能源对比_1号注塑机_日_基准2025-07-03~2025-07-13_对比2024-07-03~2024-07-13_20250811-213000.xlsx"`
 - Body: Excel 二进制流
 
 #### 1.4 Excel 文件结构（结合前端视觉）
@@ -776,9 +811,9 @@ if (!previousData) {
 #### 1.5 服务端实现要点（Jeecg 推荐写法）
 - 使用 AutoPoi 导出：`JeecgEntityExcelView` + `NormalExcelConstants`
 - 大数据量使用 `SXSSFWorkbook` 流式写入，分页拉取（建议每页 5k-10k）
-- 文件命名：`能源对比_{moduleName}_{粒度}_{开始}至{结束}_{yyyyMMdd-HHmm}.xlsx`
+- 文件命名：`能源对比_{moduleName}_{粒度}_基准{B开始~B结束}_对比{C开始~C结束}_{yyyyMMdd-HHmm}.xlsx`
 - 统一单位：按 energyType 使用 kWh/m³；标题与列名需动态带单位
-- 计算口径与前端一致：截图显示“基准线/对比线”，本文以“基准=本期”
+- 计算口径与前端一致：基准=基准期；对比=对比期；节能量=基准−对比，节能率=节能量÷基准
 
 示例导出实体（仅文档说明）：
 ```java
@@ -801,7 +836,7 @@ public class CompareExportRow {
 ```ts
 // 点击“导出”
 const onExport = async () => {
-  const params = { moduleId, timeType, startTime, endTime, compareType: 'compare' };
+  const params = { moduleId, timeType, baselineStartTime, baselineEndTime, compareStartTime, compareEndTime };
   const url = baseURL + '/energy/analysis/exportCompareData';
   const res = await axios.get(url, { params, responseType: 'blob' });
   const disposition = res.headers['content-disposition'] || '';
@@ -815,7 +850,7 @@ const onExport = async () => {
 
 #### 1.7 接口测试
 ```http
-GET /energy/analysis/exportCompareData?moduleId=yj0001_1202&timeType=day&startTime=2025-07-26&endTime=2025-08-02
+GET /energy/analysis/exportCompareData?moduleId=yj0001_1202&timeType=day&baselineStartTime=2025-07-03&baselineEndTime=2025-07-13&compareStartTime=2024-07-03&compareEndTime=2024-07-13
 Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 ```
 
@@ -894,5 +929,3 @@ public class EnergyAnalysisServiceImpl implements IEnergyAnalysisService {
 ## 📚 相关文档
 - [JeecgBoot开发文档](http://help.jeecg.com/java/)
 - [JeecgBoot接口规范](http://help.jeecg.com/java/qa/)
-- [能源管理系统架构设计](./Energy_System_Architecture.md)
-- [数据库设计文档](./Database_Design.md)
