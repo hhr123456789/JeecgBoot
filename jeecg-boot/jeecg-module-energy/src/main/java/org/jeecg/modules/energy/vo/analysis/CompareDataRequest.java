@@ -26,14 +26,19 @@ public class CompareDataRequest implements Serializable {
     @NotBlank(message = "时间类型不能为空")
     private String timeType;
 
-    @ApiModelProperty(value = "开始时间", required = true)
-    @NotBlank(message = "开始时间不能为空")
-    private String startTime;
+    @ApiModelProperty(value = "基准期-开始时间", required = true)
+    @NotBlank(message = "基准期开始时间不能为空")
+    private String baselineStartTime;
 
-    @ApiModelProperty(value = "结束时间", required = true)
-    @NotBlank(message = "结束时间不能为空")
-    private String endTime;
+    @ApiModelProperty(value = "基准期-结束时间", required = true)
+    @NotBlank(message = "基准期结束时间不能为空")
+    private String baselineEndTime;
 
-    @ApiModelProperty(value = "对比类型：current(当期)/compare(同比)")
-    private String compareType;
+    @ApiModelProperty(value = "对比期-开始时间", required = true)
+    @NotBlank(message = "对比期开始时间不能为空")
+    private String compareStartTime;
+
+    @ApiModelProperty(value = "对比期-结束时间", required = true)
+    @NotBlank(message = "对比期结束时间不能为空")
+    private String compareEndTime;
 }

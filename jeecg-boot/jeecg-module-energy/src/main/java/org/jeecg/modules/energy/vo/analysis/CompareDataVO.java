@@ -33,14 +33,14 @@ public class CompareDataVO implements Serializable {
     @Data
     @ApiModel("汇总数据")
     public static class SummaryData implements Serializable {
-        @ApiModelProperty("总消耗量")
-        private Double totalConsumption;
+        @ApiModelProperty("基准期总能耗")
+        private Double baselineTotal;
 
-        @ApiModelProperty("对比期消耗量")
-        private Double previousConsumption;
+        @ApiModelProperty("对比期总能耗")
+        private Double compareTotal;
 
-        @ApiModelProperty("增长率(%)")
-        private Double growthRate;
+        @ApiModelProperty("节能总量 = 基准 − 对比")
+        private Double savingTotal;
 
         @ApiModelProperty("单位")
         private String unit;
@@ -49,8 +49,11 @@ public class CompareDataVO implements Serializable {
     @Data
     @ApiModel("图表数据")
     public static class ChartData implements Serializable {
-        @ApiModelProperty("时间轴数据")
-        private List<String> categories;
+        @ApiModelProperty("基准期时间轴")
+        private List<String> baselineDates;
+
+        @ApiModelProperty("对比期时间轴")
+        private List<String> compareDates;
 
         @ApiModelProperty("系列数据")
         private List<SeriesData> series;
@@ -62,6 +65,9 @@ public class CompareDataVO implements Serializable {
         @ApiModelProperty("系列名称")
         private String name;
 
+        @ApiModelProperty("系列类型：line/bar等")
+        private String type;
+
         @ApiModelProperty("数据值")
         private List<Double> data;
 
@@ -72,20 +78,20 @@ public class CompareDataVO implements Serializable {
     @Data
     @ApiModel("表格数据")
     public static class TableData implements Serializable {
-        @ApiModelProperty("日期")
-        private String date;
+        @ApiModelProperty("基准时间")
+        private String baselineDate;
 
-        @ApiModelProperty("本期消耗量")
-        private Double currentConsumption;
+        @ApiModelProperty("基准能耗")
+        private Double baselineValue;
 
-        @ApiModelProperty("对比期消耗量")
-        private Double previousConsumption;
+        @ApiModelProperty("对比时间")
+        private String compareDate;
 
-        @ApiModelProperty("差值")
-        private Double difference;
+        @ApiModelProperty("对比能耗")
+        private Double compareValue;
 
-        @ApiModelProperty("增长率(%)")
-        private Double growthRate;
+        @ApiModelProperty("节能情况，示例：节约 123.45 kWh / 超出 123.45 kWh")
+        private String savingText;
     }
 
     @Data

@@ -50,16 +50,18 @@ public class EnergyAnalysisController {
     @GetMapping("/exportCompareData")
     public void exportCompareData(@RequestParam String moduleId,
                                   @RequestParam String timeType,
-                                  @RequestParam String startTime,
-                                  @RequestParam String endTime,
-                                  @RequestParam(required = false) String compareType,
+                                  @RequestParam String baselineStartTime,
+                                  @RequestParam String baselineEndTime,
+                                  @RequestParam String compareStartTime,
+                                  @RequestParam String compareEndTime,
                                   HttpServletResponse response) {
         CompareDataRequest req = new CompareDataRequest();
         req.setModuleId(moduleId);
         req.setTimeType(timeType);
-        req.setStartTime(startTime);
-        req.setEndTime(endTime);
-        req.setCompareType(compareType);
+        req.setBaselineStartTime(baselineStartTime);
+        req.setBaselineEndTime(baselineEndTime);
+        req.setCompareStartTime(compareStartTime);
+        req.setCompareEndTime(compareEndTime);
         energyAnalysisService.exportCompareData(req, response);
     }
 }

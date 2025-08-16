@@ -31,9 +31,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02",
-  "compareType": "compare"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 ### 8. 月对比数据查询 - 1号注塑机
@@ -43,9 +44,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "month",
-  "startTime": "2025-01",
-  "endTime": "2025-07",
-  "compareType": "compare"
+  "baselineStartTime": "2025-01",
+  "baselineEndTime": "2025-07",
+  "compareStartTime": "2024-01",
+  "compareEndTime": "2024-07"
 }
 
 ### 9. 年对比数据查询 - 1号注塑机
@@ -55,9 +57,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_1202",
   "timeType": "year",
-  "startTime": "2023",
-  "endTime": "2025",
-  "compareType": "compare"
+  "baselineStartTime": "2023",
+  "baselineEndTime": "2025",
+  "compareStartTime": "2020",
+  "compareEndTime": "2022"
 }
 
 ### 10. 日对比数据查询 - 2号注塑机
@@ -67,9 +70,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0001_12",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02",
-  "compareType": "compare"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 ### 11. 涂装1号线数据查询
@@ -79,9 +83,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0002_11",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02",
-  "compareType": "compare"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 ### 12. 包装1号设备数据查询
@@ -91,9 +96,10 @@ Content-Type: application/json
 {
   "moduleId": "yj0003_11",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02",
-  "compareType": "compare"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 ### 13. 错误测试 - 缺少仪表ID
@@ -103,8 +109,10 @@ Content-Type: application/json
 {
   "moduleId": "",
   "timeType": "day",
-  "startTime": "2025-07-26",
-  "endTime": "2025-08-02"
+  "baselineStartTime": "2025-07-03",
+  "baselineEndTime": "2025-07-13",
+  "compareStartTime": "2024-07-03",
+  "compareEndTime": "2024-07-13"
 }
 
 ### 14. 错误测试 - 错误的时间类型

@@ -10,7 +10,7 @@
 - 根据能源类型自动显示对应单位（电：kWh，其他：m³）
 - 提供图表和表格两种展示方式
 - 支持日、月、年三种统计粒度
-- 计算同比增长率
+- 计算节能情况（基准 − 对比）
 
 ## 🗂️ 数据库表结构
 
@@ -248,33 +248,27 @@ public class CompareDataVO {
   "code": 200,
   "result": {
     "summary": {
-      "totalConsumption": 296.37,        // 总消耗量
-      "previousConsumption": 201.74,     // 对比期消耗量
-      "growthRate": 31.93,               // 增长率(%)
-      "unit": "kWh"                      // 单位
+      "baselineTotal": 296.37,          // 基准期总能耗
+      "compareTotal": 201.74,           // 对比期总能耗
+      "savingTotal": 94.63,             // 节能总量 = 基准 − 对比
+      "unit": "kWh"                     // 单位
     },
     "chartData": {
-      "categories": ["07-26", "07-27", "07-28", "07-29", "07-30", "07-31", "08-01", "08-02"],
+      "baselineDates": ["07-26", "07-27", "07-28", "07-29", "07-30", "07-31", "08-01", "08-02"],
+      "compareDates": ["07-26", "07-27", "07-28", "07-29", "07-30", "07-31", "08-01", "08-02"],
       "series": [
-        {
-          "name": "本期用电量",
-          "data": [289, 283, 299, 250, 240, 180, 190, 200],
-          "unit": "kWh"
-        },
-        {
-          "name": "对比用电量",
-          "data": [250, 260, 283, 220, 200, 150, 170, 180],
-          "unit": "kWh"
-        }
+        { "name": "基准期", "type": "line", "data": [289, 283, 299, 250, 240, 180, 190, 200], "unit": "kWh" },
+        { "name": "对比期", "type": "line", "data": [250, 260, 283, 220, 200, 150, 170, 180], "unit": "kWh" },
+        { "name": "节能情况", "type": "bar",  "data": [39, 23, 16, 30, 40, 30, 20, 20], "unit": "kWh" }
       ]
     },
     "tableData": [
       {
-        "date": "2024-01-16",
-        "currentConsumption": 320567,      // 本期用电量
-        "previousConsumption": 297261,     // 对比用电量
-        "difference": 26820,               // 差值
-        "growthRate": 8.64                 // 增长率(%)
+        "baselineDate": "2025-07-04",
+        "baselineValue": 437102.40,
+        "compareDate": "2024-07-04",
+        "compareValue": 401454.20,
+        "saving": "节约 35,648.20 kWh"
       }
     ],
     "moduleInfo": {
@@ -455,16 +449,12 @@ ORDER BY dt ASC;
 - 当期：2025
 - 同比期：2024
 
-### 4. 增长率计算公式
-```javascript
-// 增长率计算
-growthRate = ((currentValue - previousValue) / previousValue) * 100
+### 4. 节能计算口径
+- 差值(delta) = 基准能耗 − 对比能耗
+- delta > 0：节约（绿色显示）
+- delta < 0：超出（红色显示）
+- 表格“节能情况”与图表柱状“节能情况”一致
 
-// 示例：
-// 当期：296.37 kWh
-// 同比：201.74 kWh
-// 增长率：((296.37 - 201.74) / 201.74) * 100 = 46.9%
-```
 
 ## 🎨 前端展示规范
 
@@ -483,81 +473,75 @@ const getUnit = (energyType) => {
 
 ### 2. 图表配置
 ```javascript
-// ECharts配置示例
+// ECharts 配置：基准期(折线) + 对比期(折线) + 节能情况(柱状)
+// 说明：
+// - 差值delta = 基准期 - 对比期
+// - delta > 0 表示节约(绿色)；delta < 0 表示超出(红色)
+const categories = baselineDates; // 基准期时间序列
+const unit = 'kWh';
 const chartOption = {
-  title: {
-    text: '能源消耗对比分析'
-  },
+  title: { text: '能源消耗对比' },
   tooltip: {
     trigger: 'axis',
-    formatter: function(params) {
-      let result = params[0].name + '<br/>';
-      params.forEach(item => {
-        result += item.seriesName + ': ' + item.value + ' ' + unit + '<br/>';
-      });
-      return result;
+    formatter: function (params) {
+      const idx = params[0].dataIndex;
+      const bDate = baselineDates[idx] || '-';
+      const cDate = compareDates[idx] || '-';
+      const bVal  = params.find(p=>p.seriesName==='基准期')?.value ?? null;
+      const cVal  = params.find(p=>p.seriesName==='对比期')?.value ?? null;
+      const dVal  = (bVal==null||cVal==null)? null : (bVal - cVal);
+      const tag   = dVal==null? '' : (dVal>=0? '节约' : '超出');
+      const color = dVal==null? '#999' : (dVal>=0? '#52c41a' : '#ff4d4f');
+      return [
+        `基准时间：${bDate}`,
+        `基准能耗：${bVal?.toLocaleString()} ${unit}`,
+        `对比时间：${cDate}`,
+        `对比能耗：${cVal?.toLocaleString()} ${unit}`,
+        `<span style="color:${color}">${tag}：${Math.abs(dVal||0).toLocaleString()} ${unit}</span>`
+      ].join('<br/>');
     }
   },
-  legend: {
-    data: ['本期用电量', '对比用电量']
-  },
-  xAxis: {
-    type: 'category',
-    data: categories
-  },
-  yAxis: {
-    type: 'value',
-    name: unit,
-    axisLabel: {
-      formatter: '{value} ' + unit
-    }
-  },
-  series: series
+  legend: { data: ['基准期', '对比期', '节能情况'] },
+  xAxis: { type: 'category', data: categories },
+  yAxis: { type: 'value', name: unit, axisLabel: { formatter: '{value} ' + unit } },
+  series: [
+    { name: '基准期', type: 'line', smooth: true, data: baselineValues },
+    { name: '对比期', type: 'line', smooth: true, data: compareValues },
+    { name: '节能情况', type: 'bar', data: baselineValues.map((v,i)=> (v ?? 0) - (compareValues[i] ?? 0)),
+      itemStyle: { color: function(p){ return (p.value>=0)? '#52c41a' : '#ff4d4f'; } } }
+  ]
 };
 ```
 
-### 3. 表格配置
+### 3. 表格配置（与页面一致）
 ```javascript
-// 表格列配置
+// 表格列：基准时间 | 基准能耗(kWh) | 对比时间 | 对比能耗(kWh) | 节能情况
+const unit = 'kWh';
 const tableColumns = [
-  {
-    title: '时间',
-    dataIndex: 'date',
-    key: 'date',
-    width: 120
-  },
-  {
-    title: `本期用${energyTypeName}量(${unit})`,
-    dataIndex: 'currentConsumption',
-    key: 'currentConsumption',
-    render: (value) => value?.toLocaleString()
-  },
-  {
-    title: `对比用${energyTypeName}量(${unit})`,
-    dataIndex: 'previousConsumption',
-    key: 'previousConsumption',
-    render: (value) => value?.toLocaleString()
-  },
-  {
-    title: `差值(${unit})`,
-    dataIndex: 'difference',
-    key: 'difference',
-    render: (value) => {
-      const color = value >= 0 ? '#ff4d4f' : '#52c41a';
-      return <span style={{color}}>{value?.toLocaleString()}</span>;
-    }
-  },
-  {
-    title: '增长率(%)',
-    dataIndex: 'growthRate',
-    key: 'growthRate',
-    render: (value) => {
-      const color = value >= 0 ? '#ff4d4f' : '#52c41a';
-      const icon = value >= 0 ? '↑' : '↓';
-      return <span style={{color}}>{icon} {Math.abs(value).toFixed(2)}%</span>;
+  { title: '基准时间', dataIndex: 'baselineDate', key: 'baselineDate', width: 120 },
+  { title: `基准能耗(${unit})`, dataIndex: 'baselineValue', key: 'baselineValue',
+    render: v => (v==null? '--' : v.toLocaleString()) },
+  { title: '对比时间', dataIndex: 'compareDate', key: 'compareDate', width: 120 },
+  { title: `对比能耗(${unit})`, dataIndex: 'compareValue', key: 'compareValue',
+    render: v => (v==null? '--' : v.toLocaleString()) },
+  { title: '节能情况', dataIndex: 'savingText', key: 'savingText',
+    render: (_, row) => {
+      const delta = (row.baselineValue ?? 0) - (row.compareValue ?? 0); // 基准-对比
+      const tag = delta >= 0 ? '节约' : '超出';
+      const color = delta >= 0 ? '#52c41a' : '#ff4d4f';
+      return <span style={{ color }}>{tag} {Math.abs(delta).toLocaleString()} {unit}</span>;
     }
   }
 ];
+
+// 将接口返回转换为表格行（基准期为横轴）
+const rows = baselineValues.map((bv, i) => ({
+  key: i,
+  baselineDate: baselineDates[i],
+  baselineValue: bv,
+  compareDate: compareDates[i] || null,
+  compareValue: compareValues[i] || null,
+}));
 ```
 
 ## 🔄 业务流程
@@ -725,7 +709,7 @@ const ENERGY_TYPE_MAP = {
 
 ### 4. 数据精度处理
 - 能耗数据 `energy_count` 为 decimal(18,2) 类型，保留2位小数
-- 增长率保留2位小数
+- 节能情况数值保留2位小数
 - 大数值使用千分位分隔符显示
 - 开始值 `strat_count` 和结束值 `end_count` 也为 decimal(18,2) 类型
 
@@ -736,17 +720,15 @@ if (!data || data.length === 0) {
   return {
     success: true,
     result: {
-      summary: { totalConsumption: 0, growthRate: 0 },
-      chartData: { categories: [], series: [] },
+      summary: { baselineTotal: 0, compareTotal: 0, savingTotal: 0, unit },
+      chartData: { baselineDates: [], compareDates: [], series: [] },
       tableData: []
     }
   };
 }
 
-// 同比数据缺失时的处理
-if (!previousData) {
-  growthRate = null; // 显示为 "--"
-}
+// 数据缺失时处理
+// 若某天/某月无数据，显示为 "--"，节能情况计算时按0处理
 ```
 
 ### 6. 性能优化建议
@@ -854,14 +836,7 @@ GET /energy/analysis/exportCompareData?moduleId=yj0001_1202&timeType=day&baselin
 Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 ```
 
-### 2. 预警功能（规划）
-- 设置能耗增长率阈值预警
-- 异常数据点标识
 
-### 3. 更多对比维度（规划）
-- 支持环比对比（与上期对比）
-- 支持多年度对比
-- 支持多仪表横向对比功能
 
 ---
 
