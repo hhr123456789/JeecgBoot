@@ -1,114 +1,72 @@
 <template>
   <div class="flex h-full bg-gray-100">
-    <!-- 左侧树形菜单 -->
-    <div class="w-64 bg-white p-2 mr-2 rounded overflow-auto">
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="请输入搜索内容"
-        class="mb-2"
-      />
-      <a-tree
-        v-model:expandedKeys="expandedKeys"
-        v-model:selectedKeys="selectedKeys"
-        :tree-data="treeData"
-        @select="handleSelect"
-      />
+    <!-- 左侧动态维度树（复用 Compare 实现） -->
+    <div class="w-80 bg-white p-2 mr-2 rounded overflow-auto mt-4" style="width:310px;">
+      <a-col :xl="6" :lg="8" :md="10" :sm="24" style="flex: 1;height: 100%;background-color: white;padding-left: 10px;">
+        <a-tabs :defaultActiveKey="activeTabKey" @change="handleTabChange" style="height: 100%;width:300px;">
+          <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title">
+            <a-card :bordered="false" style="height: 100%">
+              <DimensionTree
+                :ref="(el) => setTreeRef(el, item.key)"
+                @select="onDepartTreeSelect"
+                :nowtype="item.nowtype"
+                :select-level="2"
+                style="margin-top:-20px ;"
+              />
+            </a-card>
+          </a-tab-pane>
+        </a-tabs>
+      </a-col>
     </div>
 
     <!-- 右侧内容区域 -->
     <div class="flex-1">
       <!-- 顶部查询区域 -->
       <div class="bg-white rounded p-3 mb-4">
-        <div class="flex items-center space-x-4">
-          <!-- 查询区间选择 -->
-          <div class="flex items-center">
-            <span class="text-gray-600 text-sm mr-2">查询区间：</span>
+        <div class="flex items-center gap-4 flex-nowrap">
+          <!-- 时间粒度：按钮组（与 Compare 保持一致） -->
+          <a-radio-group v-model:value="queryType" button-style="solid" class="custom-radio-group" @change="handleQueryTypeChange">
+            <a-radio-button value="day">日</a-radio-button>
+            <a-radio-button value="month">月</a-radio-button>
+            <a-radio-button value="year">年</a-radio-button>
+          </a-radio-group>
+
+          <!-- 时间范围选择（与 Compare 一致） -->
+          <div class="flex items-center gap-4 flex-nowrap">
+            <a-range-picker
+              v-model:value="dateRange"
+              :format="dateFormat"
+              :picker="rangePickerType"
+              class="w-64 custom-picker"
+            />
+          </div>
+
+          <!-- 仪表选择（仅用电维度显示） -->
+          <div class="flex items-center" v-if="isElectric">
+            <span class="text-gray-600 text-sm mr-2 whitespace-nowrap">仪表：</span>
             <a-select
-              v-model:value="queryType"
-              style="width: 160px"
-              size="small"
-              @change="handleQueryTypeChange"
-            >
-              <a-select-option value="month">按月查询</a-select-option>
-              <a-select-option value="monthRange">按月区间查询</a-select-option>
-              <a-select-option value="year">按年查询</a-select-option>
-              <a-select-option value="yearRange">按年区间查询</a-select-option>
-            </a-select>
-          </div>
-
-          <!-- 时间选择区域 -->
-          <div class="flex items-center space-x-4">
-            <!-- 单月选择 -->
-            <a-month-picker
-              v-if="queryType === 'month'"
-              v-model:value="singleMonth"
-              format="YYYY-MM"
-              size="small"
-              :placeholder="'请选择月份'"
-              style="width: 120px"
+              v-model:value="selectedMeter"
+              :options="instrumentOptions"
+              :loading="instrumentLoading"
+              style="width: 220px"
+              class="custom-select"
+              placeholder="请选择仪表"
+              :dropdownMatchSelectWidth="false"
+              @change="handleMeterChange"
             />
-
-            <!-- 月区间选择 -->
-            <template v-if="queryType === 'monthRange'">
-              <a-month-picker
-                v-model:value="monthRange[0]"
-                format="YYYY-MM"
-                size="small"
-                :placeholder="'起始月份'"
-                style="width: 120px"
-              />
-              <span class="text-gray-400">至</span>
-              <a-month-picker
-                v-model:value="monthRange[1]"
-                format="YYYY-MM"
-                size="small"
-                :placeholder="'结束月份'"
-                style="width: 120px"
-              />
-            </template>
-
-            <!-- 单年选择 -->
-            <a-date-picker
-              v-if="queryType === 'year'"
-              v-model:value="singleYear"
-              picker="year"
-              size="small"
-              :placeholder="'请选择年份'"
-              style="width: 120px"
-            />
-
-            <!-- 年区间选择 -->
-            <template v-if="queryType === 'yearRange'">
-              <a-date-picker
-                v-model:value="yearRange[0]"
-                picker="year"
-                size="small"
-                :placeholder="'起始年份'"
-                style="width: 120px"
-              />
-              <span class="text-gray-400">至</span>
-              <a-date-picker
-                v-model:value="yearRange[1]"
-                picker="year"
-                size="small"
-                :placeholder="'结束年份'"
-                style="width: 120px"
-              />
-            </template>
           </div>
-
           <!-- 查询按钮 -->
-          <a-button type="primary" size="small" @click="handleQuery">查询</a-button>
+          <a-button type="primary" class="custom-button" @click="handleQuery">查询</a-button>
         </div>
       </div>
 
       <!-- 顶部统计卡片 -->
       <div class="grid grid-cols-4 gap-4 mb-4">
-        <!-- 总能耗 -->
+        <!-- 改为尖时能耗 -->
         <div class="bg-white rounded-lg p-3 shadow-sm">
-          <div class="text-gray-600 text-sm mb-2">总能耗(kWh)</div>
+          <div class="text-gray-600 text-sm mb-2">尖时能耗(kWh)</div>
           <div class="bg-gray-50 rounded-lg py-2 px-3 text-base font-medium text-center">
-            {{ statisticsData.totalConsumption }}
+            {{ statisticsData.cuspConsumption }}
           </div>
         </div>
         <!-- 峰时能耗 -->
@@ -118,18 +76,18 @@
             {{ statisticsData.peakConsumption }}
           </div>
         </div>
-        <!-- 谷时能耗 -->
+        <!-- 改为平时能耗 -->
+        <div class="bg-white rounded-lg p-3 shadow-sm">
+          <div class="text-gray-600 text-sm mb-2">平时能耗(kWh)</div>
+          <div class="bg-gray-50 rounded-lg py-2 px-3 text-base font-medium text-center">
+            {{ statisticsData.leveConsumption }}
+          </div>
+        </div>
+        <!-- 改为谷时能耗 -->
         <div class="bg-white rounded-lg p-3 shadow-sm">
           <div class="text-gray-600 text-sm mb-2">谷时能耗(kWh)</div>
           <div class="bg-gray-50 rounded-lg py-2 px-3 text-base font-medium text-center">
             {{ statisticsData.valleyConsumption }}
-          </div>
-        </div>
-        <!-- 峰谷差率 -->
-        <div class="bg-white rounded-lg p-3 shadow-sm">
-          <div class="text-gray-600 text-sm mb-2">峰谷差率(%)</div>
-          <div class="bg-gray-50 rounded-lg py-2 px-3 text-base font-medium text-center">
-            {{ statisticsData.peakValleyRatio }}
           </div>
         </div>
       </div>
@@ -137,7 +95,7 @@
       <!-- 饼图和柱状图区域 -->
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="bg-white rounded p-3">
-          <div class="text-gray-600 text-sm mb-2">能耗分布</div>
+          <div class="text-gray-600 text-sm mb-2">尖峰平谷</div>
           <ConsumptionPie :chartData="pieChartData" />
         </div>
         <div class="bg-white rounded p-3">
@@ -148,104 +106,83 @@
 
       <!-- 折线图区域 -->
       <div class="bg-white rounded p-3 mb-4">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-gray-600 text-sm">能耗分析</div>
-          <a-radio-group v-model:value="timeRange" button-style="solid" size="small">
-            <a-radio-button value="day">日</a-radio-button>
-            <a-radio-button value="month">月</a-radio-button>
-            <a-radio-button value="year">年</a-radio-button>
-          </a-radio-group>
-        </div>
+        <div class="text-gray-600 text-sm mb-2">能耗分析</div>
         <ConsumptionLine :chartData="lineChartData" />
       </div>
 
-      <!-- 数据表格 -->
-      <div class="bg-white rounded p-3">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-gray-600 text-sm">能耗数据明细</div>
-          <a-button type="primary" size="small">导出数据</a-button>
-        </div>
-        <a-table
-          :columns="columns"
-          :data-source="tableData"
-          :pagination="false"
-          size="middle"
-        />
-      </div>
+
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
-import type { TreeDataItem } from 'ant-design-vue/es/tree/Tree';
-import type { TableColumnsType } from 'ant-design-vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import ConsumptionPie from './components/ConsumptionPie.vue';
 import ConsumptionBar from './components/ConsumptionBar.vue';
 import ConsumptionLine from './components/ConsumptionLine.vue';
+import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
+import { getModulesByDimension, type ModuleVO } from '../Energy_Analysis_Compare/api';
+import { defHttp } from '/@/utils/http/axios';
 import { Dayjs } from 'dayjs';
 
-// 搜索文本
-const searchText = ref('');
+// 左侧维度（动态 Tabs + DimensionTree）
+const activeTabKey = ref('info1');
+const currentNowtype = ref(1);
+const currentOrgCode = ref('');
 
-// 树形菜单展开和选中状态
-const expandedKeys = ref<string[]>(['1']);
-const selectedKeys = ref<string[]>(['1-1']);
+const dimensionList = ref<any[]>([]);
+const treeRefs = ref<Record<string, any>>({});
+const setTreeRef = (el, key) => { if (el) treeRefs.value[key] = el; };
 
-// 树形菜单数据
-const treeData = ref<TreeDataItem[]>([
-  {
-    title: '分厂1',
-    key: '1',
-    children: [
-      {
-        title: '1号生产线',
-        key: '1-1',
-      },
-      {
-        title: '2号生产线',
-        key: '1-2',
-      }
-    ]
-  },
-  {
-    title: '分厂2',
-    key: '2',
-    children: [
-      {
-        title: '1号生产线',
-        key: '2-1',
-      }
-    ]
-  }
-]);
-
-// 时间范围选择
-const timeRange = ref('day');
+// 存储每个标签页选中的节点信息
+const selectedNodesMap = ref<Record<string, any>>({
+  info1: null,
+  info2: null,
+  info3: null,
+  info4: null,
+  info5: null,
+});
 
 // 查询类型
 const queryType = ref('month');
 
-// 时间选择值
-const singleMonth = ref<Dayjs | null>(null);
-const monthRange = ref<[Dayjs | null, Dayjs | null]>([null, null]);
-const singleYear = ref<Dayjs | null>(null);
-const yearRange = ref<[Dayjs | null, Dayjs | null]>([null, null]);
+// 仪表选择（动态加载，仅用电维度显示）
+const instrumentList = ref<ModuleVO[]>([]);
+const selectedMeter = ref<string | null>(null);
+const instrumentLoading = ref(false);
+const instrumentOptions = computed(() => instrumentList.value.map(i => ({ label: i.moduleName, value: i.moduleId })));
+const isElectric = computed(() => [1, 2].includes(currentNowtype.value));
+
+// 时间范围（与 Compare 一致）
+const dateRange = ref<[Dayjs, Dayjs] | null>(null);
+const dateFormat = computed(() => {
+  switch (queryType.value) {
+    case 'day':
+      return 'YYYY-MM-DD';
+    case 'month':
+      return 'YYYY-MM';
+    case 'year':
+      return 'YYYY';
+    default:
+      return 'YYYY-MM-DD';
+  }
+});
+const rangePickerType = computed(() => (queryType.value === 'year' ? 'year' : queryType.value));
 
 // 统计数据
 interface StatisticsData {
-  totalConsumption: number;    // 总能耗
+  cuspConsumption: number;    // 尖时能耗
   peakConsumption: number;     // 峰时能耗
+  leveConsumption: number;     // 平时能耗
   valleyConsumption: number;   // 谷时能耗
-  peakValleyRatio: number;     // 峰谷差率
 }
 
 // 静态统计数据
 const statisticsData = ref<StatisticsData>({
-  totalConsumption: 8668433.80,
+  cuspConsumption: 8668433.80,
   peakConsumption: 5424683.40,
-  valleyConsumption: 3243750.40,
-  peakValleyRatio: 40.23
+  leveConsumption: 24540.23,
+  valleyConsumption: 3243750.40
 });
 
 // 饼图数据
@@ -284,7 +221,7 @@ const barChartData = ref({
 const lineChartData = ref({
   xAxis: {
     type: 'category',
-    data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', 
+    data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
            '14:00', '16:00', '18:00', '20:00', '22:00']
   },
   series: [
@@ -311,74 +248,119 @@ const lineChartData = ref({
   ]
 });
 
-// 表格列定义
-const columns: TableColumnsType = [
-  {
-    title: '时间',
-    dataIndex: 'time',
-    width: 180,
-  },
-  {
-    title: '总能耗(kWh)',
-    dataIndex: 'totalConsumption',
-    width: 150,
-    align: 'right',
-  },
-  {
-    title: '尖峰能耗(kWh)',
-    dataIndex: 'peakConsumption',
-    width: 150,
-    align: 'right',
-  },
-  {
-    title: '峰时能耗(kWh)',
-    dataIndex: 'highConsumption',
-    width: 150,
-    align: 'right',
-  },
-  {
-    title: '平时能耗(kWh)',
-    dataIndex: 'normalConsumption',
-    width: 150,
-    align: 'right',
-  },
-  {
-    title: '谷时能耗(kWh)',
-    dataIndex: 'valleyConsumption',
-    width: 150,
-    align: 'right',
-  },
-  {
-    title: '峰谷差率(%)',
-    dataIndex: 'peakValleyRatio',
-    width: 120,
-    align: 'right',
-  }
-];
+// 加载维度字典数据（与 Compare 保持一致）
+function loadDimensionDictData() {
+  defHttp
+    .get({ url: '/sys/dict/getDictItems/dimensionCode' })
+    .then((res) => {
+      if (res && Array.isArray(res)) {
+        dimensionList.value = res
+        .filter((_, index) => index === 0 || index === 1) 
+        .map((item, index) => ({
+          key: `info${index + 1}`,
+          title: item.text,
+          nowtype: Number(index + 1),
+          value: Number(index + 1),
+        }));
+        if (dimensionList.value.length > 0) {
+          activeTabKey.value = dimensionList.value[0].key;
+          currentNowtype.value = dimensionList.value[0].nowtype;
+        }
+      } else {
+        dimensionList.value = [
+          { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+          { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+          //{ key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+          //{ key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+          //{ key: 'info5', title: '企业用水', nowtype: 5, value: 5 },
+        ];
+      }
+    })
+    .catch(() => {
+      dimensionList.value = [
+        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+        //{ key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+        //{ key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+        //{ key: 'info5', title: '企业用水', nowtype: 5, value: 5 },
+      ];
+    });
+}
 
-// 表格数据
-const tableData = ref([
-  {
-    key: '1',
-    time: '2024-01-16',
-    totalConsumption: 326061.00,
-    peakConsumption: 98234.50,
-    highConsumption: 89234.20,
-    normalConsumption: 78234.80,
-    valleyConsumption: 60357.50,
-    peakValleyRatio: 38.56
-  },
-  {
-    key: '2',
-    time: '2024-01-17',
-    totalConsumption: 313371.00,
-    peakConsumption: 95234.30,
-    highConsumption: 85234.40,
-    normalConsumption: 75234.80,
-    valleyConsumption: 57667.50,
-    peakValleyRatio: 39.45
+// 标签页切换
+async function handleTabChange(key) {
+  activeTabKey.value = key;
+  const selectedDimension = dimensionList.value.find((item) => item.key === key);
+  if (selectedDimension) {
+    currentNowtype.value = selectedDimension.nowtype;
   }
-]);
+  const savedNode = selectedNodesMap.value[key];
+  if (savedNode) {
+    currentOrgCode.value = savedNode.orgCode;
+    await refreshDataBasedOnSelection();
+  }
+  nextTick(() => {
+    const current = treeRefs.value[key];
+    if (current && !savedNode) {
+      // 由树组件完成默认选择
+    }
+  });
+}
+
+// 左侧树选择
+async function onDepartTreeSelect(data) {
+  if (Array.isArray(data) && data.length > 0) {
+    const orgCodestr = data.map((item) => item.orgCode).join(',');
+    currentOrgCode.value = orgCodestr;
+    selectedNodesMap.value[activeTabKey.value] = { orgCode: orgCodestr, data };
+  } else if (data && data.orgCode) {
+    currentOrgCode.value = data.orgCode;
+    selectedNodesMap.value[activeTabKey.value] = { orgCode: data.orgCode, data };
+  }
+  await refreshDataBasedOnSelection();
+}
+
+// 根据选择刷新：仅用电维度加载仪表，其他维度隐藏
+async function refreshDataBasedOnSelection() {
+  if (!currentOrgCode.value) return;
+  if ([1, 2].includes(currentNowtype.value)) {
+    await loadInstruments(currentOrgCode.value, currentNowtype.value);
+  } else {
+    instrumentList.value = [];
+    selectedMeter.value = null;
+  }
+}
+
+// 根据维度获取仪表列表（复用 Compare 的API）
+async function loadInstruments(orgCode?: string, nowtype?: number) {
+  if (!orgCode) return;
+  try {
+    instrumentLoading.value = true;
+    const energyType = nowtype ?? currentNowtype.value;
+    const result = await getModulesByDimension({ orgCode, energyType, includeChildren: false });
+    instrumentList.value = result || [];
+    selectedMeter.value = instrumentList.value[0]?.moduleId || null;
+  } catch (error) {
+    instrumentList.value = [];
+    selectedMeter.value = null;
+  } finally {
+    instrumentLoading.value = false;
+  }
+}
+
+onMounted(async () => {
+  loadDimensionDictData();
+  await nextTick();
+  setTimeout(async () => {
+    if (!selectedMeter.value && currentOrgCode.value && currentNowtype.value) {
+      await loadInstruments(currentOrgCode.value, currentNowtype.value);
+    }
+  }, 500);
+});
+
+
+
+
 
 // 处理树节点选择
 const handleSelect = (selectedKeys: string[], info: any) => {
@@ -388,34 +370,34 @@ const handleSelect = (selectedKeys: string[], info: any) => {
 
 // 处理查询类型变化
 const handleQueryTypeChange = (value: string) => {
-  // 重置所有时间选择
-  singleMonth.value = null;
-  monthRange.value = [null, null];
-  singleYear.value = null;
-  yearRange.value = [null, null];
+  // 切换时间粒度时，清空当前范围
+  dateRange.value = null;
+};
+
+// 处理仪表选择变化
+const handleMeterChange = (value: string) => {
+  console.log('选择的仪表：', value);
+  // TODO: 根据选择的仪表更新数据
 };
 
 // 处理查询
 const handleQuery = () => {
-  let queryParams = {
-    type: queryType.value,
-    time: null as any
-  };
-
-  switch (queryType.value) {
-    case 'month':
-      queryParams.time = singleMonth.value?.format('YYYY-MM');
-      break;
-    case 'monthRange':
-      queryParams.time = monthRange.value.map(date => date?.format('YYYY-MM'));
-      break;
-    case 'year':
-      queryParams.time = singleYear.value?.format('YYYY');
-      break;
-    case 'yearRange':
-      queryParams.time = yearRange.value.map(date => date?.format('YYYY'));
-      break;
+  if (!dateRange || !dateRange.value || dateRange.value.length !== 2) {
+    console.warn('请选择时间范围');
+    return;
   }
+
+  const start = dateRange.value[0].format(dateFormat.value);
+  const end = dateRange.value[1].format(dateFormat.value);
+
+  const queryParams = {
+    type: queryType.value,
+    startTime: start,
+    endTime: end,
+    orgCode: currentOrgCode.value || undefined,
+    nowtype: currentNowtype.value,
+    moduleId: isElectric.value ? selectedMeter.value : undefined,
+  };
 
   console.log('查询参数：', queryParams);
   // TODO: 根据查询参数更新数据
@@ -444,6 +426,15 @@ const handleQuery = () => {
 :deep(.ant-tree) {
   font-size: 13px;
 }
+
+/* 顶部控件统一高度样式（与 Compare 一致） */
+.custom-button { height: 36px; display: flex; align-items: center; padding: 0 16px; }
+:deep(.custom-picker) { height: 36px; }
+:deep(.custom-picker .ant-picker-input) { height: 36px; display: flex; align-items: center; }
+:deep(.custom-select) { height: 36px; }
+:deep(.custom-select .ant-select-selector) { height: 36px !important; padding-top: 3px !important; }
+:deep(.custom-radio-group) { height: 36px; display: inline-flex; }
+:deep(.custom-radio-group .ant-radio-button-wrapper) { height: 36px; line-height: 34px; display: inline-flex; align-items: center; }
 
 /* 按钮组样式 */
 :deep(.ant-radio-group) {
@@ -474,4 +465,4 @@ const handleQuery = () => {
 .rounded-lg {
   border-radius: 0.5rem;
 }
-</style> 
+</style>
