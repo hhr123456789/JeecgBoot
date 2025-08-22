@@ -117,11 +117,13 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
+import dayjs from 'dayjs';
 import ConsumptionPie from './components/ConsumptionPie.vue';
 import ConsumptionBar from './components/ConsumptionBar.vue';
 import ConsumptionLine from './components/ConsumptionLine.vue';
 import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
 import { getModulesByDimension, type ModuleVO } from '../Energy_Analysis_Compare/api';
+import { getReasonableData, type ReasonableResponse } from './api';
 import { defHttp } from '/@/utils/http/axios';
 import { Dayjs } from 'dayjs';
 
@@ -144,7 +146,7 @@ const selectedNodesMap = ref<Record<string, any>>({
 });
 
 // 查询类型
-const queryType = ref('month');
+const queryType = ref('day');
 
 // 仪表选择（动态加载，仅用电维度显示）
 const instrumentList = ref<ModuleVO[]>([]);
@@ -177,75 +179,73 @@ interface StatisticsData {
   valleyConsumption: number;   // 谷时能耗
 }
 
-// 静态统计数据
+// 图表数据类型（与子组件props一致）
+interface PieChartData {
+  series: Array<{
+    name: string;
+    type: string;
+    radius: string[];
+    data: Array<{ value: number; name: string }>;
+  }>;
+}
+
+interface BarChartData {
+  xAxis: { type: string; data: string[] };
+  series: Array<{ name: string; type: string; data: number[] }>;
+}
+
+interface LineChartData {
+  xAxis: { type: string; data: string[] };
+  series: Array<{ name: string; type: string; data: number[] }>;
+}
+
+// 统计卡片数据（初始化为0）
 const statisticsData = ref<StatisticsData>({
-  cuspConsumption: 8668433.80,
-  peakConsumption: 5424683.40,
-  leveConsumption: 24540.23,
-  valleyConsumption: 3243750.40
+  cuspConsumption: 0,
+  peakConsumption: 0,
+  leveConsumption: 0,
+  valleyConsumption: 0,
 });
 
 // 饼图数据
-const pieChartData = ref({
+const pieChartData = ref<PieChartData>({
   series: [
     {
       name: '能耗分布',
       type: 'pie',
       radius: ['50%', '70%'],
-      data: [
-        { value: 1424683.40, name: '尖峰能耗' },
-        { value: 2067865.00, name: '峰时能耗' },
-        { value: 3161614.60, name: '平时能耗' },
-        { value: 2014444.80, name: '谷时能耗' }
-      ]
-    }
-  ]
+      data: [],
+    },
+  ],
 });
 
 // 柱状图数据
-const barChartData = ref({
+const barChartData = ref<BarChartData>({
   xAxis: {
     type: 'category',
-    data: ['1月', '2月', '3月', '4月', '5月', '6月']
+    data: [],
   },
   series: [
     {
       name: '能耗量',
       type: 'bar',
-      data: [320, 280, 250, 340, 360, 320]
-    }
-  ]
+      data: [],
+    },
+  ],
 });
 
 // 折线图数据
-const lineChartData = ref({
+const lineChartData = ref<LineChartData>({
   xAxis: {
     type: 'category',
-    data: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-           '14:00', '16:00', '18:00', '20:00', '22:00']
+    data: [],
   },
   series: [
-    {
-      name: '尖峰',
-      type: 'line',
-      data: [120, 132, 101, 134, 90, 230, 210, 182, 191, 234, 290, 330]
-    },
-    {
-      name: '峰时',
-      type: 'line',
-      data: [220, 182, 191, 234, 290, 330, 310, 123, 442, 321, 90, 149]
-    },
-    {
-      name: '平时',
-      type: 'line',
-      data: [150, 232, 201, 154, 190, 330, 410, 182, 191, 234, 290, 330]
-    },
-    {
-      name: '谷时',
-      type: 'line',
-      data: [320, 332, 301, 334, 390, 330, 320, 132, 142, 244, 190, 130]
-    }
-  ]
+    { name: '尖', type: 'line', data: [] },
+    { name: '峰', type: 'line', data: [] },
+    { name: '平', type: 'line', data: [] },
+    { name: '谷', type: 'line', data: [] },
+  ],
 });
 
 // 加载维度字典数据（与 Compare 保持一致）
@@ -255,7 +255,7 @@ function loadDimensionDictData() {
     .then((res) => {
       if (res && Array.isArray(res)) {
         dimensionList.value = res
-        .filter((_, index) => index === 0 || index === 1) 
+        .filter((_, index) => index === 0 || index === 1)
         .map((item, index) => ({
           key: `info${index + 1}`,
           title: item.text,
@@ -325,9 +325,18 @@ async function refreshDataBasedOnSelection() {
   if (!currentOrgCode.value) return;
   if ([1, 2].includes(currentNowtype.value)) {
     await loadInstruments(currentOrgCode.value, currentNowtype.value);
+    // 如果已有时间范围，自动查询
+    if (dateRange?.value) {
+      await handleQuery();
+    }
   } else {
     instrumentList.value = [];
+
     selectedMeter.value = null;
+    // 非用电维度如需要也可在此触发查询
+    if (dateRange?.value) {
+      await handleQuery();
+    }
   }
 }
 
@@ -336,8 +345,8 @@ async function loadInstruments(orgCode?: string, nowtype?: number) {
   if (!orgCode) return;
   try {
     instrumentLoading.value = true;
-    const energyType = nowtype ?? currentNowtype.value;
-    const result = await getModulesByDimension({ orgCode, energyType, includeChildren: false });
+    // 统一按电(1) 过滤获取仪表（按部门/按线路都是用电维度）
+    const result = await getModulesByDimension({ orgCode, energyType: 1, includeChildren: false });
     instrumentList.value = result || [];
     selectedMeter.value = instrumentList.value[0]?.moduleId || null;
   } catch (error) {
@@ -350,10 +359,19 @@ async function loadInstruments(orgCode?: string, nowtype?: number) {
 
 onMounted(async () => {
   loadDimensionDictData();
+  // 默认时间范围：按“日”初始化当日
+  queryType.value = 'day';
+  const now = dayjs();
+  dateRange.value = [now.startOf('month'), now.endOf('day')] as any;
+
   await nextTick();
   setTimeout(async () => {
     if (!selectedMeter.value && currentOrgCode.value && currentNowtype.value) {
       await loadInstruments(currentOrgCode.value, currentNowtype.value);
+    }
+    // 若已选定维度与时间，尝试自动查询
+    if (currentOrgCode.value && dateRange.value) {
+      await handleQuery();
     }
   }, 500);
 });
@@ -369,38 +387,107 @@ const handleSelect = (selectedKeys: string[], info: any) => {
 };
 
 // 处理查询类型变化
-const handleQueryTypeChange = (value: string) => {
-  // 切换时间粒度时，清空当前范围
-  dateRange.value = null;
+const handleQueryTypeChange = async (value: string) => {
+  // 切换时间粒度时，设置默认时间范围并自动查询
+  const now = dayjs();
+  if (value === 'day') {
+    dateRange.value = [now.startOf('month'), now.endOf('day')] as any;
+  } else if (value === 'month') {
+    dateRange.value = [now.subtract(1,'month'), now.endOf('month')] as any;
+  } else if (value === 'year') {
+    dateRange.value = [now.subtract(1,'year'), now.endOf('year')] as any;
+  }
+  await handleQuery();
 };
 
 // 处理仪表选择变化
-const handleMeterChange = (value: string) => {
-  console.log('选择的仪表：', value);
-  // TODO: 根据选择的仪表更新数据
+const handleMeterChange = async (value: string) => {
+  selectedMeter.value = value;
+  // 若已选择时间范围，则联动查询
+  if (dateRange?.value) await handleQuery();
 };
 
+// 将接口数据映射到三个图表与顶部统计卡片
+function applyReasonableData(resp: ReasonableResponse) {
+  // 顶部统计
+  statisticsData.value = {
+    cuspConsumption: Number(resp.summary?.cuspCount || 0),
+    peakConsumption: Number(resp.summary?.peakCount || 0),
+    leveConsumption: Number(resp.summary?.levelCount || 0),
+    valleyConsumption: Number(resp.summary?.valleyCount || 0),
+  };
+
+  // 饼图：直接使用占比数据
+  const pieSeriesData = (resp.ratio || []).map((r) => ({ name: r.name, value: Number(r.value || 0) }));
+  pieChartData.value = {
+    series: [
+      {
+        name: '能耗分布',
+        type: 'pie',
+        radius: ['50%', '70%'],
+        data: pieSeriesData,
+      },
+    ],
+  };
+
+  // 柱状图：总能耗趋势
+  const barXAxis = (resp.totalTrend || []).map((i) => i.date);
+  const barSeries = (resp.totalTrend || []).map((i) => Number(i.energyCount || 0));
+  barChartData.value = {
+    xAxis: { type: 'category', data: barXAxis },
+    series: [{ name: '能耗量', type: 'bar', data: barSeries }],
+  };
+
+  // 折线图：尖峰平谷趋势
+  const cusp = resp.touTrend?.cusp || [];
+  const peak = resp.touTrend?.peak || [];
+  const level = resp.touTrend?.level || [];
+  const valley = resp.touTrend?.valley || [];
+  const lineXAxis = cusp.map((p) => String(p.x));
+  lineChartData.value = {
+    xAxis: { type: 'category', data: lineXAxis },
+    series: [
+      { name: '尖', type: 'line', data: cusp.map((p) => Number(p.y || 0)) },
+      { name: '峰', type: 'line', data: peak.map((p) => Number(p.y || 0)) },
+      { name: '平', type: 'line', data: level.map((p) => Number(p.y || 0)) },
+      { name: '谷', type: 'line', data: valley.map((p) => Number(p.y || 0)) },
+    ],
+  };
+}
+
 // 处理查询
-const handleQuery = () => {
+const handleQuery = async () => {
+  if (!currentOrgCode.value) {
+    console.warn('请先在左侧选择维度节点');
+    return;
+  }
   if (!dateRange || !dateRange.value || dateRange.value.length !== 2) {
     console.warn('请选择时间范围');
+    return;
+  }
+  // 取仪表：若未选择具体仪表，则使用当前维度下全部仪表
+  const moduleIds = isElectric.value
+    ? (selectedMeter.value ? [selectedMeter.value] : instrumentList.value.map((m) => m.moduleId))
+    : [];
+  if (isElectric.value && (!moduleIds || moduleIds.length === 0)) {
+    console.warn('当前维度下暂无仪表');
     return;
   }
 
   const start = dateRange.value[0].format(dateFormat.value);
   const end = dateRange.value[1].format(dateFormat.value);
 
-  const queryParams = {
-    type: queryType.value,
-    startTime: start,
-    endTime: end,
-    orgCode: currentOrgCode.value || undefined,
-    nowtype: currentNowtype.value,
-    moduleId: isElectric.value ? selectedMeter.value : undefined,
-  };
-
-  console.log('查询参数：', queryParams);
-  // TODO: 根据查询参数更新数据
+  try {
+    const resp = await getReasonableData({
+      moduleIds,
+      startDate: start,
+      endDate: end,
+      timeType: queryType.value as any,
+    });
+    applyReasonableData(resp);
+  } catch (e) {
+    console.error('加载合理用能数据失败', e);
+  }
 };
 </script>
 
