@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.ReasonableAnalysisMapper">
+
+    <!-- 汇总 -->
+    <select id="selectSummary" resultType="map">
+        SELECT
+            IFNULL(SUM(cusp_count),0)   AS cuspCount,
+            IFNULL(SUM(peak_count),0)   AS peakCount,
+            IFNULL(SUM(level_count),0)  AS levelCount,
+            IFNULL(SUM(Valley_count),0) AS valleyCount,
+            IFNULL(SUM(energy_count),0) AS totalCount
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND dt BETWEEN #{startDt} AND #{endDt}
+    </select>
+
+    <!-- 总能耗趋势 -->
+    <select id="selectTotalTrend" resultType="map">
+        SELECT ${labelExpr} AS label,
+               IFNULL(SUM(energy_count),0) AS energyCount
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND dt BETWEEN #{startDt} AND #{endDt}
+        GROUP BY ${labelExpr}
+        ORDER BY MIN(dt)
+    </select>
+
+    <!-- 尖峰平谷趋势（四列） -->
+    <select id="selectTouTrend" resultType="map">
+        SELECT ${labelExpr} AS label,
+               IFNULL(SUM(cusp_count),0)   AS cusp,
+               IFNULL(SUM(peak_count),0)   AS peak,
+               IFNULL(SUM(level_count),0)  AS level,
+               IFNULL(SUM(Valley_count),0) AS valley
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND dt BETWEEN #{startDt} AND #{endDt}
+        GROUP BY ${labelExpr}
+        ORDER BY MIN(dt)
+    </select>
+
+</mapper>
+

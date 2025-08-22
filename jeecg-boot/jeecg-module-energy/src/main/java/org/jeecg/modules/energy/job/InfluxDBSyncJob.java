@@ -29,34 +29,34 @@ public class InfluxDBSyncJob {
 
     // 任务执行状态标志，防止重叠执行
     private volatile boolean isRunning = false;
-    
+
     @Autowired
     private IInfluxDBService influxDBService;
-    
+
     @Autowired
     private InfluxDBConfig influxDBConfig;
-    
+
     @Autowired
     private InfluxDB influxDB;
-    
+
     @Autowired
     private TbModuleMapper moduleMapper;
-    
+
     @Autowired
     private TbEquEleDataMapper equEleDataMapper;
-    
+
     @Autowired
     private TbEquEnergyDataMapper equEnergyDataMapper;
-    
+
     @Autowired
     private TbEpEquEnergyDaycountMapper daycountMapper;
-    
+
     @Autowired
     private TbEpEquEnergyMonthcountMapper monthcountMapper;
-    
+
     @Autowired
     private TbEpEquEnergyYearcountMapper yearcountMapper;
-    
+
     private SimpleDateFormat dateTimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -305,15 +305,61 @@ public class InfluxDBSyncJob {
                             dayRecord.setEnergyCount(dailyConsumption);
                             dayRecord.setStratCount(startValue);
                             dayRecord.setEndCount(currentValue);
+
+                            // 电力分时：填充尖峰平谷
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, dayStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) dayRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) dayRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) dayRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) dayRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) dayRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) dayRecord.setPeakCount(peak);
+                                if (startTou.level != null) dayRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) dayRecord.setEndLevelCount(curTou.level);
+                                if (level != null) dayRecord.setLevelCount(level);
+                                if (startTou.valley != null) dayRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) dayRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) dayRecord.setValleyCount(valley);
+                            }
+
                             daycountMapper.updateById(dayRecord);
                         } else {
                             // 创建新记录
                             dayRecord = new TbEpEquEnergyDaycount();
                             dayRecord.setModuleId(moduleId);
-                            dayRecord.setDt(currentDate);
+                            // 标准化：日表 dt 设为统计日期的 00:00:00
+                            dayRecord.setDt(dayStart);
                             dayRecord.setEnergyCount(dailyConsumption);
                             dayRecord.setStratCount(startValue);
                             dayRecord.setEndCount(currentValue);
+
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, dayStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) dayRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) dayRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) dayRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) dayRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) dayRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) dayRecord.setPeakCount(peak);
+                                if (startTou.level != null) dayRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) dayRecord.setEndLevelCount(curTou.level);
+                                if (level != null) dayRecord.setLevelCount(level);
+                                if (startTou.valley != null) dayRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) dayRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) dayRecord.setValleyCount(valley);
+                            }
+
                             daycountMapper.insert(dayRecord);
                         }
 
@@ -382,15 +428,60 @@ public class InfluxDBSyncJob {
                             monthRecord.setEnergyCount(monthlyConsumption);
                             monthRecord.setStratCount(startValue);
                             monthRecord.setEndCount(currentValue);
+
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, monthStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) monthRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) monthRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) monthRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) monthRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) monthRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) monthRecord.setPeakCount(peak);
+                                if (startTou.level != null) monthRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) monthRecord.setEndLevelCount(curTou.level);
+                                if (level != null) monthRecord.setLevelCount(level);
+                                if (startTou.valley != null) monthRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) monthRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) monthRecord.setValleyCount(valley);
+                            }
+
                             monthcountMapper.updateById(monthRecord);
                         } else {
                             // 创建新记录
                             monthRecord = new TbEpEquEnergyMonthcount();
                             monthRecord.setModuleId(moduleId);
-                            monthRecord.setDt(currentDate);
+                            // 标准化：月表 dt 设为统计月份的 1 日 00:00:00
+                            monthRecord.setDt(monthStart);
                             monthRecord.setEnergyCount(monthlyConsumption);
                             monthRecord.setStratCount(startValue);
                             monthRecord.setEndCount(currentValue);
+
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, monthStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) monthRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) monthRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) monthRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) monthRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) monthRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) monthRecord.setPeakCount(peak);
+                                if (startTou.level != null) monthRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) monthRecord.setEndLevelCount(curTou.level);
+                                if (level != null) monthRecord.setLevelCount(level);
+                                if (startTou.valley != null) monthRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) monthRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) monthRecord.setValleyCount(valley);
+                            }
+
                             monthcountMapper.insert(monthRecord);
                         }
 
@@ -460,15 +551,60 @@ public class InfluxDBSyncJob {
                             yearRecord.setEnergyCount(yearlyConsumption);
                             yearRecord.setStratCount(startValue);
                             yearRecord.setEndCount(currentValue);
+
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, yearStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) yearRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) yearRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) yearRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) yearRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) yearRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) yearRecord.setPeakCount(peak);
+                                if (startTou.level != null) yearRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) yearRecord.setEndLevelCount(curTou.level);
+                                if (level != null) yearRecord.setLevelCount(level);
+                                if (startTou.valley != null) yearRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) yearRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) yearRecord.setValleyCount(valley);
+                            }
+
                             yearcountMapper.updateById(yearRecord);
                         } else {
                             // 创建新记录
                             yearRecord = new TbEpEquEnergyYearcount();
                             yearRecord.setModuleId(moduleId);
-                            yearRecord.setDt(currentDate);
+                            // 标准化：年表 dt 设为统计年份的 1 月 1 日 00:00:00
+                            yearRecord.setDt(yearStart);
                             yearRecord.setEnergyCount(yearlyConsumption);
                             yearRecord.setStratCount(startValue);
                             yearRecord.setEndCount(currentValue);
+
+                            if (energyType == 1) {
+                                AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, yearStart);
+                                AccValues curTou = getTOUAccumulateSnapshotElectric(moduleId, currentDate);
+                                BigDecimal cusp = delta(startTou.cusp, curTou.cusp);
+                                BigDecimal peak = delta(startTou.peak, curTou.peak);
+                                BigDecimal level = delta(startTou.level, curTou.level);
+                                BigDecimal valley = delta(startTou.valley, curTou.valley);
+                                if (startTou.cusp != null) yearRecord.setStartCuspCount(startTou.cusp);
+                                if (curTou.cusp != null) yearRecord.setEndCuspCount(curTou.cusp);
+                                if (cusp != null) yearRecord.setCuspCount(cusp);
+                                if (startTou.peak != null) yearRecord.setStartPeakCount(startTou.peak);
+                                if (curTou.peak != null) yearRecord.setEndPeakCount(curTou.peak);
+                                if (peak != null) yearRecord.setPeakCount(peak);
+                                if (startTou.level != null) yearRecord.setStartLevelCount(startTou.level);
+                                if (curTou.level != null) yearRecord.setEndLevelCount(curTou.level);
+                                if (level != null) yearRecord.setLevelCount(level);
+                                if (startTou.valley != null) yearRecord.setStartValleyCount(startTou.valley);
+                                if (curTou.valley != null) yearRecord.setEndValleyCount(curTou.valley);
+                                if (valley != null) yearRecord.setValleyCount(valley);
+                            }
+
                             yearcountMapper.insert(yearRecord);
                         }
 
@@ -615,6 +751,51 @@ public class InfluxDBSyncJob {
         return calendar.getTime();
     }
 
+    // ---- TOU helper structures and methods ----
+    private static class AccValues {
+        BigDecimal cusp; // KWH1
+        BigDecimal peak; // KWH2
+        BigDecimal level; // KWH3
+        BigDecimal valley; // KWH4
+    }
+
+    private AccValues getTOUAccumulateSnapshotElectric(String moduleId, Date time) {
+        AccValues v = new AccValues();
+        try {
+            // 优先从MySQL实时表获取 <= time 的最近一条
+            LambdaQueryWrapper<TbEquEleData> qw = new LambdaQueryWrapper<>();
+            qw.eq(TbEquEleData::getModuleId, moduleId)
+              .le(TbEquEleData::getEquElectricDT, time)
+              .orderByDesc(TbEquEleData::getEquElectricDT)
+              .last("LIMIT 1");
+            TbEquEleData ele = equEleDataMapper.selectOne(qw);
+            if (ele != null) {
+                v.cusp = ele.getCuspValue();
+                v.peak = ele.getPeakValue();
+                v.level = ele.getLevelValue();
+                v.valley = ele.getValleyValue();
+            }
+            // 缺哪个补哪个（从 Influx 取）
+            if (v.cusp == null) v.cusp = getAccumulateValueFromInfluxDB(moduleId, "KWH1", time);
+            if (v.peak == null) v.peak = getAccumulateValueFromInfluxDB(moduleId, "KWH2", time);
+            if (v.level == null) v.level = getAccumulateValueFromInfluxDB(moduleId, "KWH3", time);
+            if (v.valley == null) v.valley = getAccumulateValueFromInfluxDB(moduleId, "KWH4", time);
+            return v;
+        } catch (Exception e) {
+            log.error("获取 TOU 累积快照失败: moduleId={}, time={}", moduleId, time, e);
+            return v;
+        }
+    }
+
+    private BigDecimal delta(BigDecimal start, BigDecimal end) {
+        if (end == null && start == null) return null;
+        if (end == null) return null;
+        if (start == null) return end;
+        BigDecimal d = end.subtract(start);
+        return d.compareTo(BigDecimal.ZERO) < 0 ? end : d;
+    }
+
+
     /**
      * 同步电力数据 - 实时表更新操作（每个module_ID只有一条数据）
      */
@@ -695,8 +876,23 @@ public class InfluxDBSyncJob {
                         eleData.setHZ(decimalValue);
                         break;
                     case "KWH":
+                        eleData.setKWH(decimalValue); // 总有功
+                        break;
+                    case "KWH1":
+                    case "kwh1":
+                        eleData.setCuspValue(decimalValue); // 尖
+                        break;
+                    case "KWH2":
+                    case "kwh2":
+                        eleData.setPeakValue(decimalValue); // 峰
+                        break;
                     case "KWH3":
-                        eleData.setKWH(decimalValue);
+                    case "kwh3":
+                        eleData.setLevelValue(decimalValue); // 平
+                        break;
+                    case "KWH4":
+                    case "kwh4":
+                        eleData.setValleyValue(decimalValue); // 谷
                         break;
                     case "KVARH":
                         eleData.setKVARH(decimalValue);
@@ -867,7 +1063,7 @@ public class InfluxDBSyncJob {
             log.error("同步其他能源数据失败: moduleId={}", moduleId, e);
         }
     }
-    
+
     /**
      * 将对象转换为BigDecimal
      */
@@ -875,7 +1071,7 @@ public class InfluxDBSyncJob {
         if (value == null) {
             return null;
         }
-        
+
         if (value instanceof Number) {
             return new BigDecimal(value.toString());
         } else if (value instanceof String) {
@@ -886,10 +1082,10 @@ public class InfluxDBSyncJob {
                 return null;
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * 每天凌晨1点执行，统计前一天的日能耗
      */
@@ -903,45 +1099,45 @@ public class InfluxDBSyncJob {
             Date yesterday = calendar.getTime();
             // 用于日志记录
             log.info("开始统计 {} 的日能耗数据", dateFormat.format(yesterday));
-            
+
             // 获取所有启用的模块
             LambdaQueryWrapper<TbModule> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(TbModule::getIsaction, "Y");
             List<TbModule> modules = moduleMapper.selectList(queryWrapper);
-            
+
             log.info("开始处理 {} 个模块的日统计", modules.size());
-            
+
             for (TbModule module : modules) {
                 try {
                     String moduleId = module.getModuleId();
                     Integer energyType = module.getEnergyType();
-                    
+
                     // 根据能源类型获取累积值字段
                     String accumulateField = getAccumulateField(energyType);
                     if (accumulateField == null) {
                         log.warn("模块 {} 未配置累积值字段，跳过统计", moduleId);
                         continue;
                     }
-                    
+
                     // 获取昨天开始时间和结束时间的累积值
                     Calendar startCal = Calendar.getInstance();
                     startCal.setTime(yesterday);
                     startCal.set(Calendar.HOUR_OF_DAY, 0);
                     startCal.set(Calendar.MINUTE, 0);
                     startCal.set(Calendar.SECOND, 0);
-                    
+
                     Calendar endCal = Calendar.getInstance();
                     endCal.setTime(yesterday);
                     endCal.set(Calendar.HOUR_OF_DAY, 23);
                     endCal.set(Calendar.MINUTE, 59);
                     endCal.set(Calendar.SECOND, 59);
-                    
+
                     // 查询开始值和结束值
                     BigDecimal startValue = getAccumulateValue(moduleId, energyType, startCal.getTime());
                     BigDecimal endValue = getAccumulateValue(moduleId, energyType, endCal.getTime());
-                    
+
                     log.info("模块 {} 日统计: 开始值={}, 结束值={}", moduleId, startValue, endValue);
-                    
+
                     // 计算能耗值
                     BigDecimal energyCount = null;
                     if (startValue != null && endValue != null) {
@@ -953,40 +1149,91 @@ public class InfluxDBSyncJob {
                     } else if (endValue != null) {
                         energyCount = endValue;
                     }
-                    
+
                     // 检查是否已存在记录
                     TbEpEquEnergyDaycount existingRecord = daycountMapper.selectByModuleIdAndDate(moduleId, yesterday);
-                    
+
                     if (existingRecord != null) {
                         // 更新现有记录
                         existingRecord.setEnergyCount(energyCount);
                         existingRecord.setStratCount(startValue);
                         existingRecord.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) existingRecord.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) existingRecord.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) existingRecord.setCuspCount(cusp);
+                            if (startTou.peak != null) existingRecord.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) existingRecord.setEndPeakCount(endTou.peak);
+                            if (peak != null) existingRecord.setPeakCount(peak);
+                            if (startTou.level != null) existingRecord.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) existingRecord.setEndLevelCount(endTou.level);
+                            if (level != null) existingRecord.setLevelCount(level);
+                            if (startTou.valley != null) existingRecord.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) existingRecord.setEndValleyCount(endTou.valley);
+                            if (valley != null) existingRecord.setValleyCount(valley);
+                        }
+
                         daycountMapper.updateById(existingRecord);
                         log.info("更新日统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     } else {
                         // 创建新记录
                         TbEpEquEnergyDaycount daycount = new TbEpEquEnergyDaycount();
                         daycount.setModuleId(moduleId);
-                        daycount.setDt(yesterday);
+                        // 标准化：日表 dt 设为统计日期的 00:00:00
+                        Calendar dtCal = Calendar.getInstance();
+                        dtCal.setTime(yesterday);
+                        dtCal.set(Calendar.HOUR_OF_DAY, 0);
+                        dtCal.set(Calendar.MINUTE, 0);
+                        dtCal.set(Calendar.SECOND, 0);
+                        dtCal.set(Calendar.MILLISECOND, 0);
+                        daycount.setDt(dtCal.getTime());
                         daycount.setEnergyCount(energyCount);
                         daycount.setStratCount(startValue);
                         daycount.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) daycount.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) daycount.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) daycount.setCuspCount(cusp);
+                            if (startTou.peak != null) daycount.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) daycount.setEndPeakCount(endTou.peak);
+                            if (peak != null) daycount.setPeakCount(peak);
+                            if (startTou.level != null) daycount.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) daycount.setEndLevelCount(endTou.level);
+                            if (level != null) daycount.setLevelCount(level);
+                            if (startTou.valley != null) daycount.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) daycount.setEndValleyCount(endTou.valley);
+                            if (valley != null) daycount.setValleyCount(valley);
+                        }
+
                         daycountMapper.insert(daycount);
                         log.info("创建日统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     }
-                    
+
                 } catch (Exception e) {
                     log.error("处理模块 {} 日统计失败", module.getModuleId(), e);
                 }
             }
-            
+
             log.info("日能耗数据统计完成");
         } catch (Exception e) {
             log.error("统计日能耗数据失败", e);
         }
     }
-    
+
     /**
      * 每月1号凌晨2点执行，统计上个月的月能耗
      */
@@ -999,48 +1246,48 @@ public class InfluxDBSyncJob {
             calendar.add(Calendar.MONTH, -1);
             calendar.set(Calendar.DAY_OF_MONTH, 1);
             Date firstDayOfLastMonth = calendar.getTime();
-            
+
             calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
             Date lastDayOfLastMonth = calendar.getTime();
-            
+
             // 获取所有启用的模块
             LambdaQueryWrapper<TbModule> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(TbModule::getIsaction, "Y");
             List<TbModule> modules = moduleMapper.selectList(queryWrapper);
-            
+
             log.info("开始处理 {} 个模块的月统计", modules.size());
-            
+
             for (TbModule module : modules) {
                 try {
                     String moduleId = module.getModuleId();
                     Integer energyType = module.getEnergyType();
-                    
+
                     // 根据能源类型获取累积值字段
                     String accumulateField = getAccumulateField(energyType);
                     if (accumulateField == null) {
                         log.warn("模块 {} 未配置累积值字段，跳过统计", moduleId);
                         continue;
                     }
-                    
+
                     // 获取月初和月末的累积值
                     Calendar startCal = Calendar.getInstance();
                     startCal.setTime(firstDayOfLastMonth);
                     startCal.set(Calendar.HOUR_OF_DAY, 0);
                     startCal.set(Calendar.MINUTE, 0);
                     startCal.set(Calendar.SECOND, 0);
-                    
+
                     Calendar endCal = Calendar.getInstance();
                     endCal.setTime(lastDayOfLastMonth);
                     endCal.set(Calendar.HOUR_OF_DAY, 23);
                     endCal.set(Calendar.MINUTE, 59);
                     endCal.set(Calendar.SECOND, 59);
-                    
+
                     // 查询开始值和结束值
                     BigDecimal startValue = getAccumulateValue(moduleId, energyType, startCal.getTime());
                     BigDecimal endValue = getAccumulateValue(moduleId, energyType, endCal.getTime());
-                    
+
                     log.info("模块 {} 月统计: 开始值={}, 结束值={}", moduleId, startValue, endValue);
-                    
+
                     // 计算能耗值
                     BigDecimal energyCount = null;
                     if (startValue != null && endValue != null) {
@@ -1052,40 +1299,91 @@ public class InfluxDBSyncJob {
                     } else if (endValue != null) {
                         energyCount = endValue;
                     }
-                    
+
                     // 检查是否已存在记录
                     TbEpEquEnergyMonthcount existingRecord = monthcountMapper.selectByModuleIdAndMonth(moduleId, firstDayOfLastMonth);
-                    
+
                     if (existingRecord != null) {
                         // 更新现有记录
                         existingRecord.setEnergyCount(energyCount);
                         existingRecord.setStratCount(startValue);
                         existingRecord.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) existingRecord.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) existingRecord.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) existingRecord.setCuspCount(cusp);
+                            if (startTou.peak != null) existingRecord.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) existingRecord.setEndPeakCount(endTou.peak);
+                            if (peak != null) existingRecord.setPeakCount(peak);
+                            if (startTou.level != null) existingRecord.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) existingRecord.setEndLevelCount(endTou.level);
+                            if (level != null) existingRecord.setLevelCount(level);
+                            if (startTou.valley != null) existingRecord.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) existingRecord.setEndValleyCount(endTou.valley);
+                            if (valley != null) existingRecord.setValleyCount(valley);
+                        }
+
                         monthcountMapper.updateById(existingRecord);
                         log.info("更新月统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     } else {
                         // 创建新记录
                         TbEpEquEnergyMonthcount monthcount = new TbEpEquEnergyMonthcount();
                         monthcount.setModuleId(moduleId);
-                        monthcount.setDt(firstDayOfLastMonth);
+                        // 标准化：月表 dt 设为统计月份的 1 日 00:00:00
+                        Calendar dtCal = Calendar.getInstance();
+                        dtCal.setTime(firstDayOfLastMonth);
+                        dtCal.set(Calendar.HOUR_OF_DAY, 0);
+                        dtCal.set(Calendar.MINUTE, 0);
+                        dtCal.set(Calendar.SECOND, 0);
+                        dtCal.set(Calendar.MILLISECOND, 0);
+                        monthcount.setDt(dtCal.getTime());
                         monthcount.setEnergyCount(energyCount);
                         monthcount.setStratCount(startValue);
                         monthcount.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) monthcount.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) monthcount.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) monthcount.setCuspCount(cusp);
+                            if (startTou.peak != null) monthcount.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) monthcount.setEndPeakCount(endTou.peak);
+                            if (peak != null) monthcount.setPeakCount(peak);
+                            if (startTou.level != null) monthcount.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) monthcount.setEndLevelCount(endTou.level);
+                            if (level != null) monthcount.setLevelCount(level);
+                            if (startTou.valley != null) monthcount.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) monthcount.setEndValleyCount(endTou.valley);
+                            if (valley != null) monthcount.setValleyCount(valley);
+                        }
+
                         monthcountMapper.insert(monthcount);
                         log.info("创建月统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     }
-                    
+
                 } catch (Exception e) {
                     log.error("处理模块 {} 月统计失败", module.getModuleId(), e);
                 }
             }
-            
+
             log.info("月能耗数据统计完成");
         } catch (Exception e) {
             log.error("统计月能耗数据失败", e);
         }
     }
-    
+
     /**
      * 每年1月1日凌晨3点执行，统计上一年的年能耗
      */
@@ -1099,49 +1397,49 @@ public class InfluxDBSyncJob {
             calendar.set(Calendar.MONTH, Calendar.JANUARY);
             calendar.set(Calendar.DAY_OF_MONTH, 1);
             Date firstDayOfLastYear = calendar.getTime();
-            
+
             calendar.set(Calendar.MONTH, Calendar.DECEMBER);
             calendar.set(Calendar.DAY_OF_MONTH, 31);
             Date lastDayOfLastYear = calendar.getTime();
-            
+
             // 获取所有启用的模块
             LambdaQueryWrapper<TbModule> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(TbModule::getIsaction, "Y");
             List<TbModule> modules = moduleMapper.selectList(queryWrapper);
-            
+
             log.info("开始处理 {} 个模块的年统计", modules.size());
-            
+
             for (TbModule module : modules) {
                 try {
                     String moduleId = module.getModuleId();
                     Integer energyType = module.getEnergyType();
-                    
+
                     // 根据能源类型获取累积值字段
                     String accumulateField = getAccumulateField(energyType);
                     if (accumulateField == null) {
                         log.warn("模块 {} 未配置累积值字段，跳过统计", moduleId);
                         continue;
                     }
-                    
+
                     // 获取年初和年末的累积值
                     Calendar startCal = Calendar.getInstance();
                     startCal.setTime(firstDayOfLastYear);
                     startCal.set(Calendar.HOUR_OF_DAY, 0);
                     startCal.set(Calendar.MINUTE, 0);
                     startCal.set(Calendar.SECOND, 0);
-                    
+
                     Calendar endCal = Calendar.getInstance();
                     endCal.setTime(lastDayOfLastYear);
                     endCal.set(Calendar.HOUR_OF_DAY, 23);
                     endCal.set(Calendar.MINUTE, 59);
                     endCal.set(Calendar.SECOND, 59);
-                    
+
                     // 查询开始值和结束值
                     BigDecimal startValue = getAccumulateValue(moduleId, energyType, startCal.getTime());
                     BigDecimal endValue = getAccumulateValue(moduleId, energyType, endCal.getTime());
-                    
+
                     log.info("模块 {} 年统计: 开始值={}, 结束值={}", moduleId, startValue, endValue);
-                    
+
                     // 计算能耗值
                     BigDecimal energyCount = null;
                     if (startValue != null && endValue != null) {
@@ -1153,40 +1451,91 @@ public class InfluxDBSyncJob {
                     } else if (endValue != null) {
                         energyCount = endValue;
                     }
-                    
+
                     // 检查是否已存在记录
                     TbEpEquEnergyYearcount existingRecord = yearcountMapper.selectByModuleIdAndYear(moduleId, firstDayOfLastYear);
-                    
+
                     if (existingRecord != null) {
                         // 更新现有记录
                         existingRecord.setEnergyCount(energyCount);
                         existingRecord.setStratCount(startValue);
                         existingRecord.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) existingRecord.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) existingRecord.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) existingRecord.setCuspCount(cusp);
+                            if (startTou.peak != null) existingRecord.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) existingRecord.setEndPeakCount(endTou.peak);
+                            if (peak != null) existingRecord.setPeakCount(peak);
+                            if (startTou.level != null) existingRecord.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) existingRecord.setEndLevelCount(endTou.level);
+                            if (level != null) existingRecord.setLevelCount(level);
+                            if (startTou.valley != null) existingRecord.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) existingRecord.setEndValleyCount(endTou.valley);
+                            if (valley != null) existingRecord.setValleyCount(valley);
+                        }
+
                         yearcountMapper.updateById(existingRecord);
                         log.info("更新年统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     } else {
                         // 创建新记录
                         TbEpEquEnergyYearcount yearcount = new TbEpEquEnergyYearcount();
                         yearcount.setModuleId(moduleId);
-                        yearcount.setDt(firstDayOfLastYear);
+                        // 标准化：年表 dt 设为统计年份的 1 月 1 日 00:00:00
+                        Calendar dtCal = Calendar.getInstance();
+                        dtCal.setTime(firstDayOfLastYear);
+                        dtCal.set(Calendar.HOUR_OF_DAY, 0);
+                        dtCal.set(Calendar.MINUTE, 0);
+                        dtCal.set(Calendar.SECOND, 0);
+                        dtCal.set(Calendar.MILLISECOND, 0);
+                        yearcount.setDt(dtCal.getTime());
                         yearcount.setEnergyCount(energyCount);
                         yearcount.setStratCount(startValue);
                         yearcount.setEndCount(endValue);
+
+                        if (energyType != null && energyType == 1) {
+                            AccValues startTou = getTOUAccumulateSnapshotElectric(moduleId, startCal.getTime());
+                            AccValues endTou = getTOUAccumulateSnapshotElectric(moduleId, endCal.getTime());
+                            BigDecimal cusp = delta(startTou.cusp, endTou.cusp);
+                            BigDecimal peak = delta(startTou.peak, endTou.peak);
+                            BigDecimal level = delta(startTou.level, endTou.level);
+                            BigDecimal valley = delta(startTou.valley, endTou.valley);
+                            if (startTou.cusp != null) yearcount.setStartCuspCount(startTou.cusp);
+                            if (endTou.cusp != null) yearcount.setEndCuspCount(endTou.cusp);
+                            if (cusp != null) yearcount.setCuspCount(cusp);
+                            if (startTou.peak != null) yearcount.setStartPeakCount(startTou.peak);
+                            if (endTou.peak != null) yearcount.setEndPeakCount(endTou.peak);
+                            if (peak != null) yearcount.setPeakCount(peak);
+                            if (startTou.level != null) yearcount.setStartLevelCount(startTou.level);
+                            if (endTou.level != null) yearcount.setEndLevelCount(endTou.level);
+                            if (level != null) yearcount.setLevelCount(level);
+                            if (startTou.valley != null) yearcount.setStartValleyCount(startTou.valley);
+                            if (endTou.valley != null) yearcount.setEndValleyCount(endTou.valley);
+                            if (valley != null) yearcount.setValleyCount(valley);
+                        }
+
                         yearcountMapper.insert(yearcount);
                         log.info("创建年统计记录: moduleId={}, energyCount={}", moduleId, energyCount);
                     }
-                    
+
                 } catch (Exception e) {
                     log.error("处理模块 {} 年统计失败", module.getModuleId(), e);
                 }
             }
-            
+
             log.info("年能耗数据统计完成");
         } catch (Exception e) {
             log.error("统计年能耗数据失败", e);
         }
     }
-    
+
     /**
      * 根据能源类型获取累积值字段名
      * @param energyType 能源类型
@@ -1196,7 +1545,7 @@ public class InfluxDBSyncJob {
         if (energyType == null) {
             return null;
         }
-        
+
         switch (energyType) {
             case 1: // 电力
                 return "KWH"; // 电能累积值
@@ -1417,14 +1766,14 @@ public class InfluxDBSyncJob {
             // 获取上一个小时的开始和结束时间
             Calendar calendar = Calendar.getInstance();
             calendar.add(Calendar.HOUR_OF_DAY, -1);
-            
+
             // 设置为小时开始时间
             Calendar hourStartCal = (Calendar) calendar.clone();
             hourStartCal.set(Calendar.MINUTE, 0);
             hourStartCal.set(Calendar.SECOND, 0);
             hourStartCal.set(Calendar.MILLISECOND, 0);
             Date hourStart = hourStartCal.getTime();
-            
+
             // 设置为小时结束时间
             Calendar hourEndCal = (Calendar) calendar.clone();
             hourEndCal.set(Calendar.MINUTE, 59);
@@ -1435,21 +1784,21 @@ public class InfluxDBSyncJob {
             String hourStartStr = dateTimeFormat.format(hourStart);
             // 记录时间范围用于日志
             log.debug("小时统计时间范围: {} - {}", hourStartStr, dateTimeFormat.format(hourEnd));
-            
+
             // 获取当前小时所在月份的数据库名
             LocalDate hourDate = LocalDate.parse(hourStartStr.substring(0, 10), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             String dbName = influxDBConfig.getDatabaseName(hourDate.getYear(), hourDate.getMonthValue());
-            
+
             log.info("准备查询数据库: {}", dbName);
-            
+
             // 确保数据库存在
             if (!influxDB.databaseExists(dbName)) {
                 log.warn("数据库 {} 不存在，跳过统计", dbName);
                 return;
             }
-            
+
             log.info("成功连接到数据库: {}", dbName);
-            
+
             // 调整时区差异（InfluxDB使用UTC时间，系统使用东八区时间）
             Date utcStartTime = convertToUTC(hourStart);
             Date utcEndTime = convertToUTC(hourEnd);
@@ -1458,33 +1807,33 @@ public class InfluxDBSyncJob {
 
             log.info("查询时间范围（本地）: {} - {}", dateTimeFormat.format(hourStart), dateTimeFormat.format(hourEnd));
             log.info("查询时间范围（UTC）: {} - {}", adjustedStartTime, adjustedEndTime);
-            
+
             // 查询InfluxDB中的数据，按模块ID分组计算平均值
             String command = String.format(
                     "SELECT mean(value) FROM %s WHERE time >= '%s' AND time <= '%s' GROUP BY tagname",
                     influxDBConfig.getMeasurement(), adjustedStartTime, adjustedEndTime);
-            
+
             log.info("执行查询: {}", command);
-            
+
             QueryResult queryResult = influxDBService.queryInDatabase(command, dbName);
-            
+
             // 解析查询结果
             List<Map<String, Object>> resultList = InfluxDBUtil.parseQueryResult(queryResult);
-            
+
             // 处理查询结果
             for (Map<String, Object> data : resultList) {
                 String tagname = (String) data.get("tagname");
                 if (tagname != null) {
                     String moduleId = InfluxDBUtil.extractModuleIdFromTagname(tagname);
                     Object meanValue = data.get("mean");
-                    
+
                     // 这里可以更新MySQL中的小时统计表（如果有的话）
                     log.info("模块ID: {}, 小时平均值: {}", moduleId, meanValue);
-                    
+
                     // 注意：如果需要小时统计表，可以在这里实现相关逻辑
                 }
             }
-            
+
             log.info("小时数据统计完成，共处理 {} 条数据", resultList.size());
         } catch (Exception e) {
             log.error("统计小时数据失败", e);

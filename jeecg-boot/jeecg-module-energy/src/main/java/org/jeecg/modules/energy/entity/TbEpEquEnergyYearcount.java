@@ -56,14 +56,44 @@ public class TbEpEquEnergyYearcount implements Serializable {
     @ApiModelProperty(value = "结束值")
     private BigDecimal endCount;
     
+    // 分时电能（仅电力）：尖、峰、平、谷 —— 开始值/结束值/区间能耗
+    @TableField("start_cusp_count")
+    private BigDecimal startCuspCount;
+    @TableField("end_cusp_count")
+    private BigDecimal endCuspCount;
+    @TableField("cusp_count")
+    private BigDecimal cuspCount;
+
+    @TableField("start_peak_count")
+    private BigDecimal startPeakCount;
+    @TableField("end_peak_count")
+    private BigDecimal endPeakCount;
+    @TableField("peak_count")
+    private BigDecimal peakCount;
+
+    @TableField("start_level_count")
+    private BigDecimal startLevelCount;
+    @TableField("end_level_count")
+    private BigDecimal endLevelCount;
+    @TableField("level_count")
+    private BigDecimal levelCount;
+
+    @TableField("start_valley_count")
+    private BigDecimal startValleyCount;
+    @TableField("end_valley_count")
+    private BigDecimal endValleyCount;
+    // 注意：表字段为 Valley_count（V 大写）
+    @TableField("Valley_count")
+    private BigDecimal valleyCount;
+
     @TableField("standby1")
     @ApiModelProperty(value = "备用字段1")
     private String standby1;
-    
+
     @TableField("standby2")
     @ApiModelProperty(value = "备用字段2")
     private String standby2;
-    
+
     @TableField("standby3")
     @ApiModelProperty(value = "备用字段3")
     private String standby3;
