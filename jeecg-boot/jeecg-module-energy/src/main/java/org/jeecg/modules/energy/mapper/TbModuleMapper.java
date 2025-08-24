@@ -7,6 +7,8 @@ import org.jeecg.modules.energy.entity.TbModule;
 import org.jeecg.modules.energy.vo.analysis.ModuleVO;
 
 import java.util.List;
+import java.util.Map;
+
 
 /**
  * @Description: 仪表基础信息Mapper
@@ -29,6 +31,13 @@ public interface TbModuleMapper extends BaseMapper<TbModule> {
      * @param moduleId 模块ID
      * @return 仪表列表
      */
+    /**
+     * 批量查询模块的能源类型
+     * @param moduleIds 仪表编号集合
+     * @return 每条记录包含 module_id, energy_type, module_name
+     */
+    List<java.util.Map<String, Object>> selectEnergyTypeByModuleIds(@Param("moduleIds") java.util.List<String> moduleIds);
+
     List<TbModule> selectByModuleId(@Param("moduleId") String moduleId);
 
     /**

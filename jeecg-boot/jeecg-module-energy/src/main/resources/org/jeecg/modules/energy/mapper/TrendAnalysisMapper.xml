@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.TrendAnalysisMapper">
+
+    <select id="selectEnergyTrend" resultType="map">
+        SELECT ${labelExpr} AS label,
+               IFNULL(SUM(energy_count),0) AS energy
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND dt BETWEEN #{startDt} AND #{endDt}
+        GROUP BY ${labelExpr}
+        ORDER BY MIN(dt)
+    </select>
+
+    <select id="selectEnergySummary" resultType="map">
+        SELECT IFNULL(SUM(energy_count),0) AS totalEnergy
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND dt BETWEEN #{startDt} AND #{endDt}
+    </select>
+
+    <select id="selectEnergyRatio" resultType="map">
+        SELECT isenergy_type AS energyType,
+               energy_unit   AS unit,
+               zbmxs_value   AS standardCoalFactor,
+               tpfxs_value   AS carbonFactor
+        FROM tb_energy_ratio_info
+    </select>
+
+</mapper>
+
