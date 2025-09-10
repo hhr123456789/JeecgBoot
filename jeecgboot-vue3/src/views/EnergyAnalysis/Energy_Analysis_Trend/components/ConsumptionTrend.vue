@@ -30,6 +30,8 @@ let chartInstance: echarts.ECharts | null = null;
 
 // 初始化图表
 const initChart = () => {
+  //console.log("hhr557");
+  //console.log(chartRef.value);
   if (!chartRef.value) return;
   
   // 创建图表实例

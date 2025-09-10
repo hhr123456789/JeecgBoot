@@ -50,8 +50,8 @@
           </div>
           <div class="flex items-center">
             <span class="text-gray-600 mr-2">查询方式：</span>
-            <a-select v-model:value="queryMode" style="width: 120px">
-              <a-select-option value="merge">统一显示</a-select-option>
+            <a-select v-model:value="displayMode" style="width: 120px">
+              <a-select-option v-for="opt in queryMethodOptions" :key="opt.value" :value="String(opt.value)">{{ opt.text }}</a-select-option>
             </a-select>
           </div>
           <div class="flex items-center">
@@ -71,8 +71,14 @@
       <div style="height: 10px;"></div>
 
       <!-- 图表卡片（白底） -->
-      <div class="bg-white rounded p-4">
+      <div v-show="isUnifiedView" class="bg-white rounded p-4">
         <div ref="chartRef" style="width: 100%; height: 420px;"></div>
+      </div>
+      <div v-show="!isUnifiedView">
+        <div v-for="(chart, idx) in separateChartsData" :key="`sep-${idx}`" class="bg-white rounded p-4 mb-3">
+          <div class="text-sm mb-2">{{ chart.title }}（单位：{{ chart.unit }}）</div>
+          <MonitorChart :chartData="chart" :chartId="`sep-${idx}`" :activeIndex="-1" :chartType="chartType" />
+        </div>
       </div>
 
     </div>
@@ -80,7 +86,16 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, type Ref } from 'vue';
+import { ref, onMounted, nextTick, computed, watch, type Ref } from 'vue';
+import MonitorChart from '../../EnergyManagement/Real_Data_Monitor/components/MonitorChart.vue';
+import { getTrendData, exportTrendData, type TrendRequest, type TrendResponse } from './api';
+import { initDictOptions } from '/@/utils/dict';
+import { downloadByData } from '/@/utils/file/download';
+
+// 调试开关：需要时可以改成 false 屏蔽日志
+const DBG = false;
+function dbg(...args:any[]){ if (DBG) console.log('[Trend]', ...args); }
+
 import { useECharts } from '/@/hooks/web/useECharts';
 import MultiSelectDimensionTree from '../../EnergyManagement/Real_Data_Monitor/components/MultiSelectDimensionTree.vue';
 import { getModulesByOrgCode } from '../../EnergyManagement/Real_Data_Monitor/api';
@@ -148,7 +163,8 @@ async function loadModulesByOrgCodes(orgCodes: string[]) {
     meters.value = list.map((m: any) => ({ label: m.moduleName, value: m.moduleId }));
     selectedMeterKeys.value = meters.value.map((m) => m.value);
     checkedKeys.value = [...selectedMeterKeys.value];
-    renderChart();
+    await nextTick();
+    handleQuery();
   } catch (e) {
     meters.value = [];
     allModules.value = [];
@@ -194,90 +210,241 @@ function onPeriodChange() {
 // 选择的仪表keys（与左侧树和右侧下拉联动）
 const checkedKeys = ref<string[]>([]);
 const selectedMeterKeys = ref<string[]>([]);
+// 避免并发响应覆盖：每次查询生成一个请求id，只处理最新的
+const lastReqIdRef = ref(0);
+
 
 // 查询与导出（简单占位）
-function handleQuery() {
+// 查询方式字典（统一/分开）
+const queryMethodOptions = ref<Array<{ text: string; value: string | number }>>([]);
+const displayMode = ref<'1' | '2' | 'unified' | 'separated'>('1');
+
+// 统一视图开关：当 UI 选统一且 unifiedChart 有数据时展示；否则展示分开
+const isUnifiedView = computed(() => {
+  const uiUnified = displayMode.value === '1' || displayMode.value === 'unified';
+  const hasUnifiedData = (unifiedChart.value.series || []).length > 0;
+
+  return uiUnified && hasUnifiedData;
+});
+
+async function loadQueryMethodDict() {
+  try {
+    const res = await initDictOptions('queryMethod');
+    queryMethodOptions.value = Array.isArray(res) && res.length ? res : [
+      { text: '统一显示', value: '1' },
+      { text: '分开显示', value: '2' }
+    ];
+    if (!displayMode.value) displayMode.value = String(queryMethodOptions.value[0].value) as any;
+  } catch (e) {
+    queryMethodOptions.value = [
+      { text: '统一显示', value: '1' },
+      { text: '分开显示', value: '2' }
+    ];
+    displayMode.value = '1';
+  }
+}
+
+// 通用解析：支持 [label,value] 或 {label/value} 或 {x/y}
+function parsePoint(pt: any): { label: string; value: number } {
+  if (Array.isArray(pt)) return { label: String(pt[0]), value: Number(pt[1]) };
+  const label = pt?.label ?? pt?.date ?? pt?.time ?? pt?.x ?? pt?.dt ?? '';
+  const value = pt?.value ?? pt?.y ?? pt?.energy ?? pt?.standardCoal ?? pt?.carbon ?? 0;
+  return { label: String(label), value: Number(value) };
+}
+
+function inferMetricKey(titleOrCode: string): 'standardCoal'|'carbon'|'energy' {
+  const t = String(titleOrCode || '').toLowerCase();
+  if (t.includes('co2') || t.includes('碳') || t.includes('carbon')) return 'carbon';
+  if (t.includes('kgce') || t.includes('标煤') || t.includes('standard')) return 'standardCoal';
+  return 'energy';
+}
+
+// 趋势查询
+const unifiedChart = ref<{ categories: string[]; series: any[] }>({ categories: [], series: [] });
+const separateChartsData = ref<any[]>([]);
+
+async function handleQuery() {
+  dbg('handleQuery:start', { mode: displayMode.value, selected: selectedMeterKeys.value.length, isUnifiedView: isUnifiedView.value });
+  if (!selectedMeterKeys.value.length) { unifiedChart.value = { categories: [], series: [] }; separateChartsData.value = []; renderChart(); return; }
+  const [start, end] = dateRange.value as any;
+  const req: TrendRequest = {
+    moduleIds: selectedMeterKeys.value,
+    startDate: periodType.value === 'day' ? start.format('YYYY-MM-DD') : periodType.value === 'month' ? start.format('YYYY-MM') : start.format('YYYY'),
+    endDate: periodType.value === 'day' ? end.format('YYYY-MM-DD') : periodType.value === 'month' ? end.format('YYYY-MM') : end.format('YYYY'),
+    timeType: periodType.value,
+    displayMode: Number(displayMode.value as any),
+    metrics: ['standardCoal','carbon']
+  };
+  dbg('handleQuery:req', req);
+  const reqId = (lastReqIdRef.value += 1);
+  try {
+    const raw = await getTrendData(req);
+    // 只处理最后一次查询的响应
+
+    if (reqId !== lastReqIdRef.value) return;
+
+    const res: any = (raw && (raw as any).result) ? (raw as any).result : raw;
+    const dm: any = res?.displayMode;
+    const mode = dm === 1 || dm === '1' ? 'unified' : dm === 2 || dm === '2' ? 'separated' : dm;
+    dbg('handleQuery:respMode', { dm, mode, uiMode: displayMode.value });
+
+    if (mode === 'unified') {
+      const categories = Array.isArray(res.series) && res.series.length ? (res.series[0].data || []).map((pt: any) => parsePoint(pt).label) : [];
+
+
+
+      unifiedChart.value = {
+        categories,
+        series: (res.series || []).map((s: any) => ({ name: `${s.moduleName ? s.moduleName + '-' : ''}${s.name}(${s.unit})`, unit: s.unit, data: (s.data || []).map((pt: any) => parsePoint(pt).value) }))
+      };
+      separateChartsData.value = [];
+    } else if (mode === 'separated') {
+      // 分开显示：每个设备一张图，每张图包含“折标煤/碳排放”两条曲线
+      separateChartsData.value = (res.charts || []).map((c: any) => {
+        const categories = (c.series?.[0]?.data || []).map((pt: any) => parsePoint(pt).label);
+        const series = (c.series || []).map((s: any) => ({ name: s.name, unit: s.unit || c.unit, data: (s.data || []).map((pt: any) => parsePoint(pt).value) }));
+        return { title: c.title, unit: c.unit, categories, series };
+      });
+      unifiedChart.value = { categories: [], series: [] };
+
+      // 若UI当前为统一显示但后端返回分开结构，临时合并为统一结构避免空白
+      if (displayMode.value === '1' || displayMode.value === 'unified') {
+        const charts: any[] = res.charts || [];
+        dbg('merge separated->unified begin', { chartsLen: charts.length });
+        if (charts.length) {
+          const categories = (charts[0]?.series?.[0]?.data || []).map((pt: any) => parsePoint(pt).label);
+          const mergedSeries: any[] = [];
+          charts.forEach((c: any) => {
+            (c.series || []).forEach((s: any) => {
+              mergedSeries.push({
+                name: `${c.title}-${s.name}(${s.unit || c.unit || ''})`,
+                unit: s.unit || c.unit || '',
+                data: (s.data || []).map((pt: any) => parsePoint(pt).value),
+              });
+            });
+          });
+          dbg('merge separated->unified set', { catLen: categories.length, seriesLen: mergedSeries.length });
+          unifiedChart.value = { categories, series: mergedSeries };
+          separateChartsData.value = [];
+        } else {
+          dbg('merge separated->unified skip: charts empty');
+        }
+      }
+    } else {
+      // 未知displayMode，清空
+      //console.log("hhr34");
+      unifiedChart.value = { categories: [], series: [] };
+      separateChartsData.value = [];
+    }
+  } catch (e) {
+    //console.log("hhr3");
+    console.error('Trend API error:', e);
+    unifiedChart.value = { categories: [], series: [] };
+    separateChartsData.value = [];
+  }
+  await nextTick();
   renderChart();
 }
-function handleExport() {
-  // TODO: 接入导出接口
+
+async function handleExport() {
+  const [start, end] = dateRange.value as any;
+  const req: TrendRequest = {
+    moduleIds: selectedMeterKeys.value,
+    startDate: periodType.value==='day'?start.format('YYYY-MM-DD'):periodType.value==='month'?start.format('YYYY-MM'):start.format('YYYY'),
+    endDate: periodType.value==='day'?end.format('YYYY-MM-DD'):periodType.value==='month'?end.format('YYYY-MM'):end.format('YYYY'),
+    timeType: periodType.value,
+    displayMode: Number(displayMode.value as any),
+    metrics: ['standardCoal','carbon']
+  };
+  const data: any = await exportTrendData(req);
+  if (data) {
+    const now = dayjs().format('YYYYMMDD_HHmm');
+    downloadByData(data, `Trend_${now}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
 }
 
 // 右侧：趋势图
 const chartRef = ref<HTMLDivElement | null>(null);
 // 条件查询控件（periodType/dateRange 已在上方定义）
-const queryMode = ref<'merge'>('merge');
 const chartType = ref<'line' | 'bar'>('line');
 
-// 右侧“仪表选择”与左侧树联动（多选）
+// 右侧“仪表选择”与左侧下拉联动（多选）
 function handleMeterSelectChange(vals: string[]) {
   selectedMeterKeys.value = vals;
-  checkedKeys.value = vals;
-  renderChart();
 }
 
-const { setOptions } = useECharts(chartRef as Ref<HTMLDivElement>);
-
-// 横轴（静态 1~23日）
-const xLabels = Array.from({ length: 23 }, (_, i) => `${i + 1}日`);
-
-type SeriesPair = { carbon: number[]; coal: number[] };
-function gen(seed: number): SeriesPair {
-  const carbon = xLabels.map((_, i) => Math.round(220000 + Math.sin((i + seed) / 3) * 60000));
-  const coal = xLabels.map((_, i) => Math.round(52000 + Math.cos((i + seed) / 4) * 12000));
-  return { carbon, coal };
-}
-
-// 每个仪表的静态数据容器（动态按模块ID生成）
-const meterData: Record<string, SeriesPair> = {};
-function seedFrom(id: string): number {
-  return id.split('').reduce((s, c) => s + c.charCodeAt(0), 0) % 9;
-}
-function getSeriesPair(id: string): SeriesPair {
-  if (!meterData[id]) meterData[id] = gen(seedFrom(id));
-  return meterData[id];
-}
-
-function aggregate(ids: string[]): SeriesPair {
-  const total: SeriesPair = { carbon: xLabels.map(() => 0), coal: xLabels.map(() => 0) };
-  ids.forEach((id) => {
-    const d = getSeriesPair(id);
-    d.carbon.forEach((v, i) => (total.carbon[i] += v));
-    d.coal.forEach((v, i) => (total.coal[i] += v));
-  });
-  return total;
-}
+const { setOptions, getInstance } = useECharts(chartRef as Ref<HTMLDivElement>);
 
 function renderChart() {
-  const ids = Array.isArray(checkedKeys.value) ? (checkedKeys.value as string[]) : [];
-  const agg = aggregate(ids);
+  if (displayMode.value === '2' || displayMode.value === 'separated') {
+    dbg('renderChart:skip separated');
+    return;
+  }
+
+  const el = chartRef.value as HTMLDivElement | null;
+  dbg('renderChart:enter', { isUnifiedView: isUnifiedView.value, elExists: !!el, elH: el?.offsetHeight, hasInstance: !!getInstance(), seriesLen: unifiedChart.value.series?.length, catLen: unifiedChart.value.categories?.length });
+
+  // 切回统一显示时，确保 ECharts 容器已初始化
+  if (!getInstance()) {
+    // 触发一次初始化
+    setOptions({});
+  }
+
+  const categories = unifiedChart.value.categories || [];
+  const series = (unifiedChart.value.series || []) as Array<{name:string; data:number[]; unit?:string}>;
+  const colors = ['#2ecc71', '#ff9f40'];
+
+  // 单位分轴（最多两个轴：左=第一种单位，右=第二种单位）
+  const units = Array.from(new Set(series.map((s:any)=>s.unit||'').filter(Boolean)));
+  const leftUnit = units[0] || series[0]?.unit || '';
+  const rightUnit = units[1] || '';
+  const yAxis: any = rightUnit
+    ? [ { type:'value', name:leftUnit, position:'left' }, { type:'value', name:rightUnit, position:'right' } ]
+    : [ { type:'value', name:leftUnit } ];
+
+  dbg('renderChart:setOptions', { leftUnit, rightUnit, names: series.map((s:any)=>s.name) });
   setOptions({
     tooltip: { trigger: 'axis' },
-    legend: { data: ['折标煤(kgce)', '碳排放(kgCO₂e)'] },
+    legend: { data: series.map((s:any)=>s.name) },
     grid: { left: '3%', right: '3%', bottom: '8%', containLabel: true },
-    xAxis: { type: 'category', data: xLabels },
-    yAxis: [
-      { type: 'value', name: '折标煤(kgce)' },
-      { type: 'value', name: '碳排放(kgCO₂e)', position: 'right' },
-    ],
-    series: [
-      { name: '折标煤(kgce)', type: chartType.value, smooth: true, yAxisIndex: 0, data: agg.coal, color: '#2ecc71' },
-      { name: '碳排放(kgCO₂e)', type: chartType.value, smooth: true, yAxisIndex: 1, data: agg.carbon, color: '#ff9f40' },
-    ],
+    xAxis: { type: 'category', data: categories },
+    yAxis,
+    series: series.map((s: any) => ({
+      name: s.name,
+      type: chartType.value,
+      smooth: true,
+      yAxisIndex: rightUnit && (s.unit === rightUnit) ? 1 : 0,
+      data: s.data,
+      color: s.unit === rightUnit ? colors[1] : colors[0],
+    })),
   });
+
 }
 
-// 树选择（多选）
-function handleCheck(checked: any) {
-  checkedKeys.value = Array.isArray(checked) ? checked : checked.checked;
-  selectedMeterKeys.value = [...checkedKeys.value];
-  renderChart();
-}
+// 自动查询：以下变更触发查询（移动到函数外，始终生效）
+watch(displayMode, () => handleQuery());
+watch(periodType, () => { onPeriodChange(); handleQuery(); });
+watch(selectedMeterKeys, (v) => { if ((v || []).length) handleQuery(); });
+watch(dateRange, () => handleQuery(), { deep: true });
+watch(meters, (list) => { if ((list || []).length && !selectedMeterKeys.value.length) {
+  selectedMeterKeys.value = list.map((m:any)=>m.value);
+  handleQuery();
+}}, { deep: true });
+
+// 图表类型变化时重新渲染图表
+watch(chartType, () => {
+  nextTick(() => {
+    dbg('watch chartType changed, renderChart');
+    renderChart();
+  });
+});
+
+// 统一视图刚显示时，主动渲染一次（防止没有新请求但已有数据时不渲染）
+watch(isUnifiedView, (v) => { if (v) nextTick(() => { dbg('watch isUnifiedView -> true, renderChart'); renderChart(); }); });
 
 onMounted(() => {
-  // 加载维度字典并等待树触发默认选择
   loadDimensionDictData();
-  renderChart();
+  loadQueryMethodDict();
 });
 </script>
 

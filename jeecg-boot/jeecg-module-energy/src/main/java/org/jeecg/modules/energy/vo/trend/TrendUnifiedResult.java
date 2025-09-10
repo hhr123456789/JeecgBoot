@@ -18,16 +18,17 @@ public class TrendUnifiedResult implements Serializable {
     @ApiModelProperty("时间范围描述")
     private String timeRange;
 
-    @ApiModelProperty("系列")
+    @ApiModelProperty("系列（长度=设备数×指标数）")
     private List<Series> series;
 
     @Data
     public static class Series implements Serializable {
-        private String name;      // 系列名（如：折标煤(yj0001_1202) 或 碳排放-2号注塑机）
-        private String moduleId;  // 可选
-        private String metric;    // energy/standardCoal/carbon
-        private String unit;      // kWh/kgce/kgCO2e
-        private List<Point> data; // [ ["2025-08", 123.45], ... ]
+        private String name;       // 系列名：设备名-指标名（例如：1#空压机-折标煤）
+        private String moduleId;   // 设备ID
+        private String moduleName; // 设备名称
+        private String metric;     // energy/standardCoal/carbon
+        private String unit;       // kWh/kgce/kgCO2e
+        private List<Point> data;  // [{x:"2025-08-01", y:123.45}, ...]
     }
 
     @Data

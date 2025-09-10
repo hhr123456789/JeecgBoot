@@ -18,21 +18,33 @@ public class TrendSeparatedResult implements Serializable {
     @ApiModelProperty("时间范围描述")
     private String timeRange;
 
-    @ApiModelProperty("图表：每个指标一张图")
+    @ApiModelProperty("图表：每个设备一张图，图内是所选指标多条曲线")
     private List<Chart> charts;
 
     @Data
     public static class Chart implements Serializable {
-        private String title;     // 折标煤/碳排放/能耗
-        private String metric;    // 标识
-        private String unit;      // 单位
-        private List<Series> series; // 每个仪表为一个系列
+        @ApiModelProperty("图标题，建议为设备名")
+        private String title;
+        @ApiModelProperty("设备ID")
+        private String moduleId;
+        @ApiModelProperty("设备名称")
+        private String moduleName;
+        // 兼容旧结构：若需要也可设置单一metric/unit，但推荐在Series中区分
+        private String metric;    // 可选
+        private String unit;      // 可选
+        @ApiModelProperty("曲线集合：每个指标一条曲线")
+        private List<Series> series;
     }
 
     @Data
     public static class Series implements Serializable {
-        private String name;      // 仪表名
-        private String moduleId;
+        @ApiModelProperty("曲线名称，例如：折标煤/碳排放")
+        private String name;
+        @ApiModelProperty("指标标识：energy/standardCoal/carbon")
+        private String metric;
+        @ApiModelProperty("单位：kWh/kgce/kgCO2e")
+        private String unit;
+        private String moduleId; // 可选
         private List<Point> data;
     }
 

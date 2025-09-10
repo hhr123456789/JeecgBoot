@@ -5,6 +5,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.jeecg.modules.energy.mapper.TrendAnalysisMapper;
 import org.jeecg.modules.energy.mapper.TbModuleMapper;
 import org.jeecg.modules.energy.service.ITrendAnalysisService;
+import org.jeecg.modules.energy.util.ExcelExportUtil;
 import org.jeecg.modules.energy.vo.trend.TrendRequest;
 import org.jeecg.modules.energy.vo.trend.TrendSeparatedResult;
 import org.jeecg.modules.energy.vo.trend.TrendUnifiedResult;
@@ -12,9 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URLEncoder;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,50 +34,70 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
         String startDt = normalizeStartDt(request.getStartDate(), request.getTimeType());
         String endDt = normalizeEndDt(request.getEndDate(), request.getTimeType());
 
-        // 1) 先查每个时间标签的总能耗（合并多仪表）
-        List<Map<String, Object>> energyTrend = mapper.selectEnergyTrend(
+        // 查询：按 label+module 聚合的能耗
+        List<Map<String, Object>> rows = mapper.selectEnergyTrendByModule(
                 table, labelExpr, request.getModuleIds(), startDt, endDt);
 
-        // 2) 准备 moduleId->energyType 映射与能源系数
-        Map<String, Integer> moduleEnergyType = tbModuleMapper.selectEnergyTypeByModuleIds(request.getModuleIds())
-                .stream().collect(Collectors.toMap(m -> Objects.toString(m.get("moduleId"), ""),
-                        m -> m.get("energyType") == null ? null : ((Number) m.get("energyType")).intValue(), (a,b)->a));
+        // moduleId -> (moduleName, energyType)
+        Map<String, Map<String,Object>> moduleInfo = tbModuleMapper.selectEnergyTypeByModuleIds(request.getModuleIds())
+                .stream().collect(Collectors.toMap(m -> Objects.toString(m.get("moduleId"), ""), m -> m, (a,b)->a));
         Map<Integer, Ratio> ratioMap = loadRatioMap();
-
-        // 3) 默认指标集合
         Set<String> metrics = resolveMetrics(request.getMetrics());
 
-        // 统一：为每个指标生成一条合计曲线（多仪表已合并）；
-        // 分开：每个指标一个图，图内暂时提供“合计”一条曲线（后续可按module拆分）。
+        // 按设备归组数据点
+        Map<String, List<Map<String,Object>>> byModule = rows.stream()
+                .collect(Collectors.groupingBy(r -> Objects.toString(r.get("moduleId"), "")));
+
         if (Objects.equals(request.getDisplayMode(), 2)) {
+            // 分开显示：每个设备一张图；图内“指标”为series
             TrendSeparatedResult res = new TrendSeparatedResult();
             res.setTimeRange(buildTimeRange(request));
             List<TrendSeparatedResult.Chart> charts = new ArrayList<>();
-            for (String metric : metrics) {
+            for (String moduleId : request.getModuleIds()) {
+                List<Map<String, Object>> points = byModule.getOrDefault(moduleId, Collections.emptyList());
+                Map<String,Object> info = moduleInfo.get(moduleId);
+                String moduleName = info == null ? moduleId : Objects.toString(info.get("moduleName"), moduleId);
+                Integer energyType = info == null ? null : (info.get("energyType") == null ? null : ((Number) info.get("energyType")).intValue());
                 TrendSeparatedResult.Chart chart = new TrendSeparatedResult.Chart();
-                chart.setMetric(metric);
-                chart.setTitle(metricTitle(metric));
-                chart.setUnit(metricUnit(metric, null));
-                TrendSeparatedResult.Series series = new TrendSeparatedResult.Series();
-                series.setName("合计");
-                series.setModuleId("-");
-                series.setData(convertPointsByMetric(energyTrend, request.getModuleIds(), moduleEnergyType, ratioMap, metric));
-                chart.setSeries(Collections.singletonList(series));
+                chart.setModuleId(moduleId);
+                chart.setModuleName(moduleName);
+                chart.setTitle(moduleName);
+
+                List<TrendSeparatedResult.Series> series = new ArrayList<>();
+                for (String metric : metrics) {
+                    TrendSeparatedResult.Series s = new TrendSeparatedResult.Series();
+                    s.setName(metricTitle(metric));
+                    s.setMetric(metric);
+                    s.setUnit(metricUnit(metric, null));
+                    s.setModuleId(moduleId);
+                    s.setData(convertPoints(points, metric, energyType, ratioMap));
+                    series.add(s);
+                }
+                chart.setSeries(series);
                 charts.add(chart);
             }
             res.setCharts(charts);
             return res;
         } else {
+            // 统一显示：series=设备×指标
             TrendUnifiedResult res = new TrendUnifiedResult();
             res.setTimeRange(buildTimeRange(request));
             List<TrendUnifiedResult.Series> series = new ArrayList<>();
-            for (String metric : metrics) {
-                TrendUnifiedResult.Series s = new TrendUnifiedResult.Series();
-                s.setName(metricTitle(metric));
-                s.setMetric(metric);
-                s.setUnit(metricUnit(metric, null));
-                s.setData(convertPointsUnifiedByMetric(energyTrend, request.getModuleIds(), moduleEnergyType, ratioMap, metric));
-                series.add(s);
+            for (String moduleId : request.getModuleIds()) {
+                List<Map<String, Object>> points = byModule.getOrDefault(moduleId, Collections.emptyList());
+                Map<String,Object> info = moduleInfo.get(moduleId);
+                String moduleName = info == null ? moduleId : Objects.toString(info.get("moduleName"), moduleId);
+                Integer energyType = info == null ? null : (info.get("energyType") == null ? null : ((Number) info.get("energyType")).intValue());
+                for (String metric : metrics) {
+                    TrendUnifiedResult.Series s = new TrendUnifiedResult.Series();
+                    s.setModuleId(moduleId);
+                    s.setModuleName(moduleName);
+                    s.setMetric(metric);
+                    s.setUnit(metricUnit(metric, null));
+                    s.setName(moduleName + "-" + metricTitle(metric)); // 命名固定为 设备名-指标名
+                    s.setData(convertPointsUnified(points, metric, energyType, ratioMap));
+                    series.add(s);
+                }
             }
             res.setSeries(series);
             return res;
@@ -87,45 +106,136 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
 
     @Override
     public void exportTrend(TrendRequest request, HttpServletResponse response) {
-        // 简单CSV导出（避免引入依赖）。若需xlsx，可集成 EasyPOI/Apache POI。
-        try {
-            Object obj = getTrend(request);
-            String fileName = URLEncoder.encode("趋势分析导出.csv", "UTF-8");
-            response.setContentType("text/csv;charset=UTF-8");
-            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
-            StringBuilder sb = new StringBuilder();
-            if (obj instanceof TrendUnifiedResult) {
-                TrendUnifiedResult r = (TrendUnifiedResult) obj;
-                sb.append("label");
-                for (TrendUnifiedResult.Series s : r.getSeries()) {
-                    sb.append(',').append(s.getName()).append('(').append(s.getUnit()).append(')');
-                }
-                sb.append('\n');
-                List<String> labels = r.getSeries().isEmpty() ? Collections.emptyList() :
-                        r.getSeries().get(0).getData().stream().map(TrendUnifiedResult.Point::getX).collect(Collectors.toList());
-                for (int i = 0; i < labels.size(); i++) {
-                    sb.append(labels.get(i));
-                    for (TrendUnifiedResult.Series s : r.getSeries()) {
-                        Double y = i < s.getData().size() ? s.getData().get(i).getY() : null;
-                        sb.append(',').append(y == null ? "" : y);
-                    }
-                    sb.append('\n');
-                }
-            } else if (obj instanceof TrendSeparatedResult) {
-                TrendSeparatedResult r = (TrendSeparatedResult) obj;
-                for (TrendSeparatedResult.Chart c : r.getCharts()) {
-                    sb.append(c.getTitle()).append('(').append(c.getUnit()).append(')').append('\n');
-                    sb.append("label,合计\n");
-                    for (TrendSeparatedResult.Point p : c.getSeries().get(0).getData()) {
-                        sb.append(p.getX()).append(',').append(p.getY()).append('\n');
-                    }
-                    sb.append('\n');
+        Object obj = getTrend(request);
+        String fileName = ExcelExportUtil.generateFileName("趋势分析导出");
+        
+        if (obj instanceof TrendUnifiedResult) {
+            exportUnifiedTrend((TrendUnifiedResult) obj, response, fileName);
+        } else if (obj instanceof TrendSeparatedResult) {
+            exportSeparatedTrend((TrendSeparatedResult) obj, response, fileName);
+        }
+    }
+    
+    /**
+     * 导出统一显示模式的Excel
+     */
+    private void exportUnifiedTrend(TrendUnifiedResult result, HttpServletResponse response, String fileName) {
+        // 构建表头
+        List<String> headers = new ArrayList<>();
+        headers.add("时间");
+        for (TrendUnifiedResult.Series series : result.getSeries()) {
+            headers.add(series.getName() + "(" + series.getUnit() + ")");
+        }
+        
+        // 构建数据
+        List<Map<String, Object>> dataList = new ArrayList<>();
+        
+        // 获取所有时间点（以第一个系列为准）
+        List<String> timeLabels = result.getSeries().isEmpty() ? Collections.emptyList() :
+                result.getSeries().get(0).getData().stream()
+                        .map(TrendUnifiedResult.Point::getX)
+                        .collect(Collectors.toList());
+        
+        // 按时间点组织数据
+        for (int timeIndex = 0; timeIndex < timeLabels.size(); timeIndex++) {
+            Map<String, Object> rowData = new HashMap<>();
+            
+            // 时间列
+            rowData.put("col_0", timeLabels.get(timeIndex));
+            
+            // 数据列
+            for (int seriesIndex = 0; seriesIndex < result.getSeries().size(); seriesIndex++) {
+                TrendUnifiedResult.Series series = result.getSeries().get(seriesIndex);
+                String colKey = "col_" + (seriesIndex + 1);
+                
+                if (timeIndex < series.getData().size()) {
+                    Double value = series.getData().get(timeIndex).getY();
+                    rowData.put(colKey, value != null ? value : "-");
+                } else {
+                    rowData.put(colKey, "-");
                 }
             }
-            response.getWriter().write(sb.toString());
-        } catch (IOException e) {
-            throw new RuntimeException("导出失败: " + e.getMessage(), e);
+            
+            dataList.add(rowData);
         }
+        
+        // 使用ExcelExportUtil导出
+        ExcelExportUtil.exportRealTimeData(response, fileName, headers, dataList);
+    }
+    
+    /**
+     * 导出分开显示模式的Excel - 创建多个工作表
+     */
+    private void exportSeparatedTrend(TrendSeparatedResult result, HttpServletResponse response, String fileName) {
+        // 对于分开显示，我们将所有设备的数据合并到一个Excel文件中，但用空行分隔
+        List<String> headers = new ArrayList<>();
+        List<Map<String, Object>> dataList = new ArrayList<>();
+        
+        for (int chartIndex = 0; chartIndex < result.getCharts().size(); chartIndex++) {
+            TrendSeparatedResult.Chart chart = result.getCharts().get(chartIndex);
+            
+            // 如果是第一个图表，设置表头
+            if (chartIndex == 0) {
+                headers.add("时间");
+                for (TrendSeparatedResult.Series series : chart.getSeries()) {
+                    headers.add(series.getName() + "(" + series.getUnit() + ")");
+                }
+            }
+            
+            // 添加设备标题行
+            Map<String, Object> titleRow = new HashMap<>();
+            titleRow.put("col_0", "设备: " + chart.getTitle());
+            for (int i = 1; i < headers.size(); i++) {
+                titleRow.put("col_" + i, "");
+            }
+            dataList.add(titleRow);
+            
+            // 获取时间点
+            List<String> timeLabels = chart.getSeries().isEmpty() ? Collections.emptyList() :
+                    chart.getSeries().get(0).getData().stream()
+                            .map(TrendSeparatedResult.Point::getX)
+                            .collect(Collectors.toList());
+            
+            // 添加数据行
+            for (int timeIndex = 0; timeIndex < timeLabels.size(); timeIndex++) {
+                Map<String, Object> rowData = new HashMap<>();
+                
+                // 时间列
+                rowData.put("col_0", timeLabels.get(timeIndex));
+                
+                // 数据列
+                for (int seriesIndex = 0; seriesIndex < chart.getSeries().size(); seriesIndex++) {
+                    TrendSeparatedResult.Series series = chart.getSeries().get(seriesIndex);
+                    String colKey = "col_" + (seriesIndex + 1);
+                    
+                    if (timeIndex < series.getData().size()) {
+                        Double value = series.getData().get(timeIndex).getY();
+                        rowData.put(colKey, value != null ? value : "-");
+                    } else {
+                        rowData.put(colKey, "-");
+                    }
+                }
+                
+                // 填充剩余列
+                for (int i = chart.getSeries().size() + 1; i < headers.size(); i++) {
+                    rowData.put("col_" + i, "");
+                }
+                
+                dataList.add(rowData);
+            }
+            
+            // 添加空行分隔（除了最后一个图表）
+            if (chartIndex < result.getCharts().size() - 1) {
+                Map<String, Object> emptyRow = new HashMap<>();
+                for (int i = 0; i < headers.size(); i++) {
+                    emptyRow.put("col_" + i, "");
+                }
+                dataList.add(emptyRow);
+            }
+        }
+        
+        // 使用ExcelExportUtil导出
+        ExcelExportUtil.exportRealTimeData(response, fileName, headers, dataList);
     }
 
     // ---------------- private helpers ----------------
@@ -136,6 +246,15 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
         }
         if (!Arrays.asList("day", "month", "year").contains(req.getTimeType())) {
             throw new IllegalArgumentException("timeType必须为day|month|year");
+        }
+        if (req.getStartDate() == null || req.getEndDate() == null) {
+            throw new IllegalArgumentException("startDate/endDate不能为空");
+        }
+        // 只做字符串比较会有误，这里按timeType拼接具体时间后比较
+        String s = normalizeStartDt(req.getStartDate(), req.getTimeType());
+        String e = normalizeEndDt(req.getEndDate(), req.getTimeType());
+        if (s.compareTo(e) > 0) {
+            throw new IllegalArgumentException("开始时间不能大于结束时间");
         }
     }
 
@@ -175,16 +294,15 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
         return String.format("%s ~ %s (%s)", req.getStartDate(), req.getEndDate(), req.getTimeType());
     }
 
-    private List<TrendUnifiedResult.Point> convertPointsUnifiedByMetric(List<Map<String, Object>> energyTrend,
-                                                                        List<String> moduleIds,
-                                                                        Map<String, Integer> moduleEnergyType,
-                                                                        Map<Integer, Ratio> ratioMap,
-                                                                        String metric) {
+    private List<TrendUnifiedResult.Point> convertPointsUnified(List<Map<String, Object>> points,
+                                                                String metric,
+                                                                Integer energyType,
+                                                                Map<Integer, Ratio> ratioMap) {
         List<TrendUnifiedResult.Point> list = new ArrayList<>();
-        for (Map<String, Object> m : energyTrend) {
+        for (Map<String, Object> m : points) {
             String label = String.valueOf(m.get("label"));
             Double energy = getDouble(m.get("energy"));
-            double y = applyMetricWithMixedTypes(energy, moduleIds, moduleEnergyType, ratioMap, metric);
+            double y = applyMetric(energy, metric, energyType, ratioMap);
             TrendUnifiedResult.Point p = new TrendUnifiedResult.Point();
             p.setX(label);
             p.setY(round(y, 2));
@@ -193,16 +311,15 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
         return list;
     }
 
-    private List<TrendSeparatedResult.Point> convertPointsByMetric(List<Map<String, Object>> energyTrend,
-                                                                   List<String> moduleIds,
-                                                                   Map<String, Integer> moduleEnergyType,
-                                                                   Map<Integer, Ratio> ratioMap,
-                                                                   String metric) {
+    private List<TrendSeparatedResult.Point> convertPoints(List<Map<String, Object>> points,
+                                                           String metric,
+                                                           Integer energyType,
+                                                           Map<Integer, Ratio> ratioMap) {
         List<TrendSeparatedResult.Point> list = new ArrayList<>();
-        for (Map<String, Object> m : energyTrend) {
+        for (Map<String, Object> m : points) {
             String label = String.valueOf(m.get("label"));
             Double energy = getDouble(m.get("energy"));
-            double y = applyMetricWithMixedTypes(energy, moduleIds, moduleEnergyType, ratioMap, metric);
+            double y = applyMetric(energy, metric, energyType, ratioMap);
             TrendSeparatedResult.Point p = new TrendSeparatedResult.Point();
             p.setX(label);
             p.setY(round(y, 2));
@@ -211,27 +328,17 @@ public class TrendAnalysisServiceImpl implements ITrendAnalysisService {
         return list;
     }
 
-    private double applyMetricWithMixedTypes(Double totalEnergy,
-                                             List<String> moduleIds,
-                                             Map<String, Integer> moduleEnergyType,
-                                             Map<Integer, Ratio> ratioMap,
-                                             String metric) {
-        // 简化：将总能耗按模块平均分配再乘各自系数再求和（若前端常选同一能源类型，此项影响很小）
-        // 更精准的做法：按 label & module 聚合能耗（需要修改SQL加上 module_id 维度）。
-        double e = Optional.ofNullable(totalEnergy).orElse(0.0);
-        if (e == 0 || moduleIds.isEmpty()) return 0.0;
-        double per = e / moduleIds.size();
-        double sum = 0.0;
-        for (String id : moduleIds) {
-            Integer type = moduleEnergyType.get(id);
-            Ratio r = ratioMap.getOrDefault(type == null ? 1 : type, new Ratio("kWh", 1.0, 1.0));
-            switch (metric) {
-                case "standardCoal": sum += per * Optional.ofNullable(r.standardCoalFactor).orElse(1.0); break;
-                case "carbon": sum += per * Optional.ofNullable(r.carbonFactor).orElse(1.0); break;
-                default: sum += per; // energy
-            }
+    private double applyMetric(Double energy,
+                               String metric,
+                               Integer energyType,
+                               Map<Integer, Ratio> ratioMap) {
+        double e = Optional.ofNullable(energy).orElse(0.0);
+        Ratio r = ratioMap.getOrDefault(energyType == null ? 1 : energyType, new Ratio("kWh", 1.0, 1.0));
+        switch (metric) {
+            case "standardCoal": return e * Optional.ofNullable(r.standardCoalFactor).orElse(1.0);
+            case "carbon": return e * Optional.ofNullable(r.carbonFactor).orElse(1.0);
+            default: return e; // energy
         }
-        return sum;
     }
 
     private String metricTitle(String metric) {

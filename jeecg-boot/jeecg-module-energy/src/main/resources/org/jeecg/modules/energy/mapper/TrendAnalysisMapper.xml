@@ -15,6 +15,21 @@
         ORDER BY MIN(dt)
     </select>
 
+    <!-- 新增：按时间标签 + module_id 聚合能耗 -->
+    <select id="selectEnergyTrendByModule" resultType="map">
+        SELECT ${labelExpr} AS label,
+               module_id      AS moduleId,
+               IFNULL(SUM(energy_count),0) AS energy
+        FROM ${table}
+        WHERE module_id IN
+        <foreach collection="moduleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND dt BETWEEN #{startDt} AND #{endDt}
+        GROUP BY ${labelExpr}, module_id
+        ORDER BY MIN(dt), module_id
+    </select>
+
     <select id="selectEnergySummary" resultType="map">
         SELECT IFNULL(SUM(energy_count),0) AS totalEnergy
         FROM ${table}
