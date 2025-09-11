@@ -19,7 +19,7 @@
       </a-col>
     </div>
 
-    <!-- 右侧内容区域：能耗统计 -->
+    <!-- 右侧内容区域：能源消耗统计 -->
     <div class="flex-1" style="margin-top: 16px;" >
       <!-- 查询卡片（白底） -->
       <div class="bg-white rounded p-4">
@@ -49,7 +49,7 @@
             </a-select>
           </div>
           <div class="flex items-center">
-            <span class="text-gray-600 mr-2">显示方式：</span>
+            <span class="text-gray-600 mr-2">查询方式：</span>
             <a-select v-model:value="displayMode" style="width: 120px">
               <a-select-option v-for="opt in queryMethodOptions" :key="opt.value" :value="String(opt.value)">{{ opt.text }}</a-select-option>
             </a-select>
@@ -72,13 +72,12 @@
 
       <!-- 图表卡片（白底） -->
       <div v-show="isUnifiedView" class="bg-white rounded p-4">
-        <div class="text-lg font-medium mb-4">设备能耗统计 - 统一显示</div>
         <div ref="chartRef" style="width: 100%; height: 420px;"></div>
       </div>
       <div v-show="!isUnifiedView">
         <div v-for="(chart, idx) in separateChartsData" :key="`sep-${idx}`" class="bg-white rounded p-4 mb-3">
-          <div class="text-lg font-medium mb-2">{{ chart.title }}（单位：{{ chart.unit }}）</div>
-          <ConsumptionChart :chartData="chart" :chartId="`sep-${idx}`" :chartType="chartType" />
+          <div class="text-sm mb-2">{{ chart.title }}（单位：{{ chart.unit }}）</div>
+          <MonitorChart :chartData="chart" :chartId="`sep-${idx}`" :activeIndex="-1" :chartType="chartType" />
         </div>
       </div>
 
@@ -88,7 +87,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, nextTick, computed, watch, type Ref } from 'vue';
-import ConsumptionChart from './components/ConsumptionChart.vue';
+import MonitorChart from '../EnergyManagement/Real_Data_Monitor/components/MonitorChart.vue';
 import { getConsumptionData, exportConsumptionData, type ConsumptionRequest, type ConsumptionResponse } from './api';
 import { initDictOptions } from '/@/utils/dict';
 import { downloadByData } from '/@/utils/file/download';
@@ -98,8 +97,8 @@ const DBG = false;
 function dbg(...args:any[]){ if (DBG) console.log('[Consumption]', ...args); }
 
 import { useECharts } from '/@/hooks/web/useECharts';
-import MultiSelectDimensionTree from '../../EnergyManagement/Real_Data_Monitor/components/MultiSelectDimensionTree.vue';
-import { getModulesByOrgCode } from '../../EnergyManagement/Real_Data_Monitor/api';
+import MultiSelectDimensionTree from '../EnergyManagement/Real_Data_Monitor/components/MultiSelectDimensionTree.vue';
+import { getModulesByOrgCode } from '../EnergyManagement/Real_Data_Monitor/api';
 import { defHttp } from '/@/utils/http/axios';
 
 // 维度树 tabs & 选择
@@ -214,7 +213,6 @@ const selectedMeterKeys = ref<string[]>([]);
 // 避免并发响应覆盖：每次查询生成一个请求id，只处理最新的
 const lastReqIdRef = ref(0);
 
-// 查询与导出
 // 查询方式字典（统一/分开）
 const queryMethodOptions = ref<Array<{ text: string; value: string | number }>>([]);
 const displayMode = ref<'1' | '2' | 'unified' | 'separated'>('1');
@@ -283,27 +281,28 @@ async function handleQuery() {
 
     const res: any = (raw && (raw as any).result) ? (raw as any).result : raw;
     const dm: any = res?.displayMode;
-    const mode = dm === 1 || dm === '1' ? 'unified' : dm === 2 || dm === '2' ? 'separated' : dm;
+    const mode = dm === 1 || dm === '1' || dm === 'unified' ? 'unified' : 'separated';
     dbg('handleQuery:respMode', { dm, mode, uiMode: displayMode.value });
 
     if (mode === 'unified') {
-      const categories = Array.isArray(res.series) && res.series.length ? (res.series[0].data || []).map((pt: any) => parsePoint(pt).label) : [];
+      const categories = Array.isArray(res.series) && res.series.length ? 
+        (res.series[0].data || []).map((pt: any) => parsePoint(pt).label) : [];
 
       unifiedChart.value = {
         categories,
         series: (res.series || []).map((s: any) => ({ 
-          name: `${s.moduleName ? s.moduleName + '-' : ''}能耗(${s.unit})`, 
+          name: `${s.moduleName ? s.moduleName + '-' : ''}${s.name || '能耗'}(${s.unit})`, 
           unit: s.unit, 
           data: (s.data || []).map((pt: any) => parsePoint(pt).value) 
         }))
       };
       separateChartsData.value = [];
-    } else if (mode === 'separated') {
-      // 分开显示：每个设备一张图，每张图显示该设备的能耗曲线
+    } else {
+      // 分开显示：每个设备一张图，每张图包含能耗曲线
       separateChartsData.value = (res.charts || []).map((c: any) => {
         const categories = (c.series?.[0]?.data || []).map((pt: any) => parsePoint(pt).label);
         const series = (c.series || []).map((s: any) => ({ 
-          name: s.name, 
+          name: s.name || '能耗', 
           unit: s.unit || c.unit, 
           data: (s.data || []).map((pt: any) => parsePoint(pt).value) 
         }));
@@ -321,7 +320,7 @@ async function handleQuery() {
           charts.forEach((c: any) => {
             (c.series || []).forEach((s: any) => {
               mergedSeries.push({
-                name: `${c.title}-${s.name}(${s.unit || c.unit || ''})`,
+                name: `${c.title}-${s.name || '能耗'}(${s.unit || c.unit || ''})`,
                 unit: s.unit || c.unit || '',
                 data: (s.data || []).map((pt: any) => parsePoint(pt).value),
               });
@@ -334,17 +333,12 @@ async function handleQuery() {
           dbg('merge separated->unified skip: charts empty');
         }
       }
-    } else {
-      // 未知displayMode，清空
-      unifiedChart.value = { categories: [], series: [] };
-      separateChartsData.value = [];
     }
   } catch (e) {
     console.error('Consumption API error:', e);
     unifiedChart.value = { categories: [], series: [] };
     separateChartsData.value = [];
   }
-  
   await nextTick();
   renderChart();
 }
@@ -353,22 +347,25 @@ async function handleExport() {
   const [start, end] = dateRange.value as any;
   const req: ConsumptionRequest = {
     moduleIds: selectedMeterKeys.value,
-    startDate: periodType.value==='day'?start.format('YYYY-MM-DD'):periodType.value==='month'?start.format('YYYY-MM'):start.format('YYYY'),
-    endDate: periodType.value==='day'?end.format('YYYY-MM-DD'):periodType.value==='month'?end.format('YYYY-MM'):end.format('YYYY'),
+    startDate: periodType.value === 'day' ? start.format('YYYY-MM-DD') : periodType.value === 'month' ? start.format('YYYY-MM') : start.format('YYYY'),
+    endDate: periodType.value === 'day' ? end.format('YYYY-MM-DD') : periodType.value === 'month' ? end.format('YYYY-MM') : end.format('YYYY'),
     timeType: periodType.value,
     displayMode: Number(displayMode.value as any)
   };
   
-  const data: any = await exportConsumptionData(req);
-  if (data) {
-    const now = dayjs().format('YYYYMMDD_HHmmss');
-    downloadByData(data, `设备能源统计_${now}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  try {
+    const data: any = await exportConsumptionData(req);
+    if (data) {
+      const now = dayjs().format('YYYYMMDD_HHmmss');
+      downloadByData(data, `设备能源统计_${now}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+  } catch (e) {
+    console.error('Export error:', e);
   }
 }
 
-// 右侧：趋势图
+// 右侧：图表
 const chartRef = ref<HTMLDivElement | null>(null);
-// 条件查询控件（periodType/dateRange 已在上方定义）
 const chartType = ref<'line' | 'bar'>('line');
 
 // 右侧"仪表选择"与左侧下拉联动（多选）
@@ -385,7 +382,14 @@ function renderChart() {
   }
 
   const el = chartRef.value as HTMLDivElement | null;
-  dbg('renderChart:enter', { isUnifiedView: isUnifiedView.value, elExists: !!el, elH: el?.offsetHeight, hasInstance: !!getInstance(), seriesLen: unifiedChart.value.series?.length, catLen: unifiedChart.value.categories?.length });
+  dbg('renderChart:enter', { 
+    isUnifiedView: isUnifiedView.value, 
+    elExists: !!el, 
+    elH: el?.offsetHeight, 
+    hasInstance: !!getInstance(), 
+    seriesLen: unifiedChart.value.series?.length, 
+    catLen: unifiedChart.value.categories?.length 
+  });
 
   // 切回统一显示时，确保 ECharts 容器已初始化
   if (!getInstance()) {
@@ -395,27 +399,45 @@ function renderChart() {
 
   const categories = unifiedChart.value.categories || [];
   const series = (unifiedChart.value.series || []) as Array<{name:string; data:number[]; unit?:string}>;
-  const colors = ['#2ecc71', '#ff9f40', '#3498db', '#e74c3c', '#9b59b6', '#f39c12'];
+  
+  // 能耗量统计的颜色主题（绿色系为主）
+  const colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
 
-  // 单位分轴（最多两个轴：左=第一种单位，右=第二种单位）
+  // 根据不同能源类型的单位进行分轴处理
   const units = Array.from(new Set(series.map((s:any)=>s.unit||'').filter(Boolean)));
-  const leftUnit = units[0] || series[0]?.unit || '';
-  const rightUnit = units[1] || '';
-  const yAxis: any = rightUnit
-    ? [ { type:'value', name:leftUnit, position:'left' }, { type:'value', name:rightUnit, position:'right' } ]
-    : [ { type:'value', name:leftUnit } ];
+  
+  let yAxis: any;
+  if (units.length <= 1) {
+    // 单一单位或无单位
+    yAxis = [{ type:'value', name: units[0] || '能耗量' }];
+  } else if (units.length === 2) {
+    // 两种单位：左右双轴
+    yAxis = [
+      { type:'value', name: units[0], position:'left' }, 
+      { type:'value', name: units[1], position:'right' }
+    ];
+  } else {
+    // 多种单位：只显示左轴，在tooltip中显示具体单位
+    yAxis = [{ type:'value', name: '能耗量（多单位）' }];
+  }
 
-  dbg('renderChart:setOptions', { leftUnit, rightUnit, names: series.map((s:any)=>s.name) });
+  dbg('renderChart:setOptions', { 
+    units, 
+    yAxisCount: yAxis.length,
+    names: series.map((s:any)=>s.name) 
+  });
+  
   setOptions({
     tooltip: { 
       trigger: 'axis',
       formatter: function(params: any) {
-        let result = `${params[0].axisValue}<br/>`;
+        let content = `${params[0].axisValue}<br/>`;
         params.forEach((param: any, index: number) => {
-          const unit = series[index]?.unit || '';
-          result += `${param.marker}${param.seriesName}: ${param.value} ${unit}<br/>`;
+          const seriesItem = series[index];
+          const unit = seriesItem?.unit || '';
+          content += `${param.marker}${param.seriesName}: ${param.value}${unit ? ' ' + unit : ''}<br/>`;
         });
-        return result;
+        return content;
       }
     },
     legend: { data: series.map((s:any)=>s.name) },
@@ -426,22 +448,24 @@ function renderChart() {
       name: s.name,
       type: chartType.value,
       smooth: true,
-      yAxisIndex: rightUnit && (s.unit === rightUnit) ? 1 : 0,
+      yAxisIndex: units.length === 2 && s.unit === units[1] ? 1 : 0,
       data: s.data,
       color: colors[index % colors.length],
     })),
   });
 }
 
-// 自动查询：以下变更触发查询（移动到函数外，始终生效）
+// 自动查询：以下变更触发查询
 watch(displayMode, () => handleQuery());
 watch(periodType, () => { onPeriodChange(); handleQuery(); });
 watch(selectedMeterKeys, (v) => { if ((v || []).length) handleQuery(); });
 watch(dateRange, () => handleQuery(), { deep: true });
-watch(meters, (list) => { if ((list || []).length && !selectedMeterKeys.value.length) {
-  selectedMeterKeys.value = list.map((m:any)=>m.value);
-  handleQuery();
-}}, { deep: true });
+watch(meters, (list) => { 
+  if ((list || []).length && !selectedMeterKeys.value.length) {
+    selectedMeterKeys.value = list.map((m:any)=>m.value);
+    handleQuery();
+  }
+}, { deep: true });
 
 // 图表类型变化时重新渲染图表
 watch(chartType, () => {
@@ -452,7 +476,12 @@ watch(chartType, () => {
 });
 
 // 统一视图刚显示时，主动渲染一次（防止没有新请求但已有数据时不渲染）
-watch(isUnifiedView, (v) => { if (v) nextTick(() => { dbg('watch isUnifiedView -> true, renderChart'); renderChart(); }); });
+watch(isUnifiedView, (v) => { 
+  if (v) nextTick(() => { 
+    dbg('watch isUnifiedView -> true, renderChart'); 
+    renderChart(); 
+  }); 
+});
 
 onMounted(() => {
   loadDimensionDictData();
