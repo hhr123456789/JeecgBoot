@@ -30,57 +30,93 @@ public class EnergyCalculationUtilsTest {
     }
     
     /**
-     * 测试计算负荷状态 - 低负荷情况
+     * 测试计算负荷状态 - 轻载情况（改进后的算法）
      */
     @Test
-    public void testCalculateLoadStatusLow() {
-        // 三相电流平均值小于10A，表示低负荷
-        BigDecimal IA = new BigDecimal("8.00");
-        BigDecimal IB = new BigDecimal("7.00");
-        BigDecimal IC = new BigDecimal("9.00");
+    public void testCalculateLoadStatusLight() {
+        // 使用改进后的算法，基于电流估算
+        BigDecimal IA = new BigDecimal("3.00");
+        BigDecimal IB = new BigDecimal("3.50");
+        BigDecimal IC = new BigDecimal("3.20");
         BigDecimal UA = new BigDecimal("380.00");
         BigDecimal UB = new BigDecimal("380.00");
         BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("低负荷", loadStatus);
+        assertEquals("轻载", loadStatus);
     }
     
     /**
-     * 测试计算负荷状态 - 中负荷情况
+     * 测试计算负荷状态 - 正常情况（改进后的算法）
      */
     @Test
-    public void testCalculateLoadStatusMedium() {
-        // 三相电流平均值在10A-30A之间，表示中负荷
-        BigDecimal IA = new BigDecimal("20.00");
-        BigDecimal IB = new BigDecimal("22.00");
-        BigDecimal IC = new BigDecimal("18.00");
+    public void testCalculateLoadStatusNormal() {
+        // 使用改进后的算法，基于电流估算
+        BigDecimal IA = new BigDecimal("15.00");
+        BigDecimal IB = new BigDecimal("16.00");
+        BigDecimal IC = new BigDecimal("14.00");
         BigDecimal UA = new BigDecimal("380.00");
         BigDecimal UB = new BigDecimal("380.00");
         BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("中负荷", loadStatus);
+        assertEquals("正常", loadStatus);
     }
     
     /**
-     * 测试计算负荷状态 - 高负荷情况
+     * 测试计算负荷状态 - 重载情况（改进后的算法）
      */
     @Test
-    public void testCalculateLoadStatusHigh() {
-        // 三相电流平均值大于30A，表示高负荷
-        BigDecimal IA = new BigDecimal("40.00");
-        BigDecimal IB = new BigDecimal("42.00");
-        BigDecimal IC = new BigDecimal("38.00");
+    public void testCalculateLoadStatusHeavy() {
+        // 使用改进后的算法，基于电流估算
+        BigDecimal IA = new BigDecimal("35.00");
+        BigDecimal IB = new BigDecimal("36.00");
+        BigDecimal IC = new BigDecimal("34.00");
         BigDecimal UA = new BigDecimal("380.00");
         BigDecimal UB = new BigDecimal("380.00");
         BigDecimal UC = new BigDecimal("380.00");
         
         String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
         
-        assertEquals("高负荷", loadStatus);
+        assertEquals("重载", loadStatus);
+    }
+    
+    /**
+     * 测试计算负荷状态 - 过载情况（改进后的算法）
+     */
+    @Test
+    public void testCalculateLoadStatusOverload() {
+        // 使用改进后的算法，基于电流估算
+        BigDecimal IA = new BigDecimal("60.00");
+        BigDecimal IB = new BigDecimal("62.00");
+        BigDecimal IC = new BigDecimal("58.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
+        
+        String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
+        
+        assertEquals("过载", loadStatus);
+    }
+    
+    /**
+     * 测试三相不平衡检测
+     */
+    @Test
+    public void testThreePhaseImbalance() {
+        // 三相电流差异较大，应该检测出不平衡
+        BigDecimal IA = new BigDecimal("30.00");
+        BigDecimal IB = new BigDecimal("10.00");  // B相电流明显偏小
+        BigDecimal IC = new BigDecimal("25.00");
+        BigDecimal UA = new BigDecimal("380.00");
+        BigDecimal UB = new BigDecimal("380.00");
+        BigDecimal UC = new BigDecimal("380.00");
+        
+        String loadStatus = EnergyCalculationUtils.calculateLoadStatus(IA, IB, IC, UA, UB, UC);
+        
+        assertEquals("三相不平衡", loadStatus);
     }
     
     /**

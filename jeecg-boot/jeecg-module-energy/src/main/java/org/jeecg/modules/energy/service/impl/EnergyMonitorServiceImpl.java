@@ -101,17 +101,20 @@ public class EnergyMonitorServiceImpl implements IEnergyMonitorService {
                     collectionDate = eleData.getEquElectricDT();
                     dataMap.put("Equ_Electric_DT", eleData.getEquElectricDT());
                     
-                    // 使用工具类计算负荷状态
+                    // 使用改进的工具类计算负荷状态（优先基于功率，支持设备类型）
+                    BigDecimal ratedPower = module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : null;
                     String loadStatus = EnergyCalculationUtils.calculateLoadStatus(
-                        eleData.getIA(), eleData.getIB(), eleData.getIC(),
-                        eleData.getUA(), eleData.getUB(), eleData.getUC()
+                        eleData.getPp(),  // 当前功率
+                        ratedPower,       // 额定功率
+                        eleData.getIA(), eleData.getIB(), eleData.getIC(),  // 三相电流
+                        module.getModuleType()  // 设备类型（4=高压三相三线制）
                     );
                     dataMap.put("loadStatus", loadStatus);
                     
                     // 使用工具类计算负荷率
                     BigDecimal loadRate = EnergyCalculationUtils.calculateLoadRate(
                         eleData.getPp(), 
-                        module.getRatedPower() != null ? new BigDecimal(module.getRatedPower()) : BigDecimal.ZERO
+                        ratedPower != null ? ratedPower : BigDecimal.ZERO
                     );
                     dataMap.put("loadRate", loadRate);
                     
