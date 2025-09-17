@@ -1,7 +1,9 @@
 <template>
   <div :class="prefixCls" class="login-background-img">
+    <!-- 隐藏暗黑模式、中英文切换
     <AppLocalePicker class="absolute top-4 right-4 enter-x xl:text-gray-600" :showText="false"/>
     <AppDarkModeToggle class="absolute top-3 right-7 enter-x" />
+    -->
     <div class="aui-logo" v-if="!getIsMobile">
       <div>
         <h3>
@@ -27,9 +29,12 @@
                   <div class="aui-flex-box" :class="activeIndex === 'accountLogin' ? 'activeNav on' : ''" @click="loginClick('accountLogin')"
                     >{{ t('sys.login.signInFormTitle') }}
                   </div>
+                  <!--手机登录-->
+                  <!--
                   <div class="aui-flex-box" :class="activeIndex === 'phoneLogin' ? 'activeNav on' : ''" @click="loginClick('phoneLogin')"
                     >{{ t('sys.login.mobileSignInFormTitle') }}
                   </div>
+                  -->
                 </div>
                 <div class="aui-form-box" style="height: 180px">
                   <a-form ref="loginRef" :model="formData" v-if="activeIndex === 'accountLogin'" @keyup.enter.native="loginHandleClick">
@@ -63,12 +68,17 @@
                             <span style="margin-left: 5px">{{ t('sys.login.rememberMe') }}</span>
                           </div>
                         </div>
+                        <!--忘记密码-->
+                        <!--
                         <div class="aui-forget">
                           <a @click="forgetHandelClick"> {{ t('sys.login.forgetPassword') }}</a>
                         </div>
+                        -->
                       </div>
                     </div>
                   </a-form>
+                  <!--手机登录-->
+                  <!--
                   <a-form v-else ref="phoneFormRef" :model="phoneFormData" @keyup.enter.native="loginHandleClick">
                     <div class="aui-account phone">
                       <div class="aui-inputClear phoneClear">
@@ -85,20 +95,26 @@
                       </div>
                     </div>
                   </a-form>
+                  -->
                 </div>
                 <div class="aui-formButton">
                   <div class="aui-flex">
                     <a-button :loading="loginLoading" class="aui-link-login" type="primary" @click="loginHandleClick">
                       {{ t('sys.login.loginButton') }}</a-button>
                   </div>
+                  <!--二维码登录、注册-->
+                  <!--
                   <div class="aui-flex">
                     <a class="aui-linek-code aui-flex-box" @click="codeHandleClick">{{ t('sys.login.qrSignInFormTitle') }}</a>
                   </div>
                   <div class="aui-flex">
                     <a class="aui-linek-code aui-flex-box" @click="registerHandleClick">{{ t('sys.login.registerButton') }}</a>
                   </div>
+                  -->
                 </div>
               </div>
+              <!--其他登录方式-->
+              <!--
               <a-form @keyup.enter.native="loginHandleClick">
                 <div class="aui-flex aui-third-text">
                   <div class="aui-flex-box aui-third-border">
@@ -128,11 +144,13 @@
                   </div>
                 </div>
               </a-form>
+              -->
             </div>
           </div>
         </div>
       </div>
     </div>
+    <!--
     <div v-show="type === 'forgot'" :class="`${prefixCls}-form`">
       <MiniForgotpad ref="forgotRef" @go-back="goBack" @success="handleSuccess" />
     </div>
@@ -142,8 +160,9 @@
     <div v-show="type === 'codeLogin'" :class="`${prefixCls}-form`">
       <MiniCodelogin ref="codeRef" @go-back="goBack" @success="handleSuccess" />
     </div>
+    -->
     <!-- 第三方登录相关弹框 -->
-    <ThirdModal ref="thirdModalRef"></ThirdModal>
+    <!--<ThirdModal ref="thirdModalRef"></ThirdModal>-->
     
     <!-- 图片验证码弹窗 -->
     <CaptchaModal @register="captchaRegisterModal" @ok="getLoginCode" />
@@ -158,13 +177,13 @@
   import { useMessage } from '/@/hooks/web/useMessage';
   import { useI18n } from '/@/hooks/web/useI18n';
   import { SmsEnum } from '/@/views/sys/login/useLogin';
-  import ThirdModal from '/@/views/sys/login/ThirdModal.vue';
-  import MiniForgotpad from './MiniForgotpad.vue';
-  import MiniRegister from './MiniRegister.vue';
-  import MiniCodelogin from './MiniCodelogin.vue';
+  // import ThirdModal from '/@/views/sys/login/ThirdModal.vue';
+  // import MiniForgotpad from './MiniForgotpad.vue';
+  // import MiniRegister from './MiniRegister.vue';
+  // import MiniCodelogin from './MiniCodelogin.vue';
   import logoImg from '/@/assets/loginmini/icon/jeecg_logo.png';
   import adTextImg from '/@/assets/loginmini/icon/jeecg_ad_text.png';
-  import { AppLocalePicker, AppDarkModeToggle } from '/@/components/Application';
+  // import { AppLocalePicker, AppDarkModeToggle } from '/@/components/Application';
   import { useLocaleStore } from '/@/store/modules/locale';
   import { useDesign } from "/@/hooks/web/useDesign";
   import { useAppInject } from "/@/hooks/web/useAppInject";
@@ -194,19 +213,19 @@
   //账号登录表单字段
   const formData = reactive<any>({
     inputCode: '',
-    username: 'admin',
-    password: '123456',
+    username: '',
+    password: '',
   });
   //手机登录表单字段
-  const phoneFormData = reactive<any>({
-    mobile: '',
-    smscode: '',
-  });
+  // const phoneFormData = reactive<any>({
+  //   mobile: '',
+  //   smscode: '',
+  // });
   const loginRef = ref();
   //第三方登录弹窗
-  const thirdModalRef = ref();
+  //const thirdModalRef = ref();
   //扫码登录
-  const codeRef = ref();
+  //const codeRef = ref();
   //是否显示获取验证码
   const showInterval = ref<boolean>(true);
   //60s
@@ -214,9 +233,9 @@
   //定时器
   const timer = ref<any>(null);
   //忘记密码
-  const forgotRef = ref();
+  //const forgotRef = ref();
   //注册
-  const registerRef = ref();
+  //const registerRef = ref();
   const loginLoading = ref<boolean>(false);
   const { getIsMobile } = useAppInject();
   const [captchaRegisterModal, { openModal: openCaptchaModal }] = useModal();
@@ -242,20 +261,20 @@
   /**
    * 切换登录方式
    */
-  function loginClick(type) {
-    activeIndex.value = type;
-  }
+  // function loginClick(type) {
+  //   activeIndex.value = type;
+  // }
 
   /**
    * 账号或者手机登录
    */
   async function loginHandleClick() {
-    if (unref(activeIndex) === 'accountLogin') {
+    //if (unref(activeIndex) === 'accountLogin') {
       accountLogin();
-    } else {
+    //} else {
       //手机号登录
-      phoneLogin();
-    }
+      //phoneLogin();
+    //}
   }
 
   async function accountLogin() {
@@ -300,43 +319,44 @@
   /**
    * 手机号登录
    */
-  async function phoneLogin() {
-    if (!phoneFormData.mobile) {
-      createMessage.warn(t('sys.login.mobilePlaceholder'));
-      return;
-    }
-    if (!phoneFormData.smscode) {
-      createMessage.warn(t('sys.login.smsPlaceholder'));
-      return;
-    }
-    try {
-      loginLoading.value = true;
-      const { userInfo }: any = await userStore.phoneLogin({
-        mobile: phoneFormData.mobile,
-        captcha: phoneFormData.smscode,
-        mode: 'none', //不要默认的错误提示
-      });
-      if (userInfo) {
-        notification.success({
-          message: t('sys.login.loginSuccessTitle'),
-          description: `${t('sys.login.loginSuccessDesc')}: ${userInfo.realname}`,
-          duration: 3,
-        });
-      }
-    } catch (error) {
-      notification.error({
-        message: t('sys.api.errorTip'),
-        description: error.message || t('sys.login.networkExceptionMsg'),
-        duration: 3,
-      });
-    } finally {
-      loginLoading.value = false;
-    }
-  }
+  // async function phoneLogin() {
+  //   if (!phoneFormData.mobile) {
+  //     createMessage.warn(t('sys.login.mobilePlaceholder'));
+  //     return;
+  //   }
+  //   if (!phoneFormData.smscode) {
+  //     createMessage.warn(t('sys.login.smsPlaceholder'));
+  //     return;
+  //   }
+  //   try {
+  //     loginLoading.value = true;
+  //     const { userInfo }: any = await userStore.phoneLogin({
+  //       mobile: phoneFormData.mobile,
+  //       captcha: phoneFormData.smscode,
+  //       mode: 'none', //不要默认的错误提示
+  //     });
+  //     if (userInfo) {
+  //       notification.success({
+  //         message: t('sys.login.loginSuccessTitle'),
+  //         description: `${t('sys.login.loginSuccessDesc')}: ${userInfo.realname}`,
+  //         duration: 3,
+  //       });
+  //     }
+  //   } catch (error) {
+  //     notification.error({
+  //       message: t('sys.api.errorTip'),
+  //       description: error.message || t('sys.login.networkExceptionMsg'),
+  //       duration: 3,
+  //     });
+  //   } finally {
+  //     loginLoading.value = false;
+  //   }
+  // }
 
   /**
    * 获取手机验证码
    */
+   /*
   async function getLoginCode() {
     if (!phoneFormData.mobile) {
       createMessage.warn(t('sys.login.mobilePlaceholder'));
@@ -366,24 +386,24 @@
       }
     }
   }
-
+*/
   /**
    * 第三方登录
    * @param type
    */
-  function onThirdLogin(type) {
-    thirdModalRef.value.onThirdLogin(type);
-  }
+  // function onThirdLogin(type) {
+  //   thirdModalRef.value.onThirdLogin(type);
+  // }
 
   /**
    * 忘记密码
    */
-  function forgetHandelClick() {
-    type.value = 'forgot';
-    setTimeout(() => {
-      forgotRef.value.initForm();
-    }, 300);
-  }
+  // function forgetHandelClick() {
+  //   type.value = 'forgot';
+  //   setTimeout(() => {
+  //     forgotRef.value.initForm();
+  //   }, 300);
+  // }
 
   /**
    * 返回登录页面
@@ -397,33 +417,33 @@
    * 忘记密码/注册账号回调事件
    * @param value
    */
-  function handleSuccess(value) {
-    Object.assign(formData, value);
-    Object.assign(phoneFormData, { mobile: "", smscode: "" });
-    type.value = 'login';
-    activeIndex.value = 'accountLogin';
-    handleChangeCheckCode();
-  }
+  // function handleSuccess(value) {
+  //   Object.assign(formData, value);
+  //   Object.assign(phoneFormData, { mobile: "", smscode: "" });
+  //   type.value = 'login';
+  //   activeIndex.value = 'accountLogin';
+  //   handleChangeCheckCode();
+  // }
 
   /**
    * 注册
    */
-  function registerHandleClick() {
-    type.value = 'register';
-    setTimeout(() => {
-      registerRef.value.initForm();
-    }, 300);
-  }
+  // function registerHandleClick() {
+  //   type.value = 'register';
+  //   setTimeout(() => {
+  //     registerRef.value.initForm();
+  //   }, 300);
+  // }
 
   /**
    * 注册
    */
-  function codeHandleClick() {
-    type.value = 'codeLogin';
-    setTimeout(() => {
-      codeRef.value.initFrom();
-    }, 300);
-  }
+  // function codeHandleClick() {
+  //   type.value = 'codeLogin';
+  //   setTimeout(() => {
+  //     codeRef.value.initFrom();
+  //   }, 300);
+  // }
 
   onMounted(() => {
     //加载验证码

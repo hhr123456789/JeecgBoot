@@ -902,5 +902,5 @@ public class EnergyAnalysisServiceImpl implements IEnergyAnalysisService {
 ```
 
 ## 📚 相关文档
-- [JeecgBoot开发文档](http://help.jeecg.com/java/)
-- [JeecgBoot接口规范](http://help.jeecg.com/java/qa/)
+- [开发文档](http://help.jeecg.com/java/)
+- [接口规范](http://help.jeecg.com/java/qa/)
