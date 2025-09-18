@@ -487,13 +487,14 @@ const downloadReport = () => {
   min-height: 100vh;
   background: #f0f2f5;
   position: relative;
+  margin-top:15px;
 }
 
 /* 左侧导航 */
 .left-sidebar {
   position: fixed;
   left: 200px;
-  top: 0;
+  top: 113px;
   bottom: 0;
   width: 220px;
   background: #f8f9fa;
@@ -503,6 +504,7 @@ const downloadReport = () => {
   box-shadow: 2px 0 4px rgba(0,0,0,0.08);
   z-index: 100;
   overflow-y: auto;
+  margin-top:15px;
 }
 
 .sidebar-title {
@@ -520,7 +522,7 @@ const downloadReport = () => {
 
 .menu-title {
   color: #8c8c8c;
-  font-size: 12px;
+  font-size: 16px;
   padding: 0 16px 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -589,7 +591,7 @@ const downloadReport = () => {
 
 /* 报告内容 */
 .report-content {
-  max-width: 1400px;
+  max-width: 1900px;
   margin: 0 auto ！important;
   padding: 24px;
   background: white;
