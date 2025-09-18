@@ -10,42 +10,42 @@
           :class="{ active: activeSection === 'overview' }"
           @click="scrollToSection('overview')"
         >
-          系统概况
+          01.系统概况
         </div>
         <div 
           class="menu-item"
           :class="{ active: activeSection === 'analysis' }"
           @click="scrollToSection('analysis')"
         >
-          运行数据分析
+          02.运行数据分析
         </div>
         <div 
           class="menu-item"
           :class="{ active: activeSection === 'diagnosis' }"
           @click="scrollToSection('diagnosis')"
         >
-          问题诊断与根本原因
+          03.问题诊断与根本原因
         </div>
         <div 
           class="menu-item"
           :class="{ active: activeSection === 'suggestions' }"
           @click="scrollToSection('suggestions')"
         >
-          优化建议与改进方案
+          04.优化建议与改进方案
         </div>
         <div 
           class="menu-item"
           :class="{ active: activeSection === 'implementation' }"
           @click="scrollToSection('implementation')"
         >
-          实施计划与效益预测
+          05.实施计划与效益预测
         </div>
         <div 
           class="menu-item"
           :class="{ active: activeSection === 'conclusion' }"
           @click="scrollToSection('conclusion')"
         >
-          结论
+          06.结论
         </div>
       </div>
     </div>
