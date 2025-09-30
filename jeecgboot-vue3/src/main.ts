@@ -10,6 +10,7 @@ import { createApp } from 'vue';
 import { initAppConfigStore } from '/@/logics/initAppConfig';
 import { setupErrorHandle } from '/@/logics/error-handle';
 import { router, createRouter, setupRouter } from '/@/router';
+import { setRouter } from '/@/router/router';
 import { setupRouterGuard } from '/@/router/guard';
 import { setupStore } from '/@/store';
 import { setupGlobDirectives } from '/@/directives';
@@ -47,7 +48,9 @@ async function bootstrap(props?: MainAppProps) {
   window['JAppRootInstance'] = app;
 
   // 创建路由
-  createRouter();
+  const routerInstance = createRouter();
+  // 设置为全局路由实例
+  setRouter(routerInstance);
 
   // 配置存储
   setupStore(app);

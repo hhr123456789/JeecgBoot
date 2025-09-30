@@ -1084,6 +1084,9 @@ const initChart = () => {
 
 onMounted(() => {
   console.log('设备概览页面加载完成')
+  // 确保页面加载时滚动到顶部
+  window.scrollTo(0, 0)
+  document.body.scrollTo(0, 0)
   initChart()
 })
 </script>

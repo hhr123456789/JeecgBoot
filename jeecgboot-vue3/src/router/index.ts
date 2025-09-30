@@ -17,7 +17,7 @@ getRouteNames(basicRoutes);
  * 创建路由实例
  */
 export function createRouter() {
-  let router = createVueRouter({
+  let newRouter = createVueRouter({
     routes: basicRoutes as unknown as RouteRecordRaw[],
     strict: true,
     scrollBehavior: () => ({left: 0, top: 0}),
@@ -25,13 +25,15 @@ export function createRouter() {
 
   // TODO 【QQYUN-4517】【表单设计器】记录分享路由守卫测试
   // @ts-ignore
-  router.beforeEach(async (to, from, next) => {
+  newRouter.beforeEach(async (to, from, next) => {
     //console.group('【QQYUN-4517】beforeEach');
     //console.warn('from', from);
     //console.warn('to', to);
     //console.groupEnd();
     next();
   });
+  
+  return newRouter;
 }
 
 // reset router

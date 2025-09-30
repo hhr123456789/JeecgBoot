@@ -204,4 +204,8 @@ export default {
   jeecg: {
     JAreaLinkage: '区域选择',
   },
+  opsMaintenance: {
+    moduleName: '运维管理',
+    assetOverview: '设备台账总览',
+  },
 };

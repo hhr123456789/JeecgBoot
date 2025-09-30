@@ -104,8 +104,15 @@ function createScrollGuard(router: Router) {
   const body = document.body;
 
   router.afterEach(async (to) => {
-    // scroll top
-    isHash((to as RouteLocationNormalized & { href: string })?.href) && body.scrollTo(0, 0);
+    // scroll top for all route changes
+    // 在所有路由切换时都滚动到顶部
+    body.scrollTo(0, 0);
+    
+    // 如果是hash路由，确保滚动到顶部（双重保障）
+    if (isHash((to as RouteLocationNormalized & { href: string })?.href)) {
+      // 可以在这里做额外的hash路由处理
+      body.scrollTo(0, 0);
+    }
     return true;
   });
 }
