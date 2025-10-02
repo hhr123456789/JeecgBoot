@@ -426,46 +426,46 @@ function updateStacked() {
   if (!stackedChart) return
   const conf = (stackedMap as any)[activeKey.value]
   
-  // 柔和渐变色配置，采用清新的商务级配色方案
+  // 按照图片颜色配置的渐变色方案
   const gradientColors = [
     {
       type: 'linear',
       x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [
-        { offset: 0, color: '#69b7ff' },
-        { offset: 1, color: '#1890ff' }
+        { offset: 0, color: '#87ceeb' },
+        { offset: 1, color: '#4682b4' }
       ]
     },
     {
       type: 'linear',
       x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [
-        { offset: 0, color: '#95de64' },
-        { offset: 1, color: '#52c41a' }
+        { offset: 0, color: '#b0e0e6' },
+        { offset: 1, color: '#5f9ea0' }
       ]
     },
     {
       type: 'linear',
       x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [
-        { offset: 0, color: '#b37feb' },
-        { offset: 1, color: '#722ed1' }
+        { offset: 0, color: '#dda0dd' },
+        { offset: 1, color: '#9370db' }
       ]
     },
     {
       type: 'linear',
       x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [
-        { offset: 0, color: '#ffc069' },
-        { offset: 1, color: '#fa8c16' }
+        { offset: 0, color: '#90ee90' },
+        { offset: 1, color: '#32cd32' }
       ]
     },
     {
       type: 'linear',
       x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [
-        { offset: 0, color: '#ff85c0' },
-        { offset: 1, color: '#eb2f96' }
+        { offset: 0, color: '#ffa500' },
+        { offset: 1, color: '#ff8c00' }
       ]
     }
   ]
@@ -541,7 +541,7 @@ function updateStacked() {
       name: s.name,
       type: 'bar',
       stack: 'sum',
-      barWidth: '20%', // 保持细长比例
+      barWidth: '15%', // 保持细长比例
       itemStyle: { 
         color: gradientColors[idx % gradientColors.length],
         borderRadius: [3, 3, 0, 0], // 稍微增加圆角
