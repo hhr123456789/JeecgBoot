@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head></head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冰水机组监控系统</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+    :root {
+        --primary-blue: #2c5aa0;
+        --light-blue: #4a7bc8;
+        --lighter-blue: #e8f1ff;
+        --hover-blue: #1e4278;
+    }
+
+    body {
+        font-family: "Microsoft YaHei", Arial, sans-serif;
+        background: #f8f9fa;
+    }
+
+    .main-container {
+        display: flex;
+        height: 100vh;
+    }
+
+    .sidebar {
+        width: 240px;
+        background: #fff;
+        border-right: 1px solid #dee2e6;
+        overflow-y: auto;
+    }
+
+    .sidebar-header {
+        padding: 1rem;
+        background: linear-gradient(135deg, var(--primary-blue), var(--light-blue));
+        color: white;
+    }
+
+    .device-item {
+        padding: 0.6rem;
+        margin: 0.3rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+
+    .device-item:hover {
+        background: var(--lighter-blue);
+    }
+
+    .device-item.active {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .main-content {
+        flex: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .time-filter-bar {
+        background: var(--lighter-blue);
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-container {
+        height: 400px;
+        width: 100%;
+    }
+
+    .table thead th {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .table td.highlight {
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+    .modal-custom {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+    }
+
+    .modal-custom.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-dialog-custom {
+        background: white;
+        width: 90%;
+        max-width: 1000px;
+        max-height: 90vh;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header-custom {
+        background: linear-gradient(135deg, var(--primary-blue), var(--light-blue));
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        flex-shrink: 0;
+    }
+
+    .modal-body-custom {
+        padding: 2rem;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+    }
+    
+    .modal-footer-custom {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #dee2e6;
+        flex-shrink: 0;
+        background: white;
+    }
+
+    .section-title {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem;
+        color: var(--primary-blue);
+    }
+
+    .analysis-content {
+        line-height: 1.8;
+        color: #555;
+    }
+
+    .question-btn {
+        font-size: 13px;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        transition: all 0.3s;
+    }
+
+    .question-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    #modalBody {
+        min-height: 200px;
+    }
+</style>
+</head>
+
+<body>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header"><i class="bi bi-gear-fill me-2"></i>设备选择</div>
+            <div class="p-3">
+                <div class="form-check"><input class="form-check-input" type="radio" name="filter" value="all" id="f1"
+                        checked onchange="filterDevices(this.value)"><label class="form-check-label"
+                        for="f1">全部设备</label></div>
+                <div class="form-check"><input class="form-check-input" type="radio" name="filter" value="chiller"
+                        id="f2" onchange="filterDevices(this.value)"><label class="form-check-label"
+                        for="f2">冰水机组</label></div>
+                <div class="form-check"><input class="form-check-input" type="radio" name="filter" value="central"
+                        id="f3" onchange="filterDevices(this.value)"><label class="form-check-label"
+                        for="f3">中央空调</label></div>
+            </div>
+            <div class="p-3 border-top"><input type="text" class="form-control form-control-sm" placeholder="搜索设备..."
+                    oninput="searchDevices(this.value)"></div>
+            <div id="deviceList" class="p-2"></div>
+        </div>
+
+        <div class="main-content">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#">AI智能分析</a></li>
+                    <li class="breadcrumb-item active">冰水机#01</li>
+                </ol>
+            </nav>
+
+            <div class="chart-card">
+                <div class="time-filter-bar">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-auto"><label class="col-form-label col-form-label-sm"><i
+                                    class="bi bi-calendar-range me-1"></i>日期范围：</label></div>
+                        <div class="col-auto"><input type="text" class="form-control form-control-sm" id="dateRange"
+                                readonly style="min-width:240px;"></div>
+                        <div class="col-auto"><button class="btn btn-primary btn-sm" onclick="queryData()"><i
+                                    class="bi bi-search me-1"></i>查询</button></div>
+                        <div class="col-auto"><button class="btn btn-info btn-sm" onclick="openModal()"><i
+                                    class="bi bi-robot me-1"></i>AI智能分析</button></div>
+                    </div>
+                </div>
+                <h6 id="chartTitle"><i class="bi bi-bar-chart-fill me-2"></i>冰水机组能耗统计（9月20日-30日）</h6>
+                <div class="chart-container" id="chart"></div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered bg-white" id="dataTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-custom" id="aiModal">
+        <div class="modal-dialog-custom">
+            <div class="modal-header-custom">
+                <div><i class="bi bi-robot me-2"></i>AI智能分析</div>
+                <button type="button" class="btn-close btn-close-white" onclick="closeModal()"></button>
+            </div>
+            <div class="modal-body-custom" id="modalBody"></div>
+            <div class="modal-footer-custom">
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="bi bi-chat-dots me-2"></i>常见问题快捷查询：</label>
+                    <div class="d-flex flex-wrap gap-2" id="quickQuestions"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold"><i class="bi bi-pencil me-2"></i>自定义提问：</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="customQuestion" placeholder="请输入您的问题，例如：如何降低能耗？">
+                        <button class="btn btn-primary" onclick="askCustomQuestion()">
+                            <i class="bi bi-send me-1"></i>提问
+                        </button>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/zh-cn.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+    <script>
+        const devices = [
+            { name: '冰水机#01（冰机房）', type: 'chiller' }, { name: '冰水机#05（地暖房）', type: 'chiller' },
+            { name: '冰水机#08（3楼机房）', type: 'chiller' }, { name: '中央空调#07（N区）', type: 'central' }
+        ];
+        let allDevices = [];
+        let chart = null;
+
+        function initDevices() {
+            const list = document.getElementById('deviceList');
+            devices.forEach((d, i) => {
+                const div = document.createElement('div');
+                div.className = 'device-item' + (i === 0 ? ' active' : '');
+                div.setAttribute('data-type', d.type);
+                div.textContent = d.name;
+                div.onclick = function () {
+                    document.querySelectorAll('.device-item').forEach(el => el.classList.remove('active'));
+                    this.classList.add('active');
+                };
+                list.appendChild(div);
+            });
+            allDevices = Array.from(list.children);
+        }
+
+        function filterDevices(type) {
+            allDevices.forEach(d => d.style.display = (type === 'all' || d.getAttribute('data-type') === type) ? 'block' : 'none');
+        }
+
+        function searchDevices(keyword) {
+            allDevices.forEach(d => d.style.display = d.textContent.toLowerCase().includes(keyword.toLowerCase()) ? 'block' : 'none');
+        }
+
+        function initChart() {
+            chart = echarts.init(document.getElementById('chart'));
+            const dates = ['20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日'];
+            const dataA = [420, 435, 465, 440, 380, 395, 410, 425, 440, 455, 470];
+            const dataB = [280, 295, 310, 330, 350, 365, 380, 395, 410, 425, 440];
+            const dataC = [250, 265, 280, 295, 310, 325, 340, 355, 370, 385, 400];
+
+            chart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['冰水机A', '冰水机B', '冰水机C'], top: 10 },
+                grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
+                xAxis: { type: 'category', data: dates },
+                yAxis: { type: 'value', name: '能耗(kWh)' },
+                series: [
+                    { name: '冰水机A', type: 'bar', data: dataA, itemStyle: { color: '#4a90e2' } },
+                    { name: '冰水机B', type: 'bar', data: dataB, itemStyle: { color: '#7cb342' } },
+                    { name: '冰水机C', type: 'bar', data: dataC, itemStyle: { color: '#ffa726' } }
+                ]
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        function initTable() {
+            const dates = ['20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日'];
+            const dataA = [420, 435, 465, 440, 380, 395, 410, 425, 440, 455, 470];
+            const dataB = [280, 295, 310, 330, 350, 365, 380, 395, 410, 425, 440];
+            const dataC = [250, 265, 280, 295, 310, 325, 340, 355, 370, 385, 400];
+
+            let html = '<thead><tr><th>设备</th>';
+            dates.forEach(d => html += `<th>9月${d}</th>`);
+            html += '<th>平均值</th></tr></thead><tbody>';
+
+            [['冰水机A', dataA], ['冰水机B', dataB], ['冰水机C', dataC]].forEach(([name, data]) => {
+                html += `<tr><td>${name}</td>`;
+                data.forEach(v => html += `<td>${v}</td>`);
+                const avg = (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1);
+                html += `<td class="highlight">${avg}</td></tr>`;
+            });
+
+            document.getElementById('dataTable').innerHTML = html + '</tbody>';
+        }
+
+        function initDatePicker() {
+            moment.locale('zh-cn');
+            $('#dateRange').daterangepicker({
+                startDate: moment('2025-09-20'),
+                endDate: moment('2025-09-30'),
+                locale: {
+                    format: 'YYYY-MM-DD', separator: ' 至 ', applyLabel: '确定', cancelLabel: '取消',
+                    daysOfWeek: ['日', '一', '二', '三', '四', '五', '六'],
+                    monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+                },
+                ranges: {
+                    '今天': [moment(), moment()],
+                    '最近7天': [moment().subtract(6, 'days'), moment()],
+                    '最近30天': [moment().subtract(29, 'days'), moment()],
+                    '本月': [moment().startOf('month'), moment().endOf('month')]
+                }
+            });
+            $('#dateRange').val('2025-09-20 至 2025-09-30');
+        }
+
+        async function queryData() {
+            const picker = $('#dateRange').data('daterangepicker');
+            if (!picker) return;
+
+            // 显示加载状态
+            const chartDiv = document.getElementById('chart');
+            const tableDiv = document.getElementById('dataTable');
+            const btn = event.target;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>查询中...';
+
+            // 显示加载动画
+            if (chart) chart.showLoading();
+            tableDiv.innerHTML = '<tbody><tr><td colspan="13" class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2 mb-0">数据加载中...</p></td></tr></tbody>';
+
+            // 模拟数据加载延迟
+            await new Promise(r => setTimeout(r, 1000));
+
+            // 更新标题
+            document.getElementById('chartTitle').innerHTML =
+                `<i class="bi bi-bar-chart-fill me-2"></i>冰水机组能耗统计（${picker.startDate.format('M月D日')}-${picker.endDate.format('M月D日')}）`;
+
+            // 生成随机数据（模拟不同时间段的数据）
+            const randomData = () => Array.from({ length: 11 }, () => Math.floor(Math.random() * 200 + 250));
+            const dates = ['20日', '21日', '22日', '23日', '24日', '25日', '26日', '27日', '28日', '29日', '30日'];
+            const dataA = randomData();
+            const dataB = randomData();
+            const dataC = randomData();
+
+            // 更新图表数据
+            chart.hideLoading();
+            chart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['冰水机A', '冰水机B', '冰水机C'], top: 10 },
+                grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
+                xAxis: { type: 'category', data: dates },
+                yAxis: { type: 'value', name: '能耗(kWh)' },
+                series: [
+                    { name: '冰水机A', type: 'bar', data: dataA, itemStyle: { color: '#4a90e2' } },
+                    { name: '冰水机B', type: 'bar', data: dataB, itemStyle: { color: '#7cb342' } },
+                    { name: '冰水机C', type: 'bar', data: dataC, itemStyle: { color: '#ffa726' } }
+                ]
+            });
+
+            // 重新生成表格
+            let html = '<thead><tr><th>设备</th>';
+            dates.forEach(d => html += `<th>9月${d}</th>`);
+            html += '<th>平均值</th></tr></thead><tbody>';
+
+            [['冰水机A', dataA], ['冰水机B', dataB], ['冰水机C', dataC]].forEach(([name, data]) => {
+                html += `<tr><td>${name}</td>`;
+                data.forEach(v => html += `<td>${v}</td>`);
+                const avg = (data.reduce((a, b) => a + b, 0) / data.length).toFixed(1);
+                html += `<td class="highlight">${avg}</td></tr>`;
+            });
+
+            tableDiv.innerHTML = html + '</tbody>';
+
+            // 恢复按钮状态
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-search me-1"></i>查询';
+        }
+
+        const quickQuestions = [
+            { text: '如何降低能耗？', icon: 'bi-lightning-charge' },
+            { text: '设备维护建议', icon: 'bi-tools' },
+            { text: '故障预警分析', icon: 'bi-exclamation-triangle' },
+            { text: '运行参数优化', icon: 'bi-sliders' },
+            { text: '季节性调整方案', icon: 'bi-thermometer-half' },
+            { text: '成本效益分析', icon: 'bi-currency-dollar' }
+        ];
+
+        const questionAnswers = {
+            '如何降低能耗？': ['<strong>负载优化</strong>：根据实际需求动态调整运行机组数量', '<strong>温度设定</strong>：适当提高供水温度设定值', '<strong>变频控制</strong>：采用变频技术调节压缩机转速', '<strong>冷却塔优化</strong>：保持冷却水温度在合理范围'],
+            '设备维护建议': ['<strong>日常检查</strong>：每日检查运行参数和异常情况', '<strong>月度保养</strong>：检查制冷剂压力、清洗过滤器', '<strong>季度维护</strong>：清洗冷凝器和蒸发器', '<strong>年度大修</strong>：全面检测系统性能'],
+            '故障预警分析': ['<strong>压缩机异常</strong>：振动值超标需立即检修', '<strong>制冷效率下降</strong>：COP下降表明换热器结垢', '<strong>温度波动</strong>：可能是控制系统故障', '<strong>能耗异常</strong>：需检查制冷剂泄漏'],
+            '运行参数优化': ['<strong>供水温度</strong>：建议设定在7-8°C', '<strong>冷却水温度</strong>：控制在32-37°C', '<strong>流量调节</strong>：采用变流量控制', '<strong>压力控制</strong>：维持合理压力差值'],
+            '季节性调整方案': ['<strong>夏季策略</strong>：增加运行机组，延长预冷时间', '<strong>冬季策略</strong>：利用自然冷源，减少运行时间', '<strong>过渡季节</strong>：灵活调整运行模式', '<strong>湿度控制</strong>：根据季节调整除湿策略'],
+            '成本效益分析': ['<strong>节能收益</strong>：优化运行可降低能耗15-25%', '<strong>维护成本</strong>：定期保养延长设备寿命', '<strong>投资回报</strong>：变频改造回收期约2-3年', '<strong>综合效益</strong>：提升系统可靠性']
+        };
+
+        async function openModal() {
+            document.getElementById('aiModal').classList.add('show');
+            initQuickQuestions();
+            await showDefaultAnalysis();
+        }
+
+        function initQuickQuestions() {
+            const container = document.getElementById('quickQuestions');
+            container.innerHTML = '';
+            quickQuestions.forEach(q => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline-primary btn-sm question-btn';
+                btn.innerHTML = `<i class="${q.icon} me-1"></i>${q.text}`;
+                btn.onclick = () => askQuestion(q.text);
+                container.appendChild(btn);
+            });
+        }
+
+        async function showDefaultAnalysis() {
+            const body = document.getElementById('modalBody');
+            body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-3">AI正在分析中...</p></div>';
+
+            await new Promise(r => setTimeout(r, 2000));
+            body.innerHTML = '';
+
+            // 第一部分：标题
+            await typeSection(body, '<div class="section-title">一、运行状况分析</div>');
+
+            // 第二部分：引言
+            await typeSection(body, '<div class="analysis-content"><p>基于楼栋数据，冰水机系统的主要运行指标如下：</p></div>');
+
+            // 第三部分：列表项逐条显示
+            const ul = document.createElement('ul');
+            ul.className = 'analysis-content';
+            body.lastElementChild.appendChild(ul);
+
+            const items = [
+                '<strong>负载率波动</strong>：冰机平均负载率为75%，但高峰时段负载持续超过90%，供水主管温度频繁超出设定值，表明高峰时段制冷能力不足。',
+                '<strong>能效比下降</strong>：系统COP从4.2降至3.5，主要因冷凝器结垢和压缩机磨损。',
+                '<strong>设备健康状态</strong>：冷凝器温差扩大，压缩机振动值超标。',
+                '<strong>季节性影响</strong>：冬季能耗降低30%，夏季制冷量下降20%。'
+            ];
+
+            for (let item of items) {
+                const li = document.createElement('li');
+                ul.appendChild(li);
+                await typeHTML(li, item, 12);
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            // 第四部分：第二个标题
+            await new Promise(r => setTimeout(r, 300));
+            await typeSection(body, '<div class="section-title">二、节能措施</div>');
+
+            // 第五部分：节能措施列表
+            const ul2 = document.createElement('ul');
+            ul2.className = 'analysis-content';
+            body.appendChild(ul2);
+
+            const items2 = [
+                '<strong>优化运行策略</strong>：高峰时段启动备用机组',
+                '<strong>定期维护保养</strong>：每季度清洗冷凝器',
+                '<strong>智能控制系统</strong>：引入AI预测算法',
+                '<strong>能效监控</strong>：建立实时监控系统'
+            ];
+
+            for (let item of items2) {
+                const li = document.createElement('li');
+                ul2.appendChild(li);
+                await typeHTML(li, item, 12);
+                await new Promise(r => setTimeout(r, 200));
+            }
+        }
+
+        async function typeSection(parent, html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const element = temp.firstElementChild;
+            parent.appendChild(element);
+
+            const text = element.textContent;
+            element.textContent = '';
+
+            for (let i = 0; i < text.length; i++) {
+                element.textContent += text[i];
+                await new Promise(r => setTimeout(r, 30));
+            }
+        }
+
+        async function typeHTML(element, html, speed = 15) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+
+            for (let node of temp.childNodes) {
+                if (node.nodeType === 3) {
+                    // 文本节点
+                    for (let char of node.textContent) {
+                        element.appendChild(document.createTextNode(char));
+                        await new Promise(r => setTimeout(r, speed));
+                    }
+                } else if (node.nodeType === 1) {
+                    // 元素节点
+                    const newEl = document.createElement(node.tagName);
+                    for (let attr of node.attributes) {
+                        newEl.setAttribute(attr.name, attr.value);
+                    }
+                    element.appendChild(newEl);
+                    await typeHTML(newEl, node.innerHTML, speed);
+                }
+            }
+        }
+
+        async function askQuestion(question) {
+            const body = document.getElementById('modalBody');
+            body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-3">AI正在思考您的问题...</p></div>';
+
+            await new Promise(r => setTimeout(r, 1500));
+
+            const items = questionAnswers[question];
+            if (items) {
+                body.innerHTML = '';
+                await typeSection(body, `<div class="section-title"><i class="bi bi-chat-left-quote me-2"></i>${question}</div>`);
+
+                const ul = document.createElement('ul');
+                ul.className = 'analysis-content';
+                body.appendChild(ul);
+
+                for (let item of items) {
+                    const li = document.createElement('li');
+                    ul.appendChild(li);
+                    await typeHTML(li, item, 12);
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        }
+
+        async function askCustomQuestion() {
+            const input = document.getElementById('customQuestion');
+            const question = input.value.trim();
+
+            if (!question) {
+                alert('请输入您的问题');
+                return;
+            }
+
+            const body = document.getElementById('modalBody');
+            body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-3">AI正在分析您的问题...</p></div>';
+
+            await new Promise(r => setTimeout(r, 1500));
+
+            body.innerHTML = '';
+            await typeSection(body, `<div class="section-title"><i class="bi bi-question-circle me-2"></i>关于"${question}"的分析</div>`);
+
+            const ul = document.createElement('ul');
+            ul.className = 'analysis-content';
+            body.appendChild(ul);
+
+            const items = [
+                `<strong>问题理解</strong>：您询问的是"${question}"，这是一个很好的问题。`,
+                '<strong>数据分析</strong>：根据历史运行数据和当前系统状态进行综合分析。',
+                '<strong>专业建议</strong>：建议采取针对性的优化措施，包括参数调整和设备维护。',
+                '<strong>预期效果</strong>：实施建议措施后，预计可改善系统性能并降低运行成本。'
+            ];
+
+            for (let item of items) {
+                const li = document.createElement('li');
+                ul.appendChild(li);
+                await typeHTML(li, item, 12);
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            input.value = '';
+        }
+
+        function closeModal() {
+            document.getElementById('aiModal').classList.remove('show');
+        }
+
+        window.onload = function () {
+            initDevices();
+            initChart();
+            initTable();
+            initDatePicker();
+        };
+    </script>
+</body>
+
+</html>
