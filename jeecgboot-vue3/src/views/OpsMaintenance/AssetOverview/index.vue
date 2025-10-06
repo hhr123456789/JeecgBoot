@@ -348,22 +348,22 @@ const initCharts = () => {
             itemStyle: {
               shadowBlur: 20,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(255, 255, 255, 0.8)'
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
             },
             scaleSize: 5
           },
           label: {
             fontSize: 12,
-            color: '#ffffff',
+            color: '#262626',
             fontWeight: 'bold',
-            textShadowColor: 'rgba(0, 0, 0, 0.8)',
+            textShadowColor: 'rgba(255, 255, 255, 0.8)',
             textShadowBlur: 3,
             textShadowOffsetX: 1,
             textShadowOffsetY: 1
           },
           labelLine: {
             lineStyle: {
-              color: '#ffffff',
+              color: '#666666',
               width: 2
             }
           },
@@ -371,7 +371,7 @@ const initCharts = () => {
             borderColor: '#ffffff',
             borderWidth: 2,
             shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.3)'
+            shadowColor: 'rgba(0, 0, 0, 0.2)'
           }
         }]
       }
@@ -402,22 +402,22 @@ const initCharts = () => {
             itemStyle: {
               shadowBlur: 20,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(255, 255, 255, 0.8)'
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
             },
             scaleSize: 5
           },
           label: {
             fontSize: 12,
-            color: '#ffffff',
+            color: '#262626',
             fontWeight: 'bold',
-            textShadowColor: 'rgba(0, 0, 0, 0.8)',
+            textShadowColor: 'rgba(255, 255, 255, 0.8)',
             textShadowBlur: 3,
             textShadowOffsetX: 1,
             textShadowOffsetY: 1
           },
           labelLine: {
             lineStyle: {
-              color: '#ffffff',
+              color: '#666666',
               width: 2
             }
           },
@@ -425,7 +425,7 @@ const initCharts = () => {
             borderColor: '#ffffff',
             borderWidth: 2,
             shadowBlur: 10,
-            shadowColor: 'rgba(0, 0, 0, 0.3)'
+            shadowColor: 'rgba(0, 0, 0, 0.2)'
           }
         }]
       }
@@ -459,7 +459,7 @@ const initCharts = () => {
             itemStyle: {
               shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(255, 255, 255, 0.5)'
+              shadowColor: 'rgba(0, 0, 0, 0.3)'
             }
           },
           label: {
@@ -493,7 +493,8 @@ const updateBarChart = () => {
       text: chartMode.value === 'count' ? '设备数量排序(前10)' : '设备功率排序(前10)',
       left: 'center',
       textStyle: {
-        fontSize: 14
+        fontSize: 14,
+        color: '#262626'
       }
     },
     tooltip: {
@@ -519,7 +520,7 @@ const updateBarChart = () => {
       axisLabel: {
         rotate: 45,
         fontSize: 11,
-        color: '#666666',
+        color: '#262626',
         margin: 10
       },
       axisLine: {
@@ -535,6 +536,10 @@ const updateBarChart = () => {
     yAxis: {
       type: 'value',
       name: chartMode.value === 'count' ? '数量(台)' : '功率(kW)',
+      nameTextStyle: {
+        color: '#262626',
+        fontSize: 12
+      },
       splitLine: {
         show: true,
         lineStyle: {
@@ -544,7 +549,7 @@ const updateBarChart = () => {
         }
       },
       axisLabel: {
-        color: '#666666',
+        color: '#262626',
         fontSize: 12
       },
       axisLine: {
@@ -558,28 +563,10 @@ const updateBarChart = () => {
       type: 'bar',
       data: data.map(item => item.value),
       itemStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#4facfe' },
-          { offset: 0.5, color: '#00f2fe' },
-          { offset: 1, color: '#1890ff' }
-        ]),
-        borderRadius: [8, 8, 0, 0],
-        borderColor: '#ffffff',
-        borderWidth: 1,
-        shadowColor: 'rgba(24, 144, 255, 0.6)',
-        shadowBlur: 10,
-        shadowOffsetX: 0,
-        shadowOffsetY: -3
+        color: '#1890ff',
+        borderRadius: 0
       },
-      barWidth: '35%',
-      emphasis: {
-        itemStyle: {
-          shadowColor: 'rgba(24, 144, 255, 0.8)',
-          shadowBlur: 15,
-          shadowOffsetX: 0,
-          shadowOffsetY: -5
-        }
-      }
+      barWidth: '20%'
     }]
   }
   barChartInstance.setOption(option)
@@ -662,10 +649,10 @@ onBeforeUnmount(() => {
     margin-bottom: 24px;
 
     .stat-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #f5f5f5;
       border-radius: 8px;
       padding: 24px;
-      box-shadow: 0 4px 16px rgba(114, 46, 209, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       height: 240px;
 
       .stat-header {
@@ -675,35 +662,35 @@ onBeforeUnmount(() => {
 
         .stat-icon {
           margin-right: 8px;
-          color: #ffffff;
-          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+          color: #666666;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
         }
 
         .stat-title {
           font-size: 16px;
           font-weight: 600;
-          color: #ffffff;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          color: #262626;
+          text-shadow: none;
         }
       }
 
       .total-count {
         font-size: 48px;
         font-weight: bold;
-        color: #ffffff;
+        color: #ff4d4f;
         text-align: center;
         margin: 20px 0;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: none;
       }
 
       .sub-stats {
         .sub-stat {
           padding: 8px 0;
           font-size: 14px;
-          color: #ffffff;
+          color: #595959;
           font-weight: 500;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+          text-shadow: none;
+          border-bottom: 1px solid #e8e8e8;
 
           &:last-child {
             border-bottom: none;
@@ -713,10 +700,10 @@ onBeforeUnmount(() => {
     }
 
     .chart-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #f5f5f5;
       border-radius: 8px;
       padding: 16px;
-      box-shadow: 0 4px 16px rgba(114, 46, 209, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       height: 240px;
 
       .chart-header {
@@ -726,8 +713,8 @@ onBeforeUnmount(() => {
         .chart-title {
           font-size: 14px;
           font-weight: 600;
-          color: #ffffff;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          color: #262626;
+          text-shadow: none;
         }
       }
 
@@ -746,15 +733,15 @@ onBeforeUnmount(() => {
           align-items: center;
           font-size: 12px;
           font-weight: 500;
-          color: #ffffff;
-          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+          color: #595959;
+          text-shadow: none;
 
           .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             margin-right: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid #d9d9d9;
 
             &.enabled {
               background: #52c41a;
@@ -777,7 +764,7 @@ onBeforeUnmount(() => {
     margin-bottom: 24px;
 
     .search-form {
-      background: #ffffff;
+      background: #f5f5f5;
       border: 1px solid #e8e8e8;
       border-radius: 8px;
       padding: 20px;

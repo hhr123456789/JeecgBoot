@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>变压器监测面板 - 科技蓝</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <nav class="nav-tabs">
+      <a class="tab active" href="#">变压器</a>
+      <a class="tab" href="中央空调.html">中央空调</a>
+      <a class="tab" href="空压机总览.html">空压机总览</a>
+      <a class="tab" href="空压机工艺流程.html">空压机工艺流程</a>
+      <a class="tab" href="冷却塔.html">冷却塔</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="top-grid">
+      <div class="card photo-card">
+        <div class="card-title">设备图片</div>
+        <img src="./images/变压器.png" alt="设备示意" class="device-photo">
+      </div>
+      <div class="card table-card">
+        <div class="card-title">设备参数列表</div>
+        <div class="table-wrap" role="region" aria-label="设备表格横向滚动容器">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>变压器类型</th>
+                <th>型号</th>
+                <th>额定容量(kVA)</th>
+                <th>电压等级(kV)</th>
+                <th>空载电流(%)</th>
+                <th>空载损耗(W)</th>
+                <th>负载损耗(W)</th>
+                <th>冷却方式</th>
+              </tr>
+            </thead>
+            <tbody id="device-tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button class="btn" id="prev-page">上一页</button>
+          <span id="page-info">1 / 1</span>
+          <button class="btn" id="next-page">下一页</button>
+        </div>
+      </div>
+      <div class="card pie-card">
+        <div class="card-title">变压器总容量</div>
+        <div class="total-capacity">
+          <div class="capacity-value" id="total-capacity">—</div>
+        </div>
+        <div class="card-title">额定容量占比</div>
+        <div id="pieChart" class="chart"></div>
+        <div class="legend-extra">
+          <div><span class="dot dot-a"></span>干式变压器 <b id="dry-count">—</b></div>
+          <div><span class="dot dot-b"></span>油浸式变压器 <b id="oil-count">—</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom-grid card">
+      <div class="card-title">各车间变压器容量分布图</div>
+      <div id="barLineChart" class="chart large"></div>
+    </section>
+  </main>
+
+  <footer class="footer">© 2025 智能能源看板</footer>
+
+  <script src="scripts.js"></script>
+</body>
+</html>
