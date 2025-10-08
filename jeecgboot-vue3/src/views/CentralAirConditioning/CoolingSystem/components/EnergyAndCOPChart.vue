@@ -163,7 +163,7 @@ function initCharts() {
       // 为不同系列设置不同样式
       if (type === '能耗') {
         seriesItem.color = '#1890ff';
-        seriesItem.barMaxWidth = 60; // 设置柱子最大宽度
+        seriesItem.barMaxWidth = 30; // 设置柱子最大宽度
         seriesItem.barCategoryGap = '40%'; // 设置柱子间距
         seriesItem.itemStyle = {
           borderRadius: [4, 4, 0, 0], // 圆角柱状图

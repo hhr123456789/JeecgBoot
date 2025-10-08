@@ -182,6 +182,143 @@
         </a-col>
       </a-row>
     </div>
+
+    <!-- 编辑设备弹窗 -->
+    <a-modal
+      v-model:open="editModalVisible"
+      :title="`编辑设备 - ${selectedNode?.name || ''}`"
+      width="800px"
+      @ok="handleSaveDevice"
+      @cancel="handleCancelEdit"
+    >
+      <a-form
+        ref="editFormRef"
+        :model="editForm"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 18 }"
+      >
+        <a-row :gutter="16">
+          <a-col :span="11">
+            <a-form-item label="设备编号">
+              <a-input v-model:value="editForm.code" disabled />
+            </a-form-item>
+          </a-col>
+          <a-col :span="11">
+            <a-form-item label="设备名称">
+              <a-input v-model:value="editForm.name" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="11">
+            <a-form-item label="设备状态">
+              <a-select v-model:value="editForm.status">
+                <a-select-option value="正常">正常</a-select-option>
+                <a-select-option value="运行">运行</a-select-option>
+                <a-select-option value="维护">维护</a-select-option>
+                <a-select-option value="故障">故障</a-select-option>
+                <a-select-option value="停机">停机</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="11">
+            <a-form-item label="所在位置">
+              <a-input v-model:value="editForm.location" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="11">
+            <a-form-item label="品牌">
+              <a-input v-model:value="editForm.brand" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="11">
+            <a-form-item label="类别">
+              <a-input v-model:value="editForm.category" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="11">
+            <a-form-item label="单位">
+              <a-input v-model:value="editForm.unit" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="11">
+            <a-form-item label="型号">
+              <a-input v-model:value="editForm.model" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="11">
+            <a-form-item label="制造商">
+              <a-input v-model:value="editForm.manufacturer" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="11">
+            <a-form-item label="安装时间">
+              <a-date-picker v-model:value="editForm.installDate" style="width: 100%" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row>
+          <a-col :span="22">
+            <a-form-item label="备注" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+              <a-textarea v-model:value="editForm.remark" :rows="3" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
+    <!-- 查看历史弹窗 -->
+    <a-modal
+      v-model:open="historyModalVisible"
+      :title="`${selectedNode?.name || ''} - 设备历史记录`"
+      width="800px"
+      :footer="null"
+    >
+      <div class="history-timeline" style="padding:10px">
+        <div v-for="(item, index) in historyData" :key="index" class="timeline-item">
+          <div class="timeline-date">{{ item.date }}</div>
+          <div class="timeline-content">
+            <div class="timeline-title">{{ item.title }}</div>
+            <div class="timeline-desc">{{ item.description }}</div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 维护记录弹窗 -->
+    <a-modal
+      v-model:open="maintenanceModalVisible"
+      :title="`${selectedNode?.name || ''} - 维护记录`"
+      width="800px"
+      :footer="null"
+    >
+      <div class="maintenance-list" style="padding:15px">
+        <div v-for="(item, index) in maintenanceData" :key="index" class="maintenance-item">
+          <div class="maintenance-header">
+            <div class="maintenance-date">{{ item.date }}</div>
+            <a-tag :color="item.status === '已完成' ? 'success' : 'processing'">
+              {{ item.status }}
+            </a-tag>
+          </div>
+          <div class="maintenance-content">
+            <div class="maintenance-title">{{ item.title }}</div>
+            <div class="maintenance-desc">{{ item.description }}</div>
+            <div class="maintenance-person">维护人员：{{ item.person }}</div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -199,9 +336,10 @@ import {
   HistoryOutlined,
   DeleteOutlined
 } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
+import dayjs, { Dayjs } from 'dayjs'
 // 图片资源导入
-import scannerImage from '/@/assets/images/扫描仪.jpeg'
+import scannerImage from '/@/assets/images/空压机.png'
 
 defineOptions({ name: 'AssetHierarchy' })
 
@@ -229,6 +367,87 @@ interface TreeNode {
 const expandedKeys = ref<string[]>([])
 const selectedKeys = ref<string[]>([])
 const selectedNode = ref<TreeNode | null>(null)
+
+// 弹窗相关状态
+const editModalVisible = ref(false)
+const historyModalVisible = ref(false)
+const maintenanceModalVisible = ref(false)
+
+// 编辑表单
+const editForm = reactive({
+  code: '',
+  name: '',
+  status: '',
+  location: '',
+  brand: '',
+  category: '',
+  unit: '',
+  model: '',
+  manufacturer: '',
+  installDate: null as Dayjs | null,
+  remark: ''
+})
+
+// 历史记录数据
+const historyData = ref([
+  {
+    date: '2024-03-15',
+    title: '设备状态变更',
+    description: '状态从“维护”变更为“正常”'
+  },
+  {
+    date: '2024-03-10',
+    title: '定期维护',
+    description: '完成润滑系统维护，更换滤芯'
+  },
+  {
+    date: '2024-02-20',
+    title: '设备检查',
+    description: '检查压缩机运行状态，各项参数正常'
+  },
+  {
+    date: '2024-01-15',
+    title: '定期保养',
+    description: '更换滤芯，清洁冷却系统'
+  },
+  {
+    date: '2021-03-01',
+    title: '设备安装',
+    description: '设备安装完成，开始投入使用'
+  }
+])
+
+// 维护记录数据
+const maintenanceData = ref([
+  {
+    date: '2024-03-10',
+    status: '已完成',
+    title: '润滑系统维护',
+    description: '计划对空压机润滑系统进行全面检查和维护',
+    person: '张师傅'
+  },
+  {
+    date: '2024-02-20',
+    status: '已完成',
+    title: '压缩机运行状态检查',
+    description: '检查压缩机运行状态，各项参数正常，无异常',
+    person: '李师傅'
+  },
+  {
+    date: '2024-01-15',
+    status: '已完成',
+    title: '定期保养 - 更换滤芯',
+    description: '更换空气滤芯和油滤芯，清洁冷却系统',
+    person: '王师傅'
+  },
+  {
+    date: '2023-12-01',
+    status: '已完成',
+    title: '年度大保养',
+    description: '年度全面保养，包括电机、压缩机、冷却系统等',
+    person: '张师傅、李师傅'
+  }
+])
 
 // 获取所有节点的key
 const getAllKeys = (nodes: TreeNode[]): string[] => {
@@ -260,21 +479,21 @@ const getFirstDeviceKey = (nodes: TreeNode[]): string | null => {
 const treeData = ref<TreeNode[]>([
   {
     key: 'company-1',
-    title: '软件',
+    title: '公司总部',
     nodeType: 'company',
     children: [
       {
         key: 'category-1',
-        title: '办公设备',
+        title: '生产部',
         nodeType: 'category',
         children: [
           {
             key: 'device-1',
-            title: '旋尺器(SB20181122000001)',
+            title: '空压机房(SB20181122000001)',
             nodeType: 'device',
             status: '正常',
             code: 'SB20181122000001',
-            name: '旋尺器',
+            name: '空压机房',
             location: '某部门控制份有限公司',
             brand: 'PEPCO',
             category: 'UTC',
@@ -286,11 +505,11 @@ const treeData = ref<TreeNode[]>([
             children: [
               {
                 key: 'component-1',
-                title: '扫描仪(SB20181122000003)',
+                title: '空压机(SB20181122000003)',
                 nodeType: 'component',
                 status: '正常',
                 code: 'SB20181122000003',
-                name: '扫描仪',
+                name: '空压机',
                 location: '某部门控制份有限公司',
                 brand: 'PEPCO',
                 category: 'UTC',
@@ -306,122 +525,88 @@ const treeData = ref<TreeNode[]>([
       },
       {
         key: 'category-2',
-        title: '精密',
+        title: '挤压',
         nodeType: 'category',
         children: [
           {
             key: 'device-2',
-            title: 'AD液晶系统仪(DEV20180000004)',
+            title: '挤压一厂(DEV20180000004)',
             nodeType: 'device',
             status: '运行',
             code: 'DEV20180000004',
-            name: 'AD液晶系统仪',
-            location: '精密车间A区',
+            name: '挤压一厂',
+            location: '挤压',
             brand: 'SIEMENS',
-            category: 'AD系统',
+            category: '挤压系统',
             unit: '台',
             model: 'AD-2018-PRO',
-            manufacturer: '西门子(中国)有限公司',
+            manufacturer: 'xxxx(中国)有限公司',
             installDate: '2018-05-15',
             image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=AD液晶系统仪',
             children: [
               {
                 key: 'component-2',
-                title: '运转车(HC20181213000113)',
+                title: '1#挤压机(HC20181213000113)',
                 nodeType: 'component',
                 status: '正常',
                 code: 'HC20181213000113',
-                name: '运转车',
-                location: '精密车间A区',
+                name: '1#挤压机',
+                location: '挤压一厂A区',
                 brand: 'SIEMENS',
-                category: '运转设备',
+                category: '挤压设备',
                 unit: '台',
                 model: 'HC-RT-113',
-                manufacturer: '西门子(中国)有限公司',
+                manufacturer: 'xxx(中国)有限公司',
                 installDate: '2018-12-13',
                 image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=运转车'
               },
               {
                 key: 'component-3',
-                title: '行重液机械减速调节仪(HC00000027)',
+                title: '2#挤压机(HC00000027)',
                 nodeType: 'component',
                 status: '维护',
                 code: 'HC00000027',
-                name: '行重液机械减速调节仪',
-                location: '精密车间A区',
+                name: '2#挤压机',
+                location: '挤压一厂A区',
                 brand: 'BOSCH',
-                category: '调节设备',
+                category: '挤压设备',
                 unit: '台',
                 model: 'BSH-ADJ-027',
-                manufacturer: '博世(中国)投资有限公司',
+                manufacturer: 'xxx(中国)投资有限公司',
                 installDate: '2018-08-20',
                 image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=调节仪'
               },
               {
                 key: 'component-4',
-                title: '黄昏百可胶缓慢感应系列测量仪(HC00000028)',
+                title: '3#挤压机(HC00000027)',
                 nodeType: 'component',
-                status: '故障',
-                code: 'HC00000028',
-                name: '黄昏百可胶缓慢感应系列测量仪',
-                location: '精密车间A区',
-                brand: 'HONEYWELL',
-                category: '测量设备',
+                status: '维护',
+                code: 'HC00000027',
+                name: '3#挤压机',
+                location: '挤压一厂A区',
+                brand: 'BOSCH',
+                category: '挤压设备',
                 unit: '台',
-                model: 'HW-MSR-028',
-                manufacturer: '霍尼韦尔(中国)有限公司',
-                installDate: '2018-09-10',
-                image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=测量仪'
+                model: 'BSH-ADJ-027',
+                manufacturer: 'xxx(中国)投资有限公司',
+                installDate: '2018-08-20',
+                image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=调节仪'
               },
               {
                 key: 'component-5',
-                title: '清算行程配件开关(HC00000032)',
+                title: '4#挤压机(HC00000027)',
                 nodeType: 'component',
-                status: '正常',
-                code: 'HC00000032',
-                name: '清算行程配件开关',
-                location: '精密车间A区',
-                brand: 'SCHNEIDER',
-                category: '开关设备',
-                unit: '个',
-                model: 'SCH-SW-032',
-                manufacturer: '施耐德电气(中国)有限公司',
-                installDate: '2018-10-05',
-                image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=开关'
-              }
-            ]
-          },
-          {
-            key: 'device-3',
-            title: 'AD液晶系统仪2(DEV20180000005)',
-            nodeType: 'device',
-            status: '停机',
-            code: 'DEV20180000005',
-            name: 'AD液晶系统仪2',
-            location: '精密车间B区',
-            brand: 'SIEMENS',
-            category: 'AD系统',
-            unit: '台',
-            model: 'AD-2018-PRO-V2',
-            manufacturer: '西门子(中国)有限公司',
-            installDate: '2018-06-20',
-            image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=AD液晶系统仪2',
-            children: [
-              {
-                key: 'component-6',
-                title: '运转车2(HC20181213000114)',
-                nodeType: 'component',
-                status: '停机',
-                code: 'HC20181213000114',
-                name: '运转车2',
-                location: '精密车间B区',
-                brand: 'SIEMENS',
-                category: '运转设备',
+                status: '维护',
+                code: 'HC00000027',
+                name: '4#挤压机',
+                location: '挤压一厂A区',
+                brand: 'BOSCH',
+                category: '挤压设备',
                 unit: '台',
-                model: 'HC-RT-114',
-                manufacturer: '西门子(中国)有限公司',
-                installDate: '2018-12-14',
-                image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=运转车2'
+                model: 'BSH-ADJ-027',
+                manufacturer: 'xxx(中国)投资有限公司',
+                installDate: '2018-08-20',
+                image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=调节仪'
               }
             ]
           }
@@ -429,45 +614,7 @@ const treeData = ref<TreeNode[]>([
       }
     ]
   },
-  {
-    key: 'category-external-1',
-    title: '注塑机器件',
-    nodeType: 'category',
-    children: [
-      {
-        key: 'device-external-1',
-        title: 'product-translator-dept-entity',
-        nodeType: 'device',
-        status: '正常',
-        code: 'PTD-2018-001',
-        name: 'product-translator-dept-entity',
-        location: '注塑车间',
-        brand: 'Generic',
-        category: '注塑设备',
-        unit: '台',
-        model: 'PTD-001',
-        manufacturer: '通用设备制造有限公司',
-        installDate: '2018-07-15',
-        image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=注塑设备'
-      },
-      {
-        key: 'device-external-2',
-        title: 're',
-        nodeType: 'device',
-        status: '维护',
-        code: 'RE-2018-002',
-        name: 're',
-        location: '注塑车间',
-        brand: 'Generic',
-        category: '回收设备',
-        unit: '台',
-        model: 'RE-002',
-        manufacturer: '通用设备制造有限公司',
-        installDate: '2018-08-01',
-        image: 'https://via.placeholder.com/300x200/f0f0f0/333?text=回收设备'
-      }
-    ]
-  },
+  
   {
     key: 'company-external',
     title: '各事办公司',
@@ -519,26 +666,80 @@ const handleCollapseAll = () => {
 
 const handleEdit = () => {
   if (selectedNode.value) {
-    message.info(`编辑设备: ${selectedNode.value.title}`)
+    // 填充编辑表单
+    editForm.code = selectedNode.value.code || ''
+    editForm.name = selectedNode.value.name || ''
+    editForm.status = selectedNode.value.status || ''
+    editForm.location = selectedNode.value.location || ''
+    editForm.brand = selectedNode.value.brand || ''
+    editForm.category = selectedNode.value.category || ''
+    editForm.unit = selectedNode.value.unit || ''
+    editForm.model = selectedNode.value.model || ''
+    editForm.manufacturer = selectedNode.value.manufacturer || ''
+    editForm.installDate = selectedNode.value.installDate ? dayjs(selectedNode.value.installDate) : null
+    editForm.remark = selectedNode.value.remark || ''
+    
+    editModalVisible.value = true
+  } else {
+    message.warning('请先选择设备')
   }
 }
 
 const handleViewHistory = () => {
   if (selectedNode.value) {
-    message.info(`查看历史: ${selectedNode.value.title}`)
+    historyModalVisible.value = true
+  } else {
+    message.warning('请先选择设备')
   }
 }
 
 const handleMaintenance = () => {
   if (selectedNode.value) {
-    message.info(`维护记录: ${selectedNode.value.title}`)
+    maintenanceModalVisible.value = true
+  } else {
+    message.warning('请先选择设备')
   }
 }
 
 const handleDelete = () => {
   if (selectedNode.value) {
-    message.warning(`删除设备: ${selectedNode.value.title}`)
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除设备 ${selectedNode.value.name} 吗？`,
+      okText: '确定',
+      cancelText: '取消',
+      onOk() {
+        message.success(`已删除设备: ${selectedNode.value?.name}`)
+      }
+    })
+  } else {
+    message.warning('请先选择设备')
   }
+}
+
+// 弹窗相关方法
+const handleSaveDevice = () => {
+  if (!selectedNode.value) return
+  
+  // 更新设备数据
+  if (selectedNode.value.code) selectedNode.value.code = editForm.code
+  if (selectedNode.value.name) selectedNode.value.name = editForm.name
+  if (selectedNode.value.status) selectedNode.value.status = editForm.status
+  if (selectedNode.value.location) selectedNode.value.location = editForm.location
+  if (selectedNode.value.brand) selectedNode.value.brand = editForm.brand
+  if (selectedNode.value.category) selectedNode.value.category = editForm.category
+  if (selectedNode.value.unit) selectedNode.value.unit = editForm.unit
+  if (selectedNode.value.model) selectedNode.value.model = editForm.model
+  if (selectedNode.value.manufacturer) selectedNode.value.manufacturer = editForm.manufacturer
+  if (editForm.installDate) selectedNode.value.installDate = editForm.installDate.format('YYYY-MM-DD')
+  if (selectedNode.value.remark !== undefined) selectedNode.value.remark = editForm.remark
+  
+  editModalVisible.value = false
+  message.success('设备信息已保存')
+}
+
+const handleCancelEdit = () => {
+  editModalVisible.value = false
 }
 
 // 组件挂载
@@ -732,5 +933,106 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   flex: 1;
+}
+
+/* 弹窗样式 */
+.history-timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.history-timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e6ecf5;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 24px;
+  padding-left: 20px;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1677ff;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px #e6ecf5;
+}
+
+.timeline-date {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b3a55;
+  margin-bottom: 4px;
+}
+
+.timeline-desc {
+  font-size: 13px;
+  color: #6b778c;
+  line-height: 1.4;
+}
+
+/* 维护记录样式 */
+.maintenance-list {
+  max-height: 800px;
+  overflow-y: auto;
+}
+
+.maintenance-item {
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #1677ff;
+}
+
+.maintenance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.maintenance-date {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+}
+
+.maintenance-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b3a55;
+  margin-bottom: 6px;
+}
+
+.maintenance-desc {
+  font-size: 13px;
+  color: #6b778c;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.maintenance-person {
+  font-size: 12px;
+  color: #8c8c8c;
 }
 </style>

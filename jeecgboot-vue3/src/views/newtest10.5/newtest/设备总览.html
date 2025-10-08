@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备总览 - 科技蓝</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    /* 覆盖/补充本页图片样式（不影响其它页面） */
+    .image-card { overflow: hidden; }
+    .image-card .banner-img {
+      width: 100%; height: 140px; object-fit: cover;
+      border-bottom: 1px solid var(--line);
+      filter: saturate(1.05) contrast(1.02);
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .kpi-card { padding: 0; }
+    .kpi-head { padding: 14px 16px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(22,119,255,.10), rgba(26,198,255,.06)); font-weight: 700; color: #1f3a72; }
+    .kpi-body { display: grid; grid-template-columns: 140px 1fr; align-items: center; padding: 12px 12px; }
+    .kpi-num { font-size: 36px; font-weight: 800; color: var(--primary); line-height: 1; }
+    .kpi-sub { color: var(--text-dim); font-size: 12px; margin-top: 6px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-bottom: 1px dashed var(--line); }
+    .select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); min-width: 120px; }
+    .btn-ghost { background: #fff; color: var(--primary); border: 1px solid var(--primary); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+    .btn-ghost:hover { background: rgba(22,119,255,.06); }
+    .col-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .col-2 { grid-template-columns: 1fr; } }
+    .type-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px 12px; padding: 8px 12px 12px; border-top: 1px dashed var(--line); }
+    .type-item { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text); }
+    .type-name { color: var(--text-dim); }
+    .type-value { font-weight: 700; color: var(--primary); }
+    
+    /* 设备详情弹窗样式 */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: #fff; margin: 2% auto; padding: 0; width: 90%; max-width: 1000px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, rgba(22,119,255,.10), rgba(26,198,255,.06)); }
+    .modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1f3a72; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+    .close-btn:hover { background: rgba(0,0,0,0.05); color: #666; }
+    .modal-body { padding: 24px; }
+    .device-info-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; margin-bottom: 24px; }
+    .device-image-section { text-align: center; }
+    .device-image { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+    .device-details-section { }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .detail-item { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px dashed #f0f0f0; }
+    .detail-label { font-weight: 600; color: var(--text-dim); min-width: 100px; font-size: 14px; }
+    .detail-value { color: var(--text); font-weight: 500; font-size: 14px; }
+    .maintenance-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .maintenance-section h4 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #1f3a72; }
+    .maintenance-list { }
+    .maintenance-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 8px; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--primary); }
+    .maintenance-info { }
+    .maintenance-date { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+    .maintenance-desc { font-size: 14px; color: var(--text); font-weight: 500; }
+    .maintenance-status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .status-completed { background: #f6ffed; color: #52c41a; }
+    .status-pending { background: #fff7e6; color: #faad14; }
+    .status-scheduled { background: #e6f7ff; color: #1677ff; }
+    
+    /* 查看按钮样式 */
+    .btn-small { 
+      background: linear-gradient(135deg, #1677ff, #4096ff); 
+      color: #fff; 
+      border: none; 
+      padding: 6px 12px; 
+      border-radius: 6px; 
+      font-size: 12px; 
+      font-weight: 500; 
+      cursor: pointer; 
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(22, 119, 255, 0.2);
+    }
+    .btn-small:hover { 
+      background: linear-gradient(135deg, #0958d9, #1677ff); 
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(22, 119, 255, 0.3);
+    }
+    .btn-small:active { 
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(22, 119, 255, 0.2);
+    }
+    
+    /* 图表说明文字样式 */
+    .chart-note { 
+      text-align: center; 
+      color: var(--text-dim); 
+      font-size: 12px; 
+      margin-top: 8px; 
+      padding: 0 16px;
+      font-style: italic;
+    }
+    
+    /* 图表切换按钮样式 */
+    .card-title { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+    }
+    .chart-toggle { 
+      display: flex; 
+      background: #f5f7fa; 
+      border-radius: 6px; 
+      padding: 2px; 
+    }
+    .toggle-btn { 
+      background: transparent; 
+      border: none; 
+      padding: 6px 12px; 
+      border-radius: 4px; 
+      font-size: 12px; 
+      font-weight: 500; 
+      cursor: pointer; 
+      transition: all 0.2s ease;
+      color: var(--text-dim);
+    }
+    .toggle-btn.active { 
+      background: #fff; 
+      color: var(--primary); 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .toggle-btn:hover:not(.active) { 
+      color: var(--text); 
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <nav class="nav-tabs">
+      <a class="tab" href="变压器.html">变压器</a>
+      <a class="tab" href="中央空调.html">中央空调</a>
+      <a class="tab" href="空压机.html">空压机</a>
+      <a class="tab" href="冷却塔.html">冷却塔</a>
+      <a class="tab" href="空压机总览.html">空压机总览</a>
+      <a class="tab" href="空压机工艺流程.html">空压机工艺流程</a>
+      <a class="tab active" href="#">设备总览</a>
+      <a class="tab" href="设备结构树.html">设备结构树</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- 顶部KPI -->
+    <section class="kpi-grid">
+      <div class="card kpi-card">
+        <div class="kpi-head">设备总数</div>
+        <div class="kpi-body">
+          <div>
+            <div class="kpi-num" id="kpi-total">—</div>
+            <div class="kpi-sub">总设备数</div>
+          </div>
+          <div id="kpiPie1" style="height:100px;"></div>
+        </div>
+        <div class="type-list" id="totalTypeList"></div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-head">生产设备类型统计</div>
+        <div class="kpi-body">
+          <div>
+            <div class="kpi-num" id="kpi-prod-kpi">—</div>
+            <div class="kpi-sub">类型数：<span id="kpi-prod-types">—</span></div>
+          </div>
+          <div id="kpiPie3" style="height:100px;"></div>
+        </div>
+        <div class="type-list" id="prodTypeList"></div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-head">通用设备类型统计</div>
+        <div class="kpi-body">
+          <div>
+            <div class="kpi-num" id="kpi-common-kpi">—</div>
+            <div class="kpi-sub">类型数：<span id="kpi-common-types">—</span></div>
+          </div>
+          <div id="kpiPie2" style="height:100px;"></div>
+        </div>
+        <div class="type-list" id="commonTypeList"></div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-head">设备使用统计</div>
+        <div class="kpi-body">
+          <div>
+            <div class="kpi-num" id="kpi-usage-total">—</div>
+            <div class="kpi-sub">在用：<span id="usage-in">—</span>｜停用：<span id="usage-stop">—</span>｜报废：<span id="usage-scrap">—</span></div>
+          </div>
+          <div id="usagePie" style="height:100px;"></div>
+        </div>
+        <div class="type-list" id="usageList"></div>
+      </div>
+    </section>
+
+    <!-- 过滤工具条 + 表格 -->
+    <section class="card">
+      <div class="toolbar">
+        <select class="select" id="f-type"><option>设备类型</option><option>螺杆式空压机</option><option>活塞式空压机</option><option>冷却塔</option><option>中央空调</option></select>
+        <select class="select" id="f-status"><option>运行状态</option><option>运行</option><option>待机</option><option>维护</option></select>
+        <select class="select" id="f-area"><option>所属区域</option><option>厂房A</option><option>厂房B</option><option>生产区</option><option>办公区</option></select>
+        <button class="btn" id="btn-search">查询</button>
+        <button class="btn-ghost" id="btn-reset">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="overview-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>设备编码</th>
+              <th>设备名称</th>
+              <th>设备类型</th>
+              <th>安装位置</th>
+              <th>生产厂家</th>
+              <th>购置日期</th>
+              <th>资产编号</th>
+              <th>供应商</th>
+              <th>运行状态</th>
+              <th>设备状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 底部图表 -->
+    <section class="col-2">
+      <div class="card">
+        <div class="card-title">
+          设备类型数量/功率排行
+          <div class="chart-toggle">
+            <button class="toggle-btn active" data-type="count">按数量</button>
+            <button class="toggle-btn" data-type="power">按功率</button>
+          </div>
+        </div>
+        <div id="rankChart" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">区域设备活跃度（最近30天）</div>
+        <div id="areaChart" class="chart"></div>
+        <div class="chart-note">活跃率 = 活跃设备数 / 区域总设备数 × 100%</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 设备详情弹窗 -->
+  <div id="deviceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">设备详情</h3>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="device-info-grid">
+          <div class="device-image-section">
+            <img id="deviceImage" src="images/device-placeholder.jpg" alt="设备图片" class="device-image">
+          </div>
+          <div class="device-details-section">
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">设备编码：</span>
+                <span class="detail-value" id="modalCode">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">设备名称：</span>
+                <span class="detail-value" id="modalName">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">设备类型：</span>
+                <span class="detail-value" id="modalType">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">安装位置：</span>
+                <span class="detail-value" id="modalPlace">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">生产厂家：</span>
+                <span class="detail-value" id="modalVendor">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">购置日期：</span>
+                <span class="detail-value" id="modalDate">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">资产编号：</span>
+                <span class="detail-value" id="modalAsset">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">供应商：</span>
+                <span class="detail-value" id="modalSupplier">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">运行状态：</span>
+                <span class="detail-value" id="modalRun">—</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">设备状态：</span>
+                <span class="detail-value" id="modalState">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 维护保养记录 -->
+        <div class="maintenance-section">
+          <h4>维护保养记录</h4>
+          <div class="maintenance-list" id="maintenanceList">
+            <!-- 维护记录将通过JavaScript动态生成 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">© 2025 智能能源看板</footer>
+
+  <script>
+    // 模拟维护保养记录数据
+    const maintenanceRecords = {
+      'TY-001': [
+        { date: '2024-01-15', desc: '定期保养 - 更换滤芯', status: 'completed' },
+        { date: '2024-02-20', desc: '检查压缩机运行状态', status: 'completed' },
+        { date: '2024-03-10', desc: '润滑系统维护', status: 'scheduled' }
+      ],
+      'TY-002': [
+        { date: '2024-01-10', desc: '活塞环更换', status: 'completed' },
+        { date: '2024-02-15', desc: '冷却系统检查', status: 'completed' },
+        { date: '2024-03-05', desc: '电机轴承润滑', status: 'pending' }
+      ],
+      'CT-001': [
+        { date: '2024-01-20', desc: '冷却塔清洗', status: 'completed' },
+        { date: '2024-02-25', desc: '风机叶片检查', status: 'completed' },
+        { date: '2024-03-12', desc: '水质检测', status: 'scheduled' }
+      ],
+      'AC-001': [
+        { date: '2024-01-12', desc: '制冷剂补充', status: 'completed' },
+        { date: '2024-02-18', desc: '冷凝器清洗', status: 'completed' },
+        { date: '2024-03-08', desc: '控制系统检查', status: 'pending' }
+      ],
+      'AC-002': [
+        { date: '2024-01-08', desc: '压缩机维护', status: 'completed' },
+        { date: '2024-02-22', desc: '蒸发器清洗', status: 'completed' },
+        { date: '2024-03-15', desc: '电气系统检查', status: 'scheduled' }
+      ]
+    };
+
+    // 设备图片映射
+    const deviceImages = {
+      '螺杆式空压机': 'images/air-compressor.png',
+      '活塞式空压机': 'images/piston-compressor.png',
+      '冷却塔': 'images/cooling-tower.jpg',
+      '中央空调': 'images/central-ac.jpg',
+      '变压器': 'images/transformer.jpg',
+      '熔炼炉': 'images/smelting-furnace.jpg',
+      '管式过滤器': 'images/tube-filter.jpg',
+      '均质炉': 'images/homogenizer.jpg',
+      '挤压机': 'images/extruder.jpg',
+      '时效炉': 'images/aging-furnace.jpg',
+      'CNC': 'images/cnc-machine.jpg'
+    };
+
+    // 模拟数据（增加功率字段）
+    const allRows = [
+      { cat:'生产', code: 'TY-001', name: '空压机#1', type: '螺杆式空压机', place: '厂房A东侧', vendor: '阿特拉斯', date: '2021-03-01', asset: 'E-100', supplier: '华科', run: '运行', state: '正常', power: 75 },
+      { cat:'生产', code: 'TY-002', name: '空压机#2', type: '活塞式空压机', place: '厂房B北侧', vendor: '英格索兰', date: '2020-07-12', asset: 'C-200', supplier: '中机', run: '运行', state: '良好', power: 55 },
+      { cat:'通用', code: 'CT-001', name: '冷却塔#1', type: '冷却塔', place: '屋顶区', vendor: 'BAC', date: '2019-10-05', asset: 'H-800', supplier: '冷工', run: '待机', state: '告警', power: 15 },
+      { cat:'通用', code: 'AC-001', name: '中区机组', type: '中央空调', place: '机房1', vendor: 'YORK', date: '2022-01-15', asset: 'K-500', supplier: '华科', run: '运行', state: '正常', power: 120 },
+      { cat:'通用', code: 'AC-002', name: '西区机组', type: '中央空调', place: '机房2', vendor: 'TRANE', date: '2021-11-02', asset: 'K-600', supplier: '云冷', run: '维护', state: '停机', power: 100 },
+      { cat:'通用', code: 'CT-002', name: '冷却塔#2', type: '冷却塔', place: '屋顶区', vendor: 'BAC', date: '2020-04-22', asset: 'H-1000', supplier: '冷工', run: '运行', state: '良好', power: 20 },
+      { cat:'生产', code: 'SC-001', name: '空压机#3', type: '螺杆式空压机', place: '厂房A南侧', vendor: '阿特拉斯', date: '2021-08-21', asset: 'F-300', supplier: '华科', run: '运行', state: '正常', power: 90 },
+      { cat:'生产', code: 'SC-002', name: '空压机#4', type: '螺杆式空压机', place: '厂房B东侧', vendor: '阿特拉斯', date: '2020-12-03', asset: 'G-600', supplier: '华科', run: '运行', state: '良好', power: 80 },
+      { cat:'生产', code: 'PS-001', name: '活塞机#1', type: '活塞式空压机', place: '厂房C中部', vendor: '英格索兰', date: '2022-07-19', asset: 'D-300', supplier: '中机', run: '运行', state: '正常', power: 60 },
+      { cat:'生产', code: 'PS-002', name: '活塞机#2', type: '活塞式空压机', place: '厂房C北部', vendor: '英格索兰', date: '2023-04-03', asset: 'D-310', supplier: '中机', run: '运行', state: '告警', power: 50 },
+      { cat:'通用', code: 'TR-001', name: '变压器#1', type: '变压器', place: '配电室A', vendor: '特变电工', date: '2019-06-10', asset: 'T-630', supplier: '国电南自', run: '运行', state: '良好', power: 630 },
+      { cat:'通用', code: 'TR-002', name: '变压器#2', type: '变压器', place: '配电室B', vendor: '正泰', date: '2020-02-28', asset: 'T-800', supplier: '国电南自', run: '运行', state: '正常', power: 800 },
+      { cat:'通用', code: 'CT-003', name: '冷却塔#3', type: '冷却塔', place: '屋顶区', vendor: 'BAC', date: '2021-09-12', asset: 'H-1200', supplier: '冷工', run: '运行', state: '正常', power: 25 },
+      { cat:'生产', code: 'SM-001', name: '熔炼炉#1', type: '熔炼炉', place: '熔炼区', vendor: '万达冶金', date: '2021-05-10', asset: 'M-500', supplier: '冶金设备', run: '运行', state: '正常', power: 200 },
+      { cat:'生产', code: 'GF-001', name: '管式过滤器#1', type: '管式过滤器', place: '铸造前处理', vendor: '精滤科技', date: '2022-03-18', asset: 'G-120', supplier: '精滤', run: '运行', state: '良好', power: 30 },
+      { cat:'生产', code: 'JZ-001', name: '均质炉#1', type: '均质炉', place: '热处理区', vendor: '热工装备', date: '2020-09-26', asset: 'H-700', supplier: '热工', run: '运行', state: '正常', power: 150 },
+      { cat:'生产', code: 'XZ-001', name: '挤压机#1', type: '挤压机', place: '挤压一线', vendor: '挤压机厂', date: '2019-12-03', asset: 'X-800', supplier: '挤压设备', run: '运行', state: '正常', power: 180 },
+      { cat:'生产', code: 'SX-001', name: '时效炉#1', type: '时效炉', place: '热处理区', vendor: '热工装备', date: '2021-08-14', asset: 'A-300', supplier: '热工', run: '运行', state: '良好', power: 80 },
+      { cat:'生产', code: 'CNC-001', name: 'CNC-01', type: 'CNC', place: '机加一线', vendor: 'FANUC', date: '2022-11-08', asset: 'CNC-32', supplier: '机加', run: '运行', state: '正常', power: 45 }
+    ];
+
+    // KPI
+    function setText(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; }
+    setText('kpi-total', allRows.length);
+    const prod = allRows.filter(r => r.cat==='生产').length;
+    const common = allRows.length - prod;
+    setText('kpi-prod', prod);
+    setText('kpi-common', common);
+    const online = allRows.filter(r => r.run === '运行').length;
+    setText('kpi-online', online);
+    setText('kpi-offline', allRows.length - online);
+
+    // 通用设备类型统计（仅统计cat为通用且类型属于常见通用类的设备）
+    const commonTypesMap = allRows.filter(r=> r.cat==='通用').reduce((m,r)=>{ m[r.type]=(m[r.type]||0)+1; return m; },{});
+    setText('kpi-common-kpi', Object.values(commonTypesMap).reduce((s,v)=>s+v,0));
+    setText('kpi-common-types', Object.keys(commonTypesMap).length);
+
+    // 生产设备类型统计
+    const prodTypesMap = allRows.filter(r=> r.cat==='生产').reduce((m,r)=>{ m[r.type]=(m[r.type]||0)+1; return m; },{});
+    setText('kpi-prod-kpi', Object.values(prodTypesMap).reduce((s,v)=>s+v,0));
+    setText('kpi-prod-types', Object.keys(prodTypesMap).length);
+
+    // 渲染通用设备类型列表
+    const typeListEl = document.getElementById('commonTypeList');
+    if (typeListEl) {
+      const typeEntries = Object.entries(commonTypesMap).sort((a,b) => b[1]-a[1]);
+      typeListEl.innerHTML = typeEntries.map(([name,value]) => `
+        <div class="type-item"><span class="type-name">${name}</span><span class="type-value">${value} 台</span></div>
+      `).join('');
+    }
+
+    // 使用统计（基于设备状态state衍生：正常/良好/告警->在用；停机/维护->停用；报废->报废）
+    function getUsageCategory(state){
+      if (['报废'].includes(state)) return '报废';
+      if (['停机','维护'].includes(state)) return '停用';
+      return '在用';
+    }
+    const usageMap = allRows.reduce((m,r)=>{ const k = getUsageCategory(r.state); m[k] = (m[k]||0)+1; return m; },{});
+    const usageIn = usageMap['在用']||0;
+    const usageStop = usageMap['停用']||0;
+    const usageScrap = usageMap['报废']||0;
+    setText('kpi-usage-total', usageIn + usageStop + usageScrap);
+    setText('usage-in', usageIn);
+    setText('usage-stop', usageStop);
+    setText('usage-scrap', usageScrap);
+
+    // 安全初始化图表（避免echarts未加载导致中断）
+    function initChart(el, option) {
+      const dom = document.getElementById(el);
+      if (!dom) return;
+      if (!window.echarts) { setTimeout(() => initChart(el, option), 200); return; }
+      const exist = echarts.getInstanceByDom(dom);
+      if (exist) exist.dispose();
+      const chart = echarts.init(dom);
+      chart.setOption(option);
+      window.addEventListener('resize', () => chart.resize());
+      return chart;
+    }
+
+    // 统一饼图配置
+    const pieConfig = {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'item', formatter: '{b}: {c}台 ({d}%)', backgroundColor: 'rgba(255,255,255,.95)', borderColor: '#e6ecf5', textStyle: { color: '#2b3a55' } },
+      legend: { show: false },
+      color: ['#1677ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'],
+      series: [{ 
+        type: 'pie', 
+        radius: ['55%','80%'], 
+        center: ['70%','50%'],
+        label: { show:false }, 
+        labelLine: { show:false }
+      }]
+    };
+
+    // 顶部小饼图（展示生产/通用占比）
+    initChart('kpiPie1', {
+      ...pieConfig,
+      series: [{ 
+        ...pieConfig.series[0],
+        data: [
+          {value: prod, name:'生产设备'}, 
+          {value: common, name:'通用设备'}
+        ]
+      }]
+    });
+
+    // KPI2 通用设备类型饼图
+    initChart('kpiPie2', {
+      ...pieConfig,
+      series: [{ 
+        ...pieConfig.series[0],
+        data: Object.entries(commonTypesMap).map(([name,value])=>({ name, value }))
+      }]
+    });
+
+    // KPI3 生产类型饼图
+    initChart('kpiPie3', {
+      ...pieConfig,
+      series: [{ 
+        ...pieConfig.series[0],
+        data: Object.entries(prodTypesMap).map(([name,value])=>({ name, value }))
+      }]
+    });
+
+    // 渲染生产设备类型列表
+    const prodListEl = document.getElementById('prodTypeList');
+    if (prodListEl) {
+      const prodEntries = Object.entries(prodTypesMap).sort((a,b)=> b[1]-a[1]);
+      prodListEl.innerHTML = prodEntries.map(([name,value]) => `
+        <div class="type-item"><span class="type-name">${name}</span><span class="type-value">${value} 台</span></div>
+      `).join('');
+    }
+
+    // 渲染表格
+    function renderTable(list) {
+      const body = document.getElementById('table-body');
+      body.innerHTML = list.map((r, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${r.code}</td>
+          <td>${r.name}</td>
+          <td>${r.type}</td>
+          <td>${r.place}</td>
+          <td>${r.vendor}</td>
+          <td>${r.date}</td>
+          <td>${r.asset}</td>
+          <td>${r.supplier}</td>
+          <td><span class="status-badge ${r.run==='运行'?'status-running':(r.run==='待机'?'status-standby':'status-maintenance')}">${r.run}</span></td>
+          <td>${r.state}</td>
+          <td><button class="btn-small" onclick="showDeviceDetail('${r.code}')">查看</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // 显示设备详情弹窗
+    function showDeviceDetail(deviceCode) {
+      const device = allRows.find(r => r.code === deviceCode);
+      if (!device) return;
+
+      // 更新弹窗标题
+      document.getElementById('modalTitle').textContent = `${device.name} - 设备详情`;
+
+      // 更新设备图片
+      const deviceImage = document.getElementById('deviceImage');
+      deviceImage.src = deviceImages[device.type] || 'images/device-placeholder.jpg';
+      deviceImage.alt = device.name;
+
+      // 更新设备详细信息
+      document.getElementById('modalCode').textContent = device.code;
+      document.getElementById('modalName').textContent = device.name;
+      document.getElementById('modalType').textContent = device.type;
+      document.getElementById('modalPlace').textContent = device.place;
+      document.getElementById('modalVendor').textContent = device.vendor;
+      document.getElementById('modalDate').textContent = device.date;
+      document.getElementById('modalAsset').textContent = device.asset;
+      document.getElementById('modalSupplier').textContent = device.supplier;
+      document.getElementById('modalRun').textContent = device.run;
+      document.getElementById('modalState').textContent = device.state;
+
+      // 更新维护保养记录
+      const maintenanceList = document.getElementById('maintenanceList');
+      const records = maintenanceRecords[deviceCode] || [];
+      
+      if (records.length === 0) {
+        maintenanceList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">暂无维护保养记录</div>';
+      } else {
+        maintenanceList.innerHTML = records.map(record => {
+          const statusClass = record.status === 'completed' ? 'status-completed' : 
+                             record.status === 'pending' ? 'status-pending' : 'status-scheduled';
+          const statusText = record.status === 'completed' ? '已完成' : 
+                            record.status === 'pending' ? '待处理' : '已安排';
+          
+          return `
+            <div class="maintenance-item">
+              <div class="maintenance-info">
+                <div class="maintenance-date">${record.date}</div>
+                <div class="maintenance-desc">${record.desc}</div>
+              </div>
+              <div class="maintenance-status ${statusClass}">${statusText}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 显示弹窗
+      document.getElementById('deviceModal').style.display = 'block';
+    }
+
+    // 关闭弹窗
+    function closeModal() {
+      document.getElementById('deviceModal').style.display = 'none';
+    }
+
+    // 点击弹窗外部关闭
+    window.onclick = function(event) {
+      const modal = document.getElementById('deviceModal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    }
+    renderTable(allRows);
+
+    document.getElementById('btn-search').addEventListener('click', () => {
+      const t = document.getElementById('f-type').value;
+      const s = document.getElementById('f-status').value;
+      const a = document.getElementById('f-area').value; // 演示：本示例不包含区域字段，仅示意
+      const list = allRows.filter(r =>
+        (t==='设备类型'|| r.type.includes(t)) &&
+        (s==='运行状态'|| r.run===s)
+      );
+      renderTable(list);
+    });
+    document.getElementById('btn-reset').addEventListener('click', () => { renderTable(allRows); });
+
+    // 底部排行图表
+    const rank = echarts.init(document.getElementById('rankChart'));
+    let currentRankType = 'count';
+    
+    function updateRankChart(type) {
+      currentRankType = type;
+      
+      let data, yAxisLabel;
+      if (type === 'count') {
+        // 按数量统计
+        const typeGroup = allRows.reduce((m,r)=>{ m[r.type]=(m[r.type]||0)+1; return m; },{});
+        data = Object.entries(typeGroup).sort((a,b) => b[1]-a[1]);
+        yAxisLabel = '设备数量(台)';
+      } else {
+        // 按功率统计
+        const powerGroup = allRows.reduce((m,r)=>{ m[r.type]=(m[r.type]||0)+r.power; return m; },{});
+        data = Object.entries(powerGroup).sort((a,b) => b[1]-a[1]);
+        yAxisLabel = '总功率(kW)';
+      }
+      
+      const categories = data.map(item => item[0]);
+      const values = data.map(item => item[1]);
+      
+      rank.setOption({
+        backgroundColor: 'transparent',
+        grid: { left: 50, right: 20, bottom: 40, top: 20 },
+        xAxis: { 
+          type: 'category', 
+          data: categories, 
+          axisLine:{ lineStyle:{ color:'#dfe6f0'} }, 
+          axisLabel:{ color:'#6b778c', interval: 0, rotate: 45 } 
+        },
+        yAxis: { 
+          type: 'value', 
+          name: yAxisLabel,
+          nameTextStyle: { color: '#6b778c', fontSize: 12 },
+          axisLine:{ show:false }, 
+          splitLine:{ lineStyle:{ color:'#eef2f7'} }, 
+          axisLabel:{ color:'#6b778c' } 
+        },
+        series: [{ 
+          type: 'bar', 
+          data: values, 
+          barWidth: 34, 
+          itemStyle:{ color:'#69a6ff', borderRadius:[4,4,0,0] },
+          label: {
+            show: true,
+            position: 'top',
+            fontSize: 11,
+            color: '#6b778c'
+          }
+        }]
+      });
+    }
+    
+    // 初始化图表
+    updateRankChart('count');
+    
+    // 切换按钮事件
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // 移除所有active类
+        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        // 添加active类到当前按钮
+        btn.classList.add('active');
+        // 更新图表
+        updateRankChart(btn.dataset.type);
+      });
+    });
+
+    // 区域活跃度
+    const area = echarts.init(document.getElementById('areaChart'));
+    const areas = ['厂房A','厂房B','生产区','办公区','仓储区'];
+    const active = areas.map(()=> Math.round(Math.random()*100+20));
+    area.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 40, right: 20, bottom: 40, top: 20 },
+      xAxis: { type: 'category', data: areas, axisLine:{ lineStyle:{ color:'#dfe6f0'} }, axisLabel:{ color:'#6b778c' } },
+      yAxis: { type: 'value', axisLine:{ show:false }, splitLine:{ lineStyle:{ color:'#eef2f7'} }, axisLabel:{ color:'#6b778c' } },
+      series: [{ type: 'line', data: active, smooth: true, lineStyle:{ color:'#2fc59e', width:3 }, itemStyle:{ color:'#2fc59e' }, areaStyle:{ color:'rgba(47,197,158,0.12)' } }]
+    });
+    window.addEventListener('resize', () => { rank.resize(); area.resize(); });
+
+    // 设备使用统计饼图
+    initChart('usagePie', {
+      ...pieConfig,
+      color: ['#52c41a','#faad14','#f5222d'],
+      series: [{ 
+        ...pieConfig.series[0],
+        data: [
+          { name:'在用', value: usageIn },
+          { name:'停用', value: usageStop },
+          { name:'报废', value: usageScrap }
+        ]
+      }]
+    });
+
+    // 渲染设备总数列表
+    const totalListEl = document.getElementById('totalTypeList');
+    if (totalListEl) {
+      totalListEl.innerHTML = [
+        { name: '生产设备', value: prod },
+        { name: '通用设备', value: common },
+        { name: '联网设备', value: online },
+        { name: '离线设备', value: allRows.length - online }
+      ].map(item => `
+        <div class="type-item"><span class="type-name">${item.name}</span><span class="type-value">${item.value} 台</span></div>
+      `).join('');
+    }
+
+    // 渲染设备使用统计列表
+    const usageListEl = document.getElementById('usageList');
+    if (usageListEl) {
+      usageListEl.innerHTML = [
+        { name: '在用', value: usageIn },
+        { name: '停用', value: usageStop },
+        { name: '报废', value: usageScrap }
+      ].map(item => `
+        <div class="type-item"><span class="type-name">${item.name}</span><span class="type-value">${item.value} 台</span></div>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

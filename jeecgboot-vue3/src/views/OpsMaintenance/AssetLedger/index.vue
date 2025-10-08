@@ -52,20 +52,23 @@
         <!-- 右：汇总 + 环形图 -->
         <a-col :span="6">
           <div class="card-panel side-summary">
-            <div class="panel-title">{{ summary.title }}</div>
-            <div class="kpi-box">
-              <div class="kpi-item">
-                <div class="kpi-label">{{ summary.kpi1Label }}</div>
-                <div class="kpi-value">{{ summary.kpi1Value }}</div>
-              </div>
-              <div class="kpi-item">
-                <div class="kpi-label">{{ summary.kpi2Label }}</div>
-                <div class="kpi-value">{{ summary.kpi2Value }}</div>
+            <div class="panel-title">{{ summary.mainTitle }}</div>
+            <div class="total-capacity">
+              <div class="capacity-value">{{ summary.totalValue }}</div>
+            </div>
+            <div class="panel-title chart-title">{{ summary.chartTitle }}</div>
+            <div ref="donutRef" class="donut-chart"></div>
+            <div class="legend-extra">
+              <div v-for="(item, i) in summary.donutData" :key="i">
+                <span class="dot" :class="`dot-${String.fromCharCode(97 + i)}`"></span>
+                {{ item.name }} <b>{{ item.value }}台 {{ ((item.value / summary.donutData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(1) }}%</b>
               </div>
             </div>
-            <div ref="donutRef" class="donut-chart"></div>
-            <div class="legend-text">
-              <div v-for="(t, i) in summary.legendText" :key="i">{{ t }}</div>
+            <div class="type-legend">
+              <div v-for="(item, i) in summary.legendItems" :key="i">
+                <span class="dot" :class="`dot-type-${String.fromCharCode(97 + i)}`"></span>
+                {{ item.name }} <b>{{ item.count }}</b>
+              </div>
             </div>
           </div>
         </a-col>
@@ -90,7 +93,7 @@ import * as echarts from 'echarts'
 defineOptions({ name: 'AssetLedger' })
 
 // 当前激活的 Tab
-const activeKey = ref<'transformer' | 'centralAC' | 'compressor' | 'coolingTower'>('centralAC')
+const activeKey = ref<'transformer' | 'centralAC' | 'compressor' | 'coolingTower'>('transformer')
 
 // 简易分页
 const pageIndex = ref(1)
@@ -237,8 +240,32 @@ function nextPage() {
 const currentImage = computed(() => images[activeKey.value])
 
 // 右侧汇总及饼图数据
-type Summary = { title: string; kpi1Label: string; kpi1Value: string; kpi2Label: string; kpi2Value: string; donutData: { name: string; value: number }[]; legendText: string[] }
-const summary = reactive<Summary>({ title: '', kpi1Label: '', kpi1Value: '', kpi2Label: '', kpi2Value: '', donutData: [], legendText: [] })
+type Summary = { 
+  title: string; 
+  kpi1Label: string; 
+  kpi1Value: string; 
+  kpi2Label: string; 
+  kpi2Value: string; 
+  donutData: { name: string; value: number }[]; 
+  legendText: string[];
+  mainTitle: string;
+  totalValue: string;
+  chartTitle: string;
+  legendItems: { name: string; count: string }[];
+}
+const summary = reactive<Summary>({ 
+  title: '', 
+  kpi1Label: '', 
+  kpi1Value: '', 
+  kpi2Label: '', 
+  kpi2Value: '', 
+  donutData: [], 
+  legendText: [],
+  mainTitle: '',
+  totalValue: '',
+  chartTitle: '',
+  legendItems: []
+})
 
 function buildSummary() {
   const rows = currentTable.value
@@ -253,7 +280,11 @@ function buildSummary() {
       kpi2Label: '总制冷量',
       kpi2Value: `${totalCooling} kW`,
       donutData: Object.keys(typeCounts).map(k => ({ name: k, value: typeCounts[k] })),
-      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`)
+      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`),
+      mainTitle: '设备总功率 & 总制冷量',
+      totalValue: `${totalPower} kW`,
+      chartTitle: '功率占比',
+      legendItems: Object.keys(typeCounts).map(k => ({ name: k, count: `${typeCounts[k]} 台` }))
     })
   } else if (activeKey.value === 'compressor') {
     const totalPower = rows.reduce((s, r) => s + Number(r.power), 0)
@@ -270,7 +301,11 @@ function buildSummary() {
       kpi2Label: '总排气量',
       kpi2Value: `${totalFlow.toFixed(1)} m³/min`,
       donutData: Object.keys(flowGroup).map(k => ({ name: k, value: (flowGroup as any)[k] })),
-      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`)
+      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`),
+      mainTitle: '总功率 & 总排气量',
+      totalValue: `${totalPower} kW`,
+      chartTitle: '排气量分组占比',
+      legendItems: Object.keys(typeCounts).map(k => ({ name: k, count: `${typeCounts[k]} 台` }))
     })
   } else if (activeKey.value === 'transformer') {
     const totalCap = rows.reduce((s, r) => s + Number(r.capacity), 0)
@@ -288,7 +323,11 @@ function buildSummary() {
       kpi2Label: '台数',
       kpi2Value: `${rows.length} 台`,
       donutData: Object.keys(capGroups).map(k => ({ name: k, value: (capGroups as any)[k] })),
-      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`)
+      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`),
+      mainTitle: '变压器总容量',
+      totalValue: `${totalCap} kVA`,
+      chartTitle: '额定容量占比',
+      legendItems: Object.keys(typeCounts).map(k => ({ name: k, count: `${typeCounts[k]} 台` }))
     })
   } else if (activeKey.value === 'coolingTower') {
     const totalPower = rows.reduce((s, r) => s + Number(r.power), 0)
@@ -305,7 +344,11 @@ function buildSummary() {
       kpi2Label: '总冷却水量',
       kpi2Value: `${totalWater} m³/h`,
       donutData: Object.keys(waterGroups).map(k => ({ name: k, value: (waterGroups as any)[k] })),
-      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`)
+      legendText: Object.keys(typeCounts).map(k => `${k} ${typeCounts[k]} 台`),
+      mainTitle: '总功率 & 总冷却水量',
+      totalValue: `${totalPower} kW`,
+      chartTitle: '冷却水量分组占比',
+      legendItems: Object.keys(typeCounts).map(k => ({ name: k, count: `${typeCounts[k]} 台` }))
     })
   }
 }
@@ -326,6 +369,10 @@ function setSummary(s: Summary) {
   summary.kpi2Value = s.kpi2Value
   summary.donutData = s.donutData
   summary.legendText = s.legendText
+  summary.mainTitle = s.mainTitle
+  summary.totalValue = s.totalValue
+  summary.chartTitle = s.chartTitle
+  summary.legendItems = s.legendItems
 }
 
 // 环形图与堆叠图实例
@@ -405,7 +452,7 @@ function updateDonut() {
     series: [
       {
         type: 'pie',
-        radius: ['55%', '75%'],
+        radius: ['45%', '85%'],  // 调整环形图半径，使其更宽
         center: ['50%', '50%'],
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
@@ -426,48 +473,13 @@ function updateStacked() {
   if (!stackedChart) return
   const conf = (stackedMap as any)[activeKey.value]
   
-  // 按照图片颜色配置的渐变色方案
-  const gradientColors = [
-    {
-      type: 'linear',
-      x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [
-        { offset: 0, color: '#87ceeb' },
-        { offset: 1, color: '#4682b4' }
-      ]
-    },
-    {
-      type: 'linear',
-      x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [
-        { offset: 0, color: '#b0e0e6' },
-        { offset: 1, color: '#5f9ea0' }
-      ]
-    },
-    {
-      type: 'linear',
-      x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [
-        { offset: 0, color: '#dda0dd' },
-        { offset: 1, color: '#9370db' }
-      ]
-    },
-    {
-      type: 'linear',
-      x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [
-        { offset: 0, color: '#90ee90' },
-        { offset: 1, color: '#32cd32' }
-      ]
-    },
-    {
-      type: 'linear',
-      x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [
-        { offset: 0, color: '#ffa500' },
-        { offset: 1, color: '#ff8c00' }
-      ]
-    }
+  // 按照图片颜色配置的纯色方案（无渐变）
+  const solidColors = [
+    '#5B9BD5', // 蓝色 (500kVA)
+    '#70C4F4', // 浅蓝色 (800kVA)
+    '#9F7AEA', // 紫色 (1000kVA)
+    '#4CAF50', // 绿色 (1250kVA)
+    '#FF9800'  // 橙色 (1600kVA)
   ]
   
   const option: echarts.EChartsOption = {
@@ -541,23 +553,16 @@ function updateStacked() {
       name: s.name,
       type: 'bar',
       stack: 'sum',
-      barWidth: '15%', // 保持细长比例
+      barWidth: '20%', // 用户偏好：柱形宽度控制在20%左右
       itemStyle: { 
-        color: gradientColors[idx % gradientColors.length],
-        borderRadius: [3, 3, 0, 0], // 稍微增加圆角
-        shadowColor: 'rgba(0, 0, 0, 0.06)',
-        shadowBlur: 4,
-        shadowOffsetX: 0,
-        shadowOffsetY: 2
+        color: solidColors[idx % solidColors.length], // 使用纯色
+        borderRadius: [0, 0, 0, 0], // 用户偏好：无圆角设计
+        // 用户偏好：无立体阴影
       },
       emphasis: {
         itemStyle: {
-          shadowColor: 'rgba(0, 0, 0, 0.12)',
-          shadowBlur: 8,
-          shadowOffsetX: 0,
-          shadowOffsetY: 4,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.3)'
+          color: solidColors[idx % solidColors.length], // 保持纯色
+          borderWidth: 0 // 用户偏好：简洁设计
         }
       },
       data: s.data
@@ -582,6 +587,7 @@ onMounted(() => {
   buildSummary()
   initDonut()
   initStacked()
+  window.addEventListener('resize', handleResize)
 })
 
 // 监听窗口大小变化，实现响应式重绘
@@ -596,11 +602,6 @@ watch(
   () => updateDonut(),
   { deep: true }
 )
-
-// 添加窗口大小变化监听
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-})
 
 // 组件卸载时移除监听
 onUnmounted(() => {
@@ -629,9 +630,10 @@ onUnmounted(() => {
 .card-panel {
   background: #fff;
   border-radius: 8px;
-  padding: 12px;
+  padding: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   height: 100%;
+  min-height: 400px;
 }
 
 .panel-title {
@@ -676,14 +678,128 @@ onUnmounted(() => {
 .kpi-label { color: #888; font-size: 12px; }
 .kpi-value { font-size: 20px; font-weight: 600; color: #3b82f6; }
 
+.total-capacity {
+  text-align: center;
+  margin: 20px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.capacity-value {
+  font-size: 36px;
+  font-weight: bold;
+  color: #1890ff;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.chart-title {
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  text-align: center;
+}
+
 .donut-chart {
   width: 100%;
-  height: 220px;
+  height: 200px;
+  margin: 16px 0;
 }
 
 .legend-text {
   padding-top: 8px;
   color: #666;
+}
+
+.legend-extra {
+  margin-top: 12px;
+  padding: 12px;
+  font-size: 13px;
+  color: #666;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.legend-extra div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.legend-extra div:last-child {
+  margin-bottom: 0;
+}
+
+.type-legend {
+  margin-top: 8px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.type-legend div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.type-legend div:last-child {
+  margin-bottom: 0;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  display: inline-block;
+}
+
+.dot-a {
+  background-color: #5470c6;
+}
+
+.dot-b {
+  background-color: #91cc75;
+}
+
+.dot-c {
+  background-color: #fac858;
+}
+
+.dot-d {
+  background-color: #ee6666;
+}
+
+.dot-e {
+  background-color: #73c0de;
+}
+
+.dot-type-a {
+  background-color: #4CAF50;
+}
+
+.dot-type-b {
+  background-color: #FF9800;
+}
+
+.dot-type-c {
+  background-color: #9C27B0;
+}
+
+.dot-type-d {
+  background-color: #607D8B;
+}
+
+.dot-type-e {
+  background-color: #795548;
 }
 
 .bottom-chart { margin-top: 12px; }

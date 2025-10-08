@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备结构树 - 科技蓝</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* 设备结构树页面样式 */
+    .device-tree-page {
+      display: flex;
+      height: calc(100vh - 60px);
+      background: #f8fafc;
+    }
+    
+    /* 左侧树形结构 */
+    .tree-panel {
+      width: 35%;
+      background: #fff;
+      border-right: 1px solid #e6ecf5;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .tree-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e6ecf5;
+      background: linear-gradient(90deg, rgba(22,119,255,.10), rgba(26,198,255,.06));
+    }
+    
+    .tree-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1f3a72;
+      margin: 0 0 16px 0;
+    }
+    
+    .tree-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #f5f7fa;
+      border: 1px solid #e6ecf5;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #6b778c;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .filter-btn:hover {
+      background: #e6f7ff;
+      color: #1677ff;
+      border-color: #1677ff;
+    }
+    
+    .filter-btn.active {
+      background: #1677ff;
+      color: #fff;
+      border-color: #1677ff;
+    }
+    
+    .filter-icon {
+      width: 14px;
+      height: 14px;
+      font-size: 12px;
+    }
+    
+    /* 树形结构 */
+    .tree-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+    
+    .tree-node {
+      position: relative;
+    }
+    
+    .tree-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px 8px 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+    }
+    
+    .tree-item:hover {
+      background: #f8fafc;
+    }
+    
+    .tree-item.selected {
+      background: #e6f7ff;
+      border-left-color: #1677ff;
+    }
+    
+    .tree-expand {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #6b778c;
+      cursor: pointer;
+    }
+    
+    .tree-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      font-size: 14px;
+      color: #6b778c;
+    }
+    
+    .tree-text {
+      flex: 1;
+      font-size: 13px;
+      color: #2b3a55;
+    }
+    
+    .tree-status {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .status-normal { background: #f6ffed; color: #52c41a; }
+    .status-running { background: #fff7e6; color: #faad14; }
+    .status-maintenance { background: #fff2e8; color: #fa8c16; }
+    .status-fault { background: #fff1f0; color: #f5222d; }
+    .status-stopped { background: #f5f5f5; color: #8c8c8c; }
+    
+    .tree-children {
+      margin-left: 20px;
+    }
+    
+    /* 右侧设备信息 */
+    .device-panel {
+      flex: 1;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .device-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #e6ecf5;
+      background: linear-gradient(90deg, rgba(22,119,255,.10), rgba(26,198,255,.06));
+    }
+    
+    .device-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1f3a72;
+      margin: 0;
+    }
+    
+    .device-content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    
+    .device-image-section {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .device-image {
+      width: 100%;
+      max-width: 400px;
+      height: 250px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e6ecf5;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .device-details {
+      margin-bottom: 24px;
+    }
+    
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px 24px;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e6ecf5;
+    }
+    
+    .detail-item {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      color: #6b778c;
+      font-size: 13px;
+      min-width: 80px;
+      margin-right: 8px;
+    }
+    
+    .detail-value {
+      color: #2b3a55;
+      font-size: 13px;
+      flex: 1;
+    }
+    
+    .device-code {
+      background: #e6f7ff;
+      color: #1677ff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: 600;
+    }
+    
+    .device-status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .device-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding-top: 24px;
+      border-top: 1px solid #e6ecf5;
+    }
+    
+    .action-btn {
+      padding: 8px 16px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      background: #fff;
+      color: #595959;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .action-btn:hover {
+      border-color: #1677ff;
+      color: #1677ff;
+    }
+    
+    .action-btn.danger:hover {
+      border-color: #f5222d;
+      color: #f5222d;
+    }
+    
+    /* 弹窗样式 */
+    .modal { 
+      display: none; 
+      position: fixed; 
+      z-index: 1000; 
+      left: 0; 
+      top: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.5); 
+    }
+    .modal-content { 
+      background: #fff; 
+      margin: 2% auto; 
+      padding: 0; 
+      width: 90%; 
+      max-width: 800px; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12); 
+    }
+    .modal-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding: 20px 24px; 
+      border-bottom: 1px solid #e6ecf5; 
+      background: linear-gradient(90deg, rgba(22,119,255,.10), rgba(26,198,255,.06)); 
+    }
+    .modal-header h3 { 
+      margin: 0; 
+      font-size: 18px; 
+      font-weight: 700; 
+      color: #1f3a72; 
+    }
+    .close-btn { 
+      background: none; 
+      border: none; 
+      font-size: 24px; 
+      cursor: pointer; 
+      color: #999; 
+      padding: 0; 
+      width: 32px; 
+      height: 32px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      border-radius: 6px; 
+    }
+    .close-btn:hover { 
+      background: rgba(0,0,0,0.05); 
+      color: #666; 
+    }
+    .modal-body { 
+      padding: 24px; 
+    }
+    
+    /* 弹窗表单样式 */
+    .edit-form {
+      margin-bottom: 24px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .form-group label {
+      font-weight: 600;
+      color: #6b778c;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    
+    .form-input, .form-select, .form-textarea {
+      padding: 8px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #2b3a55;
+      transition: border-color 0.2s ease;
+    }
+    
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #1677ff;
+      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+    }
+    
+    .form-input[readonly] {
+      background: #f5f7fa;
+      color: #8c8c8c;
+    }
+    
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid #e6ecf5;
+    }
+    
+    .btn-primary, .btn-secondary {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: #1677ff;
+      color: #fff;
+      border: 1px solid #1677ff;
+    }
+    
+    .btn-primary:hover {
+      background: #0958d9;
+      border-color: #0958d9;
+    }
+    
+    .btn-secondary {
+      background: #fff;
+      color: #595959;
+      border: 1px solid #d9d9d9;
+    }
+    
+    .btn-secondary:hover {
+      border-color: #1677ff;
+      color: #1677ff;
+    }
+    
+    /* 历史记录时间线样式 */
+    .history-timeline {
+      position: relative;
+      padding-left: 20px;
+    }
+    
+    .history-timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #e6ecf5;
+    }
+    
+    .timeline-item {
+      position: relative;
+      margin-bottom: 24px;
+      padding-left: 20px;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #1677ff;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 2px #e6ecf5;
+    }
+    
+    .timeline-date {
+      font-size: 12px;
+      color: #8c8c8c;
+      margin-bottom: 4px;
+    }
+    
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2b3a55;
+      margin-bottom: 4px;
+    }
+    
+    .timeline-desc {
+      font-size: 13px;
+      color: #6b778c;
+      line-height: 1.4;
+    }
+    
+    /* 维护记录样式 */
+    .maintenance-list {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .maintenance-item {
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 4px solid #1677ff;
+    }
+    
+    .maintenance-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .maintenance-date {
+      font-size: 12px;
+      color: #8c8c8c;
+      font-weight: 500;
+    }
+    
+    .maintenance-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2b3a55;
+      margin-bottom: 6px;
+    }
+    
+    .maintenance-desc {
+      font-size: 13px;
+      color: #6b778c;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    
+    .maintenance-person {
+      font-size: 12px;
+      color: #8c8c8c;
+    }
+    
+    /* 顶部操作栏 */
+    .page-actions {
+      position: absolute;
+      top: 16px;
+      right: 24px;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .page-btn {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #595959;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .page-btn:hover {
+      border-color: #1677ff;
+      color: #1677ff;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <nav class="nav-tabs">
+      <a class="tab" href="变压器.html">变压器</a>
+      <a class="tab" href="中央空调.html">中央空调</a>
+      <a class="tab" href="空压机.html">空压机</a>
+      <a class="tab" href="冷却塔.html">冷却塔</a>
+      <a class="tab" href="空压机总览.html">空压机总览</a>
+      <a class="tab" href="空压机工艺流程.html">空压机工艺流程</a>
+      <a class="tab" href="设备总览.html">设备总览</a>
+      <a class="tab active" href="#">设备结构树</a>
+    </nav>
+  </header>
+
+  <div class="page-actions">
+    <button class="page-btn" onclick="refreshTree()">刷新</button>
+    <button class="page-btn" onclick="expandAll()">展开全部</button>
+    <button class="page-btn" onclick="collapseAll()">收起全部</button>
+  </div>
+
+  <div class="device-tree-page">
+    <!-- 左侧树形结构 -->
+    <div class="tree-panel">
+      <div class="tree-header">
+        <h2 class="tree-title">设备结构树</h2>
+        <div class="tree-filters">
+          <button class="filter-btn active" data-filter="company">
+            <span class="filter-icon">🏢</span>
+            公司
+          </button>
+          <button class="filter-btn" data-filter="category">
+            <span class="filter-icon">📦</span>
+            设备类别
+          </button>
+          <button class="filter-btn" data-filter="device">
+            <span class="filter-icon">⚙️</span>
+            设备
+          </button>
+          <button class="filter-btn" data-filter="component">
+            <span class="filter-icon">🔧</span>
+            器件
+          </button>
+        </div>
+      </div>
+      
+      <div class="tree-content" id="treeContent">
+        <!-- 树形结构将通过JavaScript动态生成 -->
+      </div>
+    </div>
+
+    <!-- 右侧设备信息 -->
+    <div class="device-panel">
+      <div class="device-header">
+        <h2 class="device-title">设备信息</h2>
+      </div>
+      
+      <div class="device-content">
+        <div class="device-image-section">
+          <img id="deviceImage" src="images/device-placeholder.jpg" alt="设备图片" class="device-image">
+        </div>
+        
+        <div class="device-details">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <div class="detail-label">编号：</div>
+              <div class="detail-value"><span id="deviceCode" class="device-code">—</span></div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">名称：</div>
+              <div class="detail-value" id="deviceName">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">状态：</div>
+              <div class="detail-value"><span id="deviceStatus" class="device-status status-normal">—</span></div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">所在位置：</div>
+              <div class="detail-value" id="deviceLocation">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">品牌：</div>
+              <div class="detail-value" id="deviceBrand">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">类别：</div>
+              <div class="detail-value" id="deviceCategory">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">单位：</div>
+              <div class="detail-value" id="deviceUnit">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">型号：</div>
+              <div class="detail-value" id="deviceModel">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">制造商：</div>
+              <div class="detail-value" id="deviceManufacturer">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">安装时间：</div>
+              <div class="detail-value" id="deviceInstallDate">—</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">备注：</div>
+              <div class="detail-value" id="deviceRemarks">—</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="device-actions">
+          <button class="action-btn" onclick="editDevice()">编辑</button>
+          <button class="action-btn" onclick="viewHistory()">查看历史</button>
+          <button class="action-btn" onclick="viewMaintenance()">维护记录</button>
+          <button class="action-btn danger" onclick="deleteDevice()">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑设备弹窗 -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="editModalTitle">编辑设备</h3>
+        <button class="close-btn" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>设备编号：</label>
+              <input type="text" id="editCode" class="form-input" readonly>
+            </div>
+            <div class="form-group">
+              <label>设备名称：</label>
+              <input type="text" id="editName" class="form-input">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>设备状态：</label>
+              <select id="editStatus" class="form-select">
+                <option value="normal">正常</option>
+                <option value="running">运行</option>
+                <option value="maintenance">维护</option>
+                <option value="fault">故障</option>
+                <option value="stopped">停机</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>所在位置：</label>
+              <input type="text" id="editLocation" class="form-input">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>品牌：</label>
+              <input type="text" id="editBrand" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>型号：</label>
+              <input type="text" id="editModel" class="form-input">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>制造商：</label>
+              <input type="text" id="editManufacturer" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>安装时间：</label>
+              <input type="date" id="editInstallDate" class="form-input">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label>备注：</label>
+              <textarea id="editRemarks" class="form-textarea" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeEditModal()">取消</button>
+          <button class="btn-primary" onclick="saveDevice()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 查看历史弹窗 -->
+  <div id="historyModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="historyModalTitle">设备历史记录</h3>
+        <button class="close-btn" onclick="closeHistoryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="history-timeline">
+          <div class="timeline-item">
+            <div class="timeline-date">2024-03-15</div>
+            <div class="timeline-content">
+              <div class="timeline-title">设备状态变更</div>
+              <div class="timeline-desc">状态从"维护"变更为"正常"</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2024-03-10</div>
+            <div class="timeline-content">
+              <div class="timeline-title">定期维护</div>
+              <div class="timeline-desc">完成润滑系统维护，更换滤芯</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2024-02-20</div>
+            <div class="timeline-content">
+              <div class="timeline-title">设备检查</div>
+              <div class="timeline-desc">检查压缩机运行状态，各项参数正常</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2024-01-15</div>
+            <div class="timeline-content">
+              <div class="timeline-title">定期保养</div>
+              <div class="timeline-desc">更换滤芯，清洁冷却系统</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-date">2021-03-01</div>
+            <div class="timeline-content">
+              <div class="timeline-title">设备安装</div>
+              <div class="timeline-desc">设备安装完成，开始投入使用</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 维护记录弹窗 -->
+  <div id="maintenanceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="maintenanceModalTitle">维护记录</h3>
+        <button class="close-btn" onclick="closeMaintenanceModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="maintenance-list">
+          <div class="maintenance-item">
+            <div class="maintenance-header">
+              <div class="maintenance-date">2024-03-10</div>
+              <div class="maintenance-status status-scheduled">已安排</div>
+            </div>
+            <div class="maintenance-content">
+              <div class="maintenance-title">润滑系统维护</div>
+              <div class="maintenance-desc">计划对空压机润滑系统进行全面检查和维护</div>
+              <div class="maintenance-person">维护人员：张师傅</div>
+            </div>
+          </div>
+          <div class="maintenance-item">
+            <div class="maintenance-header">
+              <div class="maintenance-date">2024-02-20</div>
+              <div class="maintenance-status status-completed">已完成</div>
+            </div>
+            <div class="maintenance-content">
+              <div class="maintenance-title">压缩机运行状态检查</div>
+              <div class="maintenance-desc">检查压缩机运行状态，各项参数正常，无异常</div>
+              <div class="maintenance-person">维护人员：李师傅</div>
+            </div>
+          </div>
+          <div class="maintenance-item">
+            <div class="maintenance-header">
+              <div class="maintenance-date">2024-01-15</div>
+              <div class="maintenance-status status-completed">已完成</div>
+            </div>
+            <div class="maintenance-content">
+              <div class="maintenance-title">定期保养 - 更换滤芯</div>
+              <div class="maintenance-desc">更换空气滤芯和油滤芯，清洁冷却系统</div>
+              <div class="maintenance-person">维护人员：王师傅</div>
+            </div>
+          </div>
+          <div class="maintenance-item">
+            <div class="maintenance-header">
+              <div class="maintenance-date">2023-12-01</div>
+              <div class="maintenance-status status-completed">已完成</div>
+            </div>
+            <div class="maintenance-content">
+              <div class="maintenance-title">年度大保养</div>
+              <div class="maintenance-desc">年度全面保养，包括电机、压缩机、冷却系统等</div>
+              <div class="maintenance-person">维护人员：张师傅、李师傅</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 设备数据
+    const deviceData = {
+      "公司总部": {
+        type: "company",
+        children: {
+          "生产部": {
+            type: "department",
+            children: {
+              "厂房A": {
+                type: "workshop",
+                children: {
+                  "空压机系统": {
+                    type: "system",
+                    children: {
+                      "TY-001": {
+                        type: "device",
+                        name: "空压机#1",
+                        category: "螺杆式空压机",
+                        status: "normal",
+                        location: "厂房A东侧",
+                        brand: "阿特拉斯",
+                        model: "GA-75",
+                        manufacturer: "阿特拉斯",
+                        installDate: "2021-03-01",
+                        remarks: "主空压机",
+                        power: 75
+                      },
+                      "TY-002": {
+                        type: "device",
+                        name: "空压机#2",
+                        category: "活塞式空压机",
+                        status: "running",
+                        location: "厂房A西侧",
+                        brand: "英格索兰",
+                        model: "IR-55",
+                        manufacturer: "英格索兰",
+                        installDate: "2020-07-12",
+                        remarks: "备用空压机",
+                        power: 55
+                      }
+                    }
+                  },
+                  "冷却系统": {
+                    type: "system",
+                    children: {
+                      "CT-001": {
+                        type: "device",
+                        name: "冷却塔#1",
+                        category: "冷却塔",
+                        status: "maintenance",
+                        location: "厂房A屋顶",
+                        brand: "BAC",
+                        model: "CT-800",
+                        manufacturer: "BAC",
+                        installDate: "2019-10-05",
+                        remarks: "定期维护中",
+                        power: 15
+                      }
+                    }
+                  }
+                }
+              },
+              "厂房B": {
+                type: "workshop",
+                children: {
+                  "中央空调系统": {
+                    type: "system",
+                    children: {
+                      "AC-001": {
+                        type: "device",
+                        name: "中区机组",
+                        category: "中央空调",
+                        status: "normal",
+                        location: "机房1",
+                        brand: "YORK",
+                        model: "YCIV-120",
+                        manufacturer: "YORK",
+                        installDate: "2022-01-15",
+                        remarks: "主制冷机组",
+                        power: 120
+                      },
+                      "AC-002": {
+                        type: "device",
+                        name: "西区机组",
+                        category: "中央空调",
+                        status: "fault",
+                        location: "机房2",
+                        brand: "TRANE",
+                        model: "CVHE-100",
+                        manufacturer: "TRANE",
+                        installDate: "2021-11-02",
+                        remarks: "故障待修",
+                        power: 100
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "设备部": {
+            type: "department",
+            children: {
+              "配电室": {
+                type: "workshop",
+                children: {
+                  "变压器系统": {
+                    type: "system",
+                    children: {
+                      "TR-001": {
+                        type: "device",
+                        name: "变压器#1",
+                        category: "变压器",
+                        status: "normal",
+                        location: "配电室A",
+                        brand: "特变电工",
+                        model: "SCB-630",
+                        manufacturer: "特变电工",
+                        installDate: "2019-06-10",
+                        remarks: "主变压器",
+                        power: 630
+                      },
+                      "TR-002": {
+                        type: "device",
+                        name: "变压器#2",
+                        category: "变压器",
+                        status: "stopped",
+                        location: "配电室B",
+                        brand: "正泰",
+                        model: "SCB-800",
+                        manufacturer: "正泰",
+                        installDate: "2020-02-28",
+                        remarks: "备用变压器",
+                        power: 800
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "技术部": {
+            type: "department",
+            children: {
+              "精密加工车间": {
+                type: "workshop",
+                children: {
+                  "CNC系统": {
+                    type: "system",
+                    children: {
+                      "CNC-001": {
+                        type: "device",
+                        name: "CNC-01",
+                        category: "CNC",
+                        status: "running",
+                        location: "机加一线",
+                        brand: "FANUC",
+                        model: "FANUC-32i",
+                        manufacturer: "FANUC",
+                        installDate: "2022-11-08",
+                        remarks: "精密加工中心",
+                        power: 45
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
+    // 设备图片映射
+    const deviceImages = {
+      '螺杆式空压机': 'images/air-compressor.png',
+      '活塞式空压机': 'images/piston-compressor.png',
+      '冷却塔': 'images/cooling-tower.jpg',
+      '中央空调': 'images/central-ac.jpg',
+      '变压器': 'images/transformer.jpg',
+      'CNC': 'images/cnc-machine.jpg'
+    };
+
+    let selectedDevice = null;
+    let expandedNodes = new Set(['公司总部', '生产部', '厂房A', '空压机系统']);
+
+    // 渲染树形结构
+    function renderTree(data, level = 0) {
+      let html = '';
+      
+      for (const [key, value] of Object.entries(data)) {
+        const isExpanded = expandedNodes.has(key);
+        const hasChildren = value.children && Object.keys(value.children).length > 0;
+        
+        html += `
+          <div class="tree-node">
+            <div class="tree-item" data-key="${key}" onclick="selectNode('${key}')">
+              ${hasChildren ? `
+                <div class="tree-expand" onclick="event.stopPropagation(); toggleNode('${key}')">
+                  ${isExpanded ? '−' : '+'}
+                </div>
+              ` : '<div class="tree-expand"></div>'}
+              
+              <div class="tree-icon">
+                ${getNodeIcon(value.type)}
+              </div>
+              
+              <div class="tree-text">
+                ${value.name || key}
+                ${value.type === 'device' ? `(${key})` : ''}
+              </div>
+              
+              ${value.status ? `
+                <div class="tree-status status-${value.status}">
+                  ${getStatusText(value.status)}
+                </div>
+              ` : ''}
+            </div>
+            
+            ${hasChildren && isExpanded ? `
+              <div class="tree-children">
+                ${renderTree(value.children, level + 1)}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+      
+      return html;
+    }
+
+    // 获取节点图标
+    function getNodeIcon(type) {
+      const icons = {
+        'company': '🏢',
+        'department': '🏬',
+        'workshop': '🏭',
+        'system': '📦',
+        'device': '⚙️',
+        'component': '🔧'
+      };
+      return icons[type] || '📁';
+    }
+
+    // 获取状态文本
+    function getStatusText(status) {
+      const statusMap = {
+        'normal': '正常',
+        'running': '运行',
+        'maintenance': '维护',
+        'fault': '故障',
+        'stopped': '停机'
+      };
+      return statusMap[status] || status;
+    }
+
+    // 切换节点展开/收起
+    function toggleNode(key) {
+      if (expandedNodes.has(key)) {
+        expandedNodes.delete(key);
+      } else {
+        expandedNodes.add(key);
+      }
+      updateTree();
+    }
+
+    // 选择节点
+    function selectNode(key) {
+      selectedDevice = findDeviceByKey(deviceData, key);
+      updateTree();
+      updateDeviceInfo();
+    }
+
+    // 查找设备
+    function findDeviceByKey(data, targetKey) {
+      for (const [key, value] of Object.entries(data)) {
+        if (key === targetKey && value.type === 'device') {
+          return { key, ...value };
+        }
+        if (value.children) {
+          const found = findDeviceByKey(value.children, targetKey);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    // 更新树形结构
+    function updateTree() {
+      document.getElementById('treeContent').innerHTML = renderTree(deviceData);
+      
+      // 重新绑定选中状态
+      if (selectedDevice) {
+        const selectedElement = document.querySelector(`[data-key="${selectedDevice.key}"]`);
+        if (selectedElement) {
+          selectedElement.classList.add('selected');
+        }
+      }
+    }
+
+    // 更新设备信息
+    function updateDeviceInfo() {
+      if (!selectedDevice) {
+        // 清空信息
+        document.getElementById('deviceCode').textContent = '—';
+        document.getElementById('deviceName').textContent = '—';
+        document.getElementById('deviceLocation').textContent = '—';
+        document.getElementById('deviceBrand').textContent = '—';
+        document.getElementById('deviceCategory').textContent = '—';
+        document.getElementById('deviceUnit').textContent = '—';
+        document.getElementById('deviceModel').textContent = '—';
+        document.getElementById('deviceManufacturer').textContent = '—';
+        document.getElementById('deviceInstallDate').textContent = '—';
+        document.getElementById('deviceRemarks').textContent = '—';
+        
+        const statusElement = document.getElementById('deviceStatus');
+        statusElement.textContent = '—';
+        statusElement.className = 'device-status';
+        
+        document.getElementById('deviceImage').src = 'images/device-placeholder.jpg';
+        return;
+      }
+
+      // 更新设备信息
+      document.getElementById('deviceCode').textContent = selectedDevice.key;
+      document.getElementById('deviceName').textContent = selectedDevice.name;
+      document.getElementById('deviceLocation').textContent = selectedDevice.location;
+      document.getElementById('deviceBrand').textContent = selectedDevice.brand;
+      document.getElementById('deviceCategory').textContent = selectedDevice.category;
+      document.getElementById('deviceUnit').textContent = '台';
+      document.getElementById('deviceModel').textContent = selectedDevice.model;
+      document.getElementById('deviceManufacturer').textContent = selectedDevice.manufacturer;
+      document.getElementById('deviceInstallDate').textContent = selectedDevice.installDate;
+      document.getElementById('deviceRemarks').textContent = selectedDevice.remarks;
+      
+      // 更新状态
+      const statusElement = document.getElementById('deviceStatus');
+      statusElement.textContent = getStatusText(selectedDevice.status);
+      statusElement.className = `device-status status-${selectedDevice.status}`;
+      
+      // 更新设备图片
+      const deviceImage = document.getElementById('deviceImage');
+      deviceImage.src = deviceImages[selectedDevice.category] || 'images/device-placeholder.jpg';
+      deviceImage.alt = selectedDevice.name;
+    }
+
+    // 展开全部
+    function expandAll() {
+      function collectKeys(data) {
+        const keys = [];
+        for (const [key, value] of Object.entries(data)) {
+          if (value.children) {
+            keys.push(key);
+            keys.push(...collectKeys(value.children));
+          }
+        }
+        return keys;
+      }
+      
+      expandedNodes = new Set(collectKeys(deviceData));
+      updateTree();
+    }
+
+    // 收起全部
+    function collapseAll() {
+      expandedNodes.clear();
+      updateTree();
+    }
+
+    // 刷新树
+    function refreshTree() {
+      updateTree();
+      updateDeviceInfo();
+    }
+
+    // 设备操作函数
+    function editDevice() {
+      if (selectedDevice) {
+        // 填充编辑表单
+        document.getElementById('editCode').value = selectedDevice.key;
+        document.getElementById('editName').value = selectedDevice.name;
+        document.getElementById('editStatus').value = selectedDevice.status;
+        document.getElementById('editLocation').value = selectedDevice.location;
+        document.getElementById('editBrand').value = selectedDevice.brand;
+        document.getElementById('editModel').value = selectedDevice.model;
+        document.getElementById('editManufacturer').value = selectedDevice.manufacturer;
+        document.getElementById('editInstallDate').value = selectedDevice.installDate;
+        document.getElementById('editRemarks').value = selectedDevice.remarks;
+        
+        // 更新弹窗标题
+        document.getElementById('editModalTitle').textContent = `编辑设备 - ${selectedDevice.name}`;
+        
+        // 显示弹窗
+        document.getElementById('editModal').style.display = 'block';
+      } else {
+        alert('请先选择设备');
+      }
+    }
+
+    function viewHistory() {
+      if (selectedDevice) {
+        // 更新弹窗标题
+        document.getElementById('historyModalTitle').textContent = `${selectedDevice.name} - 设备历史记录`;
+        
+        // 显示弹窗
+        document.getElementById('historyModal').style.display = 'block';
+      } else {
+        alert('请先选择设备');
+      }
+    }
+
+    function viewMaintenance() {
+      if (selectedDevice) {
+        // 更新弹窗标题
+        document.getElementById('maintenanceModalTitle').textContent = `${selectedDevice.name} - 维护记录`;
+        
+        // 显示弹窗
+        document.getElementById('maintenanceModal').style.display = 'block';
+      } else {
+        alert('请先选择设备');
+      }
+    }
+
+    function deleteDevice() {
+      if (selectedDevice) {
+        if (confirm(`确定要删除设备 ${selectedDevice.name} 吗？`)) {
+          alert(`删除设备: ${selectedDevice.name}`);
+        }
+      } else {
+        alert('请先选择设备');
+      }
+    }
+
+    // 弹窗关闭函数
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('historyModal').style.display = 'none';
+    }
+
+    function closeMaintenanceModal() {
+      document.getElementById('maintenanceModal').style.display = 'none';
+    }
+
+    // 保存设备信息
+    function saveDevice() {
+      if (!selectedDevice) return;
+      
+      // 获取表单数据
+      const formData = {
+        name: document.getElementById('editName').value,
+        status: document.getElementById('editStatus').value,
+        location: document.getElementById('editLocation').value,
+        brand: document.getElementById('editBrand').value,
+        model: document.getElementById('editModel').value,
+        manufacturer: document.getElementById('editManufacturer').value,
+        installDate: document.getElementById('editInstallDate').value,
+        remarks: document.getElementById('editRemarks').value
+      };
+      
+      // 更新设备数据
+      Object.assign(selectedDevice, formData);
+      
+      // 更新显示
+      updateDeviceInfo();
+      updateTree();
+      
+      // 关闭弹窗
+      closeEditModal();
+      
+      alert('设备信息已保存');
+    }
+
+    // 点击弹窗外部关闭
+    window.onclick = function(event) {
+      const editModal = document.getElementById('editModal');
+      const historyModal = document.getElementById('historyModal');
+      const maintenanceModal = document.getElementById('maintenanceModal');
+      
+      if (event.target === editModal) {
+        closeEditModal();
+      }
+      if (event.target === historyModal) {
+        closeHistoryModal();
+      }
+      if (event.target === maintenanceModal) {
+        closeMaintenanceModal();
+      }
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 默认选择第一个设备
+      selectedDevice = findDeviceByKey(deviceData, 'TY-001');
+      updateTree();
+      updateDeviceInfo();
+    });
+  </script>
+</body>
+</html>

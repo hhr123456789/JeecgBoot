@@ -317,9 +317,9 @@ import { defHttp } from '/@/utils/http/axios';
 import dayjs from 'dayjs';
 
 // 图片引入
-import chiller1Image from '/@/assets/images/冷水机1.png';
-import chiller2Image from '/@/assets/images/冷水机2.png';
-import chiller3Image from '/@/assets/images/冷水机3.png';
+import chiller1Image from '/@/assets/images/中央空调.png';
+import chiller2Image from '/@/assets/images/中央空调.png';
+import chiller3Image from '/@/assets/images/中央空调.png';
 
 const { createMessage } = useMessage();
 
@@ -898,44 +898,36 @@ onMounted(() => {
         
         .overview-item {
           text-align: center;
-          padding: 16px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          padding: 24px 16px;
+          background: white;
           border-radius: 8px;
-          color: white;
-          position: relative;
-          overflow: hidden;
+          color: #333;
+          border: 2px solid #e8e9ea;
+          transition: all 0.3s ease;
           
-          &::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-          }
-          
-          &:hover::before {
-            transform: translateX(0);
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
           }
           
           .item-title {
             font-size: 14px;
-            margin-bottom: 8px;
-            opacity: 0.9;
+            margin-bottom: 12px;
+            color: #666;
+            font-weight: 500;
           }
           
           .item-value {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
+            color: #1890ff;
             
             .unit {
-              font-size: 14px;
+              font-size: 16px;
               font-weight: normal;
               margin-left: 4px;
+              color: #999;
             }
             
             &.status-value {
@@ -945,21 +937,27 @@ onMounted(() => {
             &.time-value {
               font-size: 14px;
               font-weight: 500;
+              color: #333;
             }
           }
           
           .item-subtitle {
             font-size: 12px;
-            opacity: 0.8;
+            color: #999;
             margin-bottom: 8px;
+            
+            &::before {
+              content: '昨日 ';
+              color: #666;
+            }
           }
           
           .item-label {
             font-size: 12px;
-            opacity: 0.7;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 2px 8px;
-            border-radius: 12px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
             display: inline-block;
           }
         }
