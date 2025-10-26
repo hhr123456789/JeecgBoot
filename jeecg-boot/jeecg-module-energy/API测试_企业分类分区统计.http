@@ -1,0 +1,92 @@
+### 企业分类分区统计API测试
+
+### 1. 获取部门树形结构
+GET http://localhost:8080/jeecg-boot/energy/classification/getOrgTree
+Content-Type: application/json
+
+###
+
+### 2. 获取能源类型列表
+GET http://localhost:8080/jeecg-boot/energy/classification/getEnergyTypes
+Content-Type: application/json
+
+###
+
+### 3. 查询分类分区统计汇总数据
+POST http://localhost:8080/jeecg-boot/energy/classification/getSummaryData
+Content-Type: application/json
+
+{
+  "orgCode": "A01",
+  "energyType": "all",
+  "timeDimension": "month",
+  "startDate": "2024-01-01",
+  "endDate": "2024-01-31",
+  "includeChildren": true
+}
+
+###
+
+### 4. 查询趋势对比数据
+POST http://localhost:8080/jeecg-boot/energy/classification/getTrendData
+Content-Type: application/json
+
+{
+  "orgCode": "A01",
+  "energyType": "all",
+  "timeDimension": "month",
+  "startDate": "2024-01-01",
+  "endDate": "2024-06-30",
+  "includeChildren": true
+}
+
+###
+
+### 5. 导出分类分区统计数据
+GET http://localhost:8080/jeecg-boot/energy/classification/exportData?orgCode=A01&energyType=all&timeDimension=month&startDate=2024-01-01&endDate=2024-01-31&includeChildren=true
+Content-Type: application/json
+
+###
+
+### 6. 单独能源类型查询测试
+POST http://localhost:8080/jeecg-boot/energy/classification/getSummaryData
+Content-Type: application/json
+
+{
+  "orgCode": "A01",
+  "energyType": "1",
+  "timeDimension": "month",
+  "startDate": "2024-01-01",
+  "endDate": "2024-01-31",
+  "includeChildren": true
+}
+
+###
+
+### 7. 子部门查询测试
+POST http://localhost:8080/jeecg-boot/energy/classification/getSummaryData
+Content-Type: application/json
+
+{
+  "orgCode": "A",
+  "energyType": "all",
+  "timeDimension": "month",
+  "startDate": "2024-01-01",
+  "endDate": "2024-01-31",
+  "includeChildren": true
+}
+
+###
+
+### 8. 不同时间维度测试
+POST http://localhost:8080/jeecg-boot/energy/classification/getSummaryData
+Content-Type: application/json
+
+{
+  "orgCode": "A01",
+  "energyType": "all",
+  "timeDimension": "day",
+  "startDate": "2024-01-01",
+  "endDate": "2024-01-01",
+  "includeChildren": true
+}

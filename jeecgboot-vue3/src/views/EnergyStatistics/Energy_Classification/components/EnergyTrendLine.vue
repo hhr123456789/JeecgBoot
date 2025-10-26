@@ -1,157 +1,113 @@
 <template>
-  <div ref="chartRef" style="width: 100%; height: 300px;"></div>
+  <div class="chart-container" ref="chartRef"></div>
 </template>
 
-<script lang="ts" setup>
-import { ref, onMounted, watch, onUnmounted } from 'vue';
+<style scoped>
+.chart-container {
+  width: 100%;
+  height: 300px;
+  min-height: 300px;
+  position: relative;
+}
+</style>
+
+<script setup lang="ts">
 import * as echarts from 'echarts';
-import type { EChartsOption } from 'echarts';
+import { onMounted, watch, ref, nextTick, onUnmounted } from 'vue';
+import type { TrendDataVO } from '../api/types';
 
-// 定义props
-const props = defineProps<{
-  chartData: {
-    xAxis: {
-      type: string;
-      data: string[];
-    };
-    series: {
-      name: string;
-      type: string;
-      data: number[];
-    }[];
-  };
-}>();
+interface Props {
+  chartData: TrendDataVO;
+}
 
-// 图表DOM引用
-const chartRef = ref<HTMLElement | null>(null);
-// 图表实例
+const props = defineProps<Props>();
+const chartRef = ref<HTMLElement>();
 let chartInstance: echarts.ECharts | null = null;
 
-// 初始化图表
 const initChart = () => {
-  if (!chartRef.value) return;
-  
-  // 创建图表实例
-  chartInstance = echarts.init(chartRef.value);
-  
-  // 设置图表配置
-  const options: EChartsOption = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'cross',
-        label: {
-          backgroundColor: '#6a7985'
-        }
-      }
-    },
-    legend: {
-      data: props.chartData.series.map(item => item.name),
-      bottom: '0%',
-      textStyle: {
-        fontSize: 12
-      }
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '10%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: props.chartData.xAxis.data,
-      axisLine: {
-        lineStyle: {
-          color: '#999'
-        }
-      },
-      axisLabel: {
-        color: '#666',
-        fontSize: 12
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: '能耗量',
-      nameTextStyle: {
-        color: '#666',
-        fontSize: 12
-      },
-      axisLine: {
-        show: true,
-        lineStyle: {
-          color: '#999'
-        }
-      },
-      axisLabel: {
-        color: '#666',
-        fontSize: 12
-      },
-      splitLine: {
-        lineStyle: {
-          type: 'dashed',
-          color: '#eee'
-        }
-      }
-    },
-    color: ['#4B7BE5', '#23C343', '#FF9F40'],
-    series: props.chartData.series.map(item => ({
-      ...item,
-      type: 'line',
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 8,
-      lineStyle: {
-        width: 2
-      },
-      areaStyle: {
-        opacity: 0.1
-      }
-    }))
-  };
-  
-  // 应用配置
-  chartInstance.setOption(options);
-};
+  try {
+    if (!chartRef.value) return;
 
-// 监听数据变化
-watch(
-  () => props.chartData,
-  () => {
-    if (chartInstance) {
-      chartInstance.setOption({
-        xAxis: {
-          data: props.chartData.xAxis.data
-        },
-        series: props.chartData.series.map(item => ({
-          ...item,
-          data: item.data
-        }))
-      });
+    const container = chartRef.value;
+    if (container.clientWidth === 0 || container.clientHeight === 0) {
+      setTimeout(() => initChart(), 100);
+      return;
     }
-  },
-  { deep: true }
-);
 
-// 监听窗口大小变化
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize();
+    if (chartInstance) {
+      try {
+        const oldHandler = (chartInstance as any).__resizeHandler;
+        if (oldHandler) window.removeEventListener('resize', oldHandler);
+      } catch {}
+      chartInstance.dispose();
+      chartInstance = null;
+    }
+
+    const xAxisObj: any = (props.chartData as any).xAxis || (props.chartData as any).xaxis;
+    if (!props.chartData || !xAxisObj || !props.chartData.series || props.chartData.series.length === 0) {
+      return;
+    }
+
+    chartInstance = echarts.init(chartRef.value, null, {
+      renderer: 'canvas',
+      width: 'auto',
+      height: 'auto',
+    });
+
+    const option: echarts.EChartsOption = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } },
+      },
+      legend: { data: props.chartData.series.map((s) => s.name), top: 10 },
+      color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: (xAxisObj.type || 'category'), boundaryGap: false, data: xAxisObj.data || [] },
+      yAxis: { type: 'value', name: '用量', nameLocation: 'end', nameGap: 20 },
+      series: props.chartData.series.map((seriesItem) => ({
+        name: seriesItem.name,
+        type: seriesItem.type || 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { width: 3 },
+        emphasis: { focus: 'series' },
+        data: seriesItem.data || [],
+      })),
+    };
+
+    chartInstance.setOption(option);
+    setTimeout(() => chartInstance && chartInstance.resize(), 100);
+
+    const resizeHandler = () => chartInstance && chartInstance.resize();
+    window.addEventListener('resize', resizeHandler);
+    (chartInstance as any).__resizeHandler = resizeHandler;
+  } catch (e) {
+    // swallow
   }
 };
 
-onMounted(() => {
-  initChart();
-  window.addEventListener('resize', handleResize);
-});
+onMounted(() => nextTick(() => initChart()));
+
+watch(
+  () => props.chartData,
+  (newData) => {
+    const xAxisObj: any = (newData as any)?.xAxis || (newData as any)?.xaxis;
+    const hasValid = !!newData && !!xAxisObj && !!newData.series && newData.series.length > 0;
+    if (!hasValid) return;
+    nextTick(() => initChart());
+  },
+  { deep: true },
+);
 
 onUnmounted(() => {
   if (chartInstance) {
+    try {
+      const oldHandler = (chartInstance as any).__resizeHandler;
+      if (oldHandler) window.removeEventListener('resize', oldHandler);
+    } catch {}
     chartInstance.dispose();
     chartInstance = null;
   }
-  window.removeEventListener('resize', handleResize);
 });
-</script> 
+</script>
