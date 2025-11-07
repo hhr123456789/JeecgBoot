@@ -298,6 +298,7 @@ export function useEnergyClassification() {
           },
           tableData: Array.isArray(summaryResponse.tableData) ? summaryResponse.tableData : []
         };
+        //console.log("hhr1026="  + JSON.stringify(validSummary)); 
         summaryData.value = validSummary;
         tableData.value = validSummary.tableData;
       } else {

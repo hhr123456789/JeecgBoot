@@ -22,6 +22,9 @@ management:
 spring:
   main:
     allow-bean-definition-overriding: true
+  output:
+    ansi:
+      enabled: always
   # 热部署配置
   devtools:
     restart:

@@ -1,0 +1,24 @@
+# IDEA启动参数配置
+在IDEA中启动Spring Boot应用时，需要添加以下VM options：
+
+-Dfile.encoding=UTF-8
+-Dconsole.encoding=UTF-8
+-Duser.timezone=Asia/Shanghai
+
+配置方法：
+1. 打开Run/Debug Configurations
+2. 选择Spring Boot启动配置
+3. 在VM options字段中添加上述参数
+4. 点击Apply和OK
+
+# Maven启动参数配置
+如果使用mvn命令启动，可以添加以下参数：
+
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8"
+
+# Windows系统永久解决方案
+1. 打开系统环境变量设置
+2. 添加系统变量：
+   变量名：JAVA_TOOL_OPTIONS
+   变量值：-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8
+3. 重启命令行窗口

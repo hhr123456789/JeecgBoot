@@ -1,0 +1,368 @@
+15:02:45,093 |-INFO in ch.qos.logback.core.joran.spi.ConfigurationWatchList@7e0e6aa2 - URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/classes!/logback-spring.xml] is not of type file
+15:02:45,181 |-INFO in ch.qos.logback.core.joran.action.StatusListenerAction - Added status listener of type [ch.qos.logback.core.status.OnConsoleStatusListener]
+15:02:45,181 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+15:02:45,181 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [STDOUT]
+15:02:45,298 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.FileAppender]
+15:02:45,303 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [FILE]
+15:02:45,305 |-INFO in ch.qos.logback.core.FileAppender[FILE] - File property is set to [../logs/jeecgboot.log]
+15:02:45,309 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+15:02:45,312 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [ROLLING_FILE]
+15:02:45,332 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@786041152 - Archive files will be limited to [10 MB] each.
+15:02:45,339 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@786041152 - No compression will be used
+15:02:45,342 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@786041152 - Will use the pattern ../logs/jeecgboot-%d{yyyy-MM-dd}.%i.log for the active file
+15:02:45,349 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@3578436e - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/jeecgboot-%d{yyyy-MM-dd}.%i.log'.
+15:02:45,349 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@3578436e - Roll-over at midnight.
+15:02:45,354 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@3578436e - Setting initial period to Sun Oct 26 15:01:00 CST 2025
+15:02:45,366 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[ROLLING_FILE] - Active log file name: ../logs/jeecgboot-rolling.log
+15:02:45,366 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[ROLLING_FILE] - File property is set to [../logs/jeecgboot-rolling.log]
+15:02:45,367 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.FileAppender]
+15:02:45,368 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [HTML]
+15:02:45,384 |-INFO in ch.qos.logback.core.FileAppender[HTML] - File property is set to [../logs/error-log.html]
+15:02:45,387 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+15:02:45,387 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [FILE_HTML]
+15:02:45,388 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@156545103 - Archive files will be limited to [10 MB] each.
+15:02:45,388 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@156545103 - No compression will be used
+15:02:45,389 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@156545103 - Will use the pattern ../logs/jeecgboot-%d{yyyy-MM-dd}.%i.html for the active file
+15:02:45,389 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@149494d8 - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/jeecgboot-%d{yyyy-MM-dd}.%i.html'.
+15:02:45,389 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@149494d8 - Roll-over at midnight.
+15:02:45,390 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@149494d8 - Setting initial period to Sun Oct 26 15:02:45 CST 2025
+15:02:45,392 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE_HTML] - Active log file name: ../logs/jeecgboot-2025-10-26.1.html
+15:02:45,392 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE_HTML] - File property is set to [null]
+15:02:45,395 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [com.apache.ibatis] to TRACE
+15:02:45,395 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating TRACE level on Logger[com.apache.ibatis] onto the JUL framework
+15:02:45,396 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.Connection] to DEBUG
+15:02:45,397 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating DEBUG level on Logger[java.sql.Connection] onto the JUL framework
+15:02:45,397 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.Statement] to DEBUG
+15:02:45,397 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating DEBUG level on Logger[java.sql.Statement] onto the JUL framework
+15:02:45,397 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.PreparedStatement] to DEBUG
+15:02:45,397 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating DEBUG level on Logger[java.sql.PreparedStatement] onto the JUL framework
+15:02:45,397 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to INFO
+15:02:45,397 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating INFO level on Logger[ROOT] onto the JUL framework
+15:02:45,397 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [STDOUT] to Logger[ROOT]
+15:02:45,397 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [FILE] to Logger[ROOT]
+15:02:45,397 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [ROLLING_FILE] to Logger[ROOT]
+15:02:45,397 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [HTML] to Logger[ROOT]
+15:02:45,397 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [FILE_HTML] to Logger[ROOT]
+15:02:45,397 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - End of configuration.
+15:02:45,397 |-INFO in org.springframework.boot.logging.logback.SpringBootJoranConfigurator@4cf4d528 - Registering current configuration as safe fallback point
+15:02:45,411 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating DEBUG level on Logger[org.flywaydb] onto the JUL framework
+15:02:45,411 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@710726a3 - Propagating INFO level on Logger[org.jeecg.modules.system.mapper] onto the JUL framework
+
+   (_)                          | |               | |
+    _  ___  ___  ___ __ _ ______| |__   ___   ___ | |_ 
+   | |/ _ \/ _ \/ __/ _` |______| '_ \ / _ \ / _ \| __|
+   | |  __/  __/ (_| (_| |      | |_) | (_) | (_) | |_ 
+   | |\___|\___|\___\__, |      |_.__/ \___/ \___/ \__|
+  _/ |               __/ |                             
+ |__/               |___/
+
+
+
+Jeecg  Boot Version: 3.7.2
+Spring Boot Version: 2.7.18 (v2.7.18)
+≤˙∆∑πŸÕ¯£∫ www.jeecg.com
+∞Ê»®À˘ Ù£∫ ±±æ©π˙æÊ–≈œ¢ºº ı”–œﬁπ´Àæ
+π´ÀæπŸÕ¯£∫ www.guojusoft.com
+
+
+2025-10-26 15:02:45.621 [background-preinit] [34mINFO [0;39m [36morg.hibernate.validator.internal.util.Version:21[0;39m - HV000001: Hibernate Validator 6.2.5.Final
+2025-10-26 15:02:45.688 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:55[0;39m - Starting JeecgSystemApplication v3.7.2 using Java 1.8.0_191 on hhrmichael with PID 23540 (E:\workspace\EMSProject_jeecg\JeecgBoot\jeecg-boot\jeecg-module-system\jeecg-system-start\target\jeecg-system-start-3.7.2.jar started by michael in E:\workspace\EMSProject_jeecg\JeecgBoot\jeecg-boot\jeecg-module-system\jeecg-system-start)
+2025-10-26 15:02:45.690 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:638[0;39m - The following 1 profile is active: "dev"
+2025-10-26 15:02:51.305 [main] [34mINFO [0;39m [36mo.s.d.r.config.RepositoryConfigurationDelegate:262[0;39m - Multiple Spring Data modules found, entering strict repository configuration mode
+2025-10-26 15:02:51.314 [main] [34mINFO [0;39m [36mo.s.d.r.config.RepositoryConfigurationDelegate:132[0;39m - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2025-10-26 15:02:51.731 [main] [34mINFO [0;39m [36mo.s.d.r.config.RepositoryConfigurationDelegate:201[0;39m - Finished Spring Data repository scanning in 379 ms. Found 0 Redis repository interfaces.
+2025-10-26 15:02:52.075 [main] [34mINFO [0;39m [36mo.j.minidao.auto.MinidaoAutoConfiguration:23[0;39m -  ******************* init miniDao config [ begin ] *********************** 
+2025-10-26 15:02:52.078 [main] [34mINFO [0;39m [36mo.j.minidao.auto.MinidaoAutoConfiguration:25[0;39m -  ------ minidao.base-package ------- org.jeecg.modules.jmreport.*,org.jeecg.modules.drag.*
+2025-10-26 15:02:52.082 [main] [34mINFO [0;39m [36mo.j.minidao.auto.MinidaoAutoConfiguration:42[0;39m -  *******************  init miniDao config  [ end ] *********************** 
+2025-10-26 15:02:52.327 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportCategoryDao }
+2025-10-26 15:02:52.329 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDao }
+2025-10-26 15:02:52.330 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDataSourceDao }
+2025-10-26 15:02:52.332 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDbDao }
+2025-10-26 15:02:52.333 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDbFieldDao }
+2025-10-26 15:02:52.333 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDbParamDao }
+2025-10-26 15:02:52.334 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDictDao }
+2025-10-26 15:02:52.335 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportDictItemDao }
+2025-10-26 15:02:52.335 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportExportJobDao }
+2025-10-26 15:02:52.336 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportExportLogDao }
+2025-10-26 15:02:52.338 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportLinkDao }
+2025-10-26 15:02:52.338 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportMapDao }
+2025-10-26 15:02:52.340 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.jmreport.desreport.dao.JimuReportShareDao }
+2025-10-26 15:02:52.340 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.JimuDragCategoryDao }
+2025-10-26 15:02:52.340 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragCompDao }
+2025-10-26 15:02:52.341 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragDatasetHeadDao }
+2025-10-26 15:02:52.342 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragDatasetItemDao }
+2025-10-26 15:02:52.342 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragDatasetParamDao }
+2025-10-26 15:02:52.342 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragDataSourceDao }
+2025-10-26 15:02:52.342 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragPageCompDao }
+2025-10-26 15:02:52.343 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragPageDao }
+2025-10-26 15:02:52.344 [main] [34mINFO [0;39m [36mo.j.minidao.factory.MiniDaoClassPathMapperScanner:55[0;39m - register minidao name is { org.jeecg.modules.drag.dao.OnlDragShareDao }
+2025-10-26 15:02:53.690 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'spring.redis-org.springframework.boot.autoconfigure.data.redis.RedisProperties' of type [org.springframework.boot.autoconfigure.data.redis.RedisProperties] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.706 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'org.springframework.boot.autoconfigure.data.redis.LettuceConnectionConfiguration' of type [org.springframework.boot.autoconfigure.data.redis.LettuceConnectionConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.801 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'org.springframework.boot.actuate.autoconfigure.metrics.redis.LettuceMetricsAutoConfiguration' of type [org.springframework.boot.actuate.autoconfigure.metrics.redis.LettuceMetricsAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.808 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration' of type [org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.828 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'management.metrics.export.prometheus-org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusProperties' of type [org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusProperties] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.835 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'prometheusConfig' of type [org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusPropertiesConfigAdapter] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.852 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'collectorRegistry' of type [io.prometheus.client.CollectorRegistry] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.862 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration' of type [org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.865 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'micrometerClock' of type [io.micrometer.core.instrument.Clock$1] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.923 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'prometheusMeterRegistry' of type [io.micrometer.prometheus.PrometheusMeterRegistry] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.930 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'micrometerOptions' of type [io.lettuce.core.metrics.MicrometerOptions] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:53.935 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'lettuceMetrics' of type [org.springframework.boot.actuate.autoconfigure.metrics.redis.LettuceMetricsAutoConfiguration$$Lambda$445/37887172] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:54.981 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'lettuceClientResources' of type [io.lettuce.core.resource.DefaultClientResources] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:55.307 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'redisConnectionFactory' of type [org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:55.317 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'jeecgBaseConfig' of type [org.jeecg.config.JeecgBaseConfig] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:55.321 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'shiroConfig' of type [org.jeecg.config.shiro.ShiroConfig$$EnhancerBySpringCGLIB$$9e4d17cd] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:56.898 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'spring.datasource.dynamic-com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceProperties' of type [com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceProperties] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:56.916 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAopConfiguration' of type [com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAopConfiguration$$EnhancerBySpringCGLIB$$c0828728] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:56.949 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'dsProcessor' of type [com.baomidou.dynamic.datasource.processor.DsHeaderProcessor] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:02:57.111 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'shiroRealm' of type [org.jeecg.config.shiro.ShiroRealm] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:01.572 [main] [34mINFO [0;39m [36morg.jeecg.config.shiro.ShiroConfig:282[0;39m - ===============(1)ÂàõÂª∫ÁºìÂ≠òÁÆ°ÁêÜÂô®RedisCacheManager
+2025-10-26 15:03:01.576 [main] [34mINFO [0;39m [36morg.jeecg.config.shiro.ShiroConfig:303[0;39m - ===============(2)ÂàõÂª∫RedisManager,ËøûÊé•Redis..
+2025-10-26 15:03:01.581 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'redisManager' of type [org.crazycake.shiro.RedisManager] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:01.594 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'securityManager' of type [org.apache.shiro.web.mgt.DefaultWebSecurityManager] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:01.654 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'authorizationAttributeSourceAdvisor' of type [org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:01.712 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'org.apache.shiro.spring.boot.autoconfigure.ShiroBeanAutoConfiguration' of type [org.apache.shiro.spring.boot.autoconfigure.ShiroBeanAutoConfiguration$$EnhancerBySpringCGLIB$$5229ad84] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:01.725 [main] [34mINFO [0;39m [36mo.s.c.s.PostProcessorRegistrationDelegate$BeanPostProcessorChecker:376[0;39m - Bean 'eventBus' of type [org.apache.shiro.event.support.DefaultEventBus] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2025-10-26 15:03:02.877 [main] [34mINFO [0;39m [36mo.s.boot.web.embedded.tomcat.TomcatWebServer:108[0;39m - Tomcat initialized with port(s): 8080 (http)
+2025-10-26 15:03:02.911 [main] [34mINFO [0;39m [36morg.apache.coyote.http11.Http11NioProtocol:173[0;39m - Initializing ProtocolHandler ["http-nio-8080"]
+2025-10-26 15:03:02.914 [main] [34mINFO [0;39m [36morg.apache.catalina.core.StandardService:173[0;39m - Starting service [Tomcat]
+2025-10-26 15:03:02.915 [main] [34mINFO [0;39m [36morg.apache.catalina.core.StandardEngine:173[0;39m - Starting Servlet engine: [Apache Tomcat/9.0.83]
+2025-10-26 15:03:03.121 [main] [34mINFO [0;39m [36mo.a.c.c.C.[Tomcat].[localhost].[/jeecg-boot]:173[0;39m - Initializing Spring embedded WebApplicationContext
+2025-10-26 15:03:03.122 [main] [34mINFO [0;39m [36mo.s.b.w.s.c.ServletWebServerApplicationContext:292[0;39m - Root WebApplicationContext: initialization completed in 17321 ms
+2025-10-26 15:03:05.615 [main] [34mINFO [0;39m [36mcom.alibaba.druid.pool.DruidDataSource:1002[0;39m - {dataSource-1,master} inited
+2025-10-26 15:03:05.618 [main] [34mINFO [0;39m [36mc.b.dynamic.datasource.DynamicRoutingDataSource:154[0;39m - dynamic-datasource - add a datasource named [master] success
+2025-10-26 15:03:05.621 [main] [34mINFO [0;39m [36mc.b.dynamic.datasource.DynamicRoutingDataSource:237[0;39m - dynamic-datasource initial loaded [1] datasource,primary datasource named [master]
+Logging initialized using 'class org.apache.ibatis.logging.stdout.StdOutImpl' adapter.
+Registered plugin: 'org.jeecg.config.mybatis.MybatisInterceptor@61078690'
+Registered plugin: 'com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor@3a1d593e'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/message/mapper/xml/SysMessageMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/message/mapper/xml/SysMessageTemplateMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/quartz/mapper/xml/QuartzJobMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysAnnouncementMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysAnnouncementSendMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysCategoryMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysCheckRuleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysCommentMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDataLogMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDataSourceMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDepartMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDepartPermissionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDepartRoleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDepartRolePermissionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDepartRoleUserMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDictItemMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysDictMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysFillRuleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysGatewayRouteMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysLogMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysPackPermissionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysPermissionDataRuleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysPermissionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysPositionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysRoleIndexMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysRoleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysTableWhiteListMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysTenantMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysTenantPackMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysTenantPackUserMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysThirdAccountMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysThirdAppConfigMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysUserAgentMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysUserDepartMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysUserMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysUserPositionMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-system-biz-3.7.2.jar!/org/jeecg/modules/system/mapper/xml/SysUserTenantMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-boot-base-core-3.7.2.jar!/org/jeecg/modules/base/mapper/xml/BaseCommonMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/auth/mapper/xml/OnlAuthDataMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/auth/mapper/xml/OnlAuthPageMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/auth/mapper/xml/OnlAuthRelationMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgform/mapper/xml/OnlCgformFieldMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgform/mapper/xml/OnlCgformHeadMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgform/mapper/xml/OnlCgformIndexMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgform/mapper/xml/OnlineMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgreport/mapper/xml/OnlCgreportHeadMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgreport/mapper/xml/OnlCgreportItemMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/hibernate-re-3.7.1-RC.jar!/org/jeecg/modules/online/cgreport/mapper/xml/OnlCgreportParamMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-demo-3.7.2.jar!/org/jeecg/modules/demo/test/mapper/xml/JeecgDemoMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-demo-3.7.2.jar!/org/jeecg/modules/demo/test/mapper/xml/JeecgOrderCustomerMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-demo-3.7.2.jar!/org/jeecg/modules/demo/test/mapper/xml/JeecgOrderMainMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-demo-3.7.2.jar!/org/jeecg/modules/demo/test/mapper/xml/JeecgOrderTicketMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-demo-3.7.2.jar!/org/jeecg/modules/demo/test/mapper/xml/JoaDemoMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/ReasonableAnalysisMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEpEquEnergyDaycountMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEpEquEnergyMonthcountMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEpEquEnergyYearcountMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEquEleDataMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEquEnergyDataMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbEquipmentDepreciationMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TbModuleMapper.xml]'
+Parsed mapper file: 'URL [jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/lib/jeecg-module-energy-3.7.2.jar!/org/jeecg/modules/energy/mapper/xml/TrendAnalysisMapper.xml]'
+Initialization Sequence datacenterId:29 workerId:9
+2025-10-26 15:03:12.200 [main] [34mINFO [0;39m [36morg.jeecg.common.modules.redis.config.RedisConfig:58[0;39m -  --- redis config init --- 
+2025-10-26 15:03:17.157 [main] [34mINFO [0;39m [36morg.quartz.impl.StdSchedulerFactory:1220[0;39m - Using default implementation for ThreadExecutor
+2025-10-26 15:03:17.169 [main] [34mINFO [0;39m [36morg.quartz.simpl.SimpleThreadPool:268[0;39m - Job execution threads will use class loader of thread: main
+2025-10-26 15:03:17.214 [main] [34mINFO [0;39m [36morg.quartz.core.SchedulerSignalerImpl:61[0;39m - Initialized Scheduler Signaller of type: class org.quartz.core.SchedulerSignalerImpl
+2025-10-26 15:03:17.215 [main] [34mINFO [0;39m [36morg.quartz.core.QuartzScheduler:229[0;39m - Quartz Scheduler v.2.3.2 created.
+2025-10-26 15:03:17.224 [main] [34mINFO [0;39m [36mo.s.scheduling.quartz.LocalDataSourceJobStore:672[0;39m - Using db table-based data access locking (synchronization).
+2025-10-26 15:03:17.231 [main] [34mINFO [0;39m [36mo.s.scheduling.quartz.LocalDataSourceJobStore:145[0;39m - JobStoreCMT initialized.
+2025-10-26 15:03:17.236 [main] [34mINFO [0;39m [36morg.quartz.core.QuartzScheduler:294[0;39m - Scheduler meta-data: Quartz Scheduler (v2.3.2) 'MyScheduler' with instanceId 'hhrmichael1761462197167'
+  Scheduler class: 'org.quartz.core.QuartzScheduler' - running locally.
+  NOT STARTED.
+  Currently in standby mode.
+  Number of jobs executed: 0
+  Using thread pool 'org.quartz.simpl.SimpleThreadPool' - with 10 threads.
+  Using job-store 'org.springframework.scheduling.quartz.LocalDataSourceJobStore' - which supports persistence. and is clustered.
+
+2025-10-26 15:03:17.237 [main] [34mINFO [0;39m [36morg.quartz.impl.StdSchedulerFactory:1374[0;39m - Quartz scheduler 'MyScheduler' initialized from an externally provided properties instance.
+2025-10-26 15:03:17.237 [main] [34mINFO [0;39m [36morg.quartz.impl.StdSchedulerFactory:1378[0;39m - Quartz scheduler version: 2.3.2
+2025-10-26 15:03:17.237 [main] [34mINFO [0;39m [36morg.quartz.core.QuartzScheduler:2293[0;39m - JobFactory set to: org.springframework.scheduling.quartz.SpringBeanJobFactory@4e6d7365
+2025-10-26 15:03:23.090 [main] [34mINFO [0;39m [36mo.j.config.shiro.ignore.IgnoreAuthPostProcessor:41[0;39m - Init Token ignoreAuthUrls Config [ ÈõÜÂêà ]  Ôºö[/test/jeecgDemo/html]
+2025-10-26 15:03:23.093 [main] [34mINFO [0;39m [36mo.j.config.shiro.ignore.IgnoreAuthPostProcessor:49[0;39m - Init Token ignoreAuthUrls Config [ ËÄóÊó∂ ] Ôºö12ÊØ´Áßí
+2025-10-26 15:03:35.047 [main] [34mINFO [0;39m [36morg.jeecg.modules.energy.util.InfluxDBUtil:61[0;39m - InfluxDB ËøûÊé•ÊàêÂäü: http://localhost:8086
+2025-10-26 15:03:36.174 [main] [34mINFO [0;39m [36mo.s.b.actuate.endpoint.web.EndpointLinksResolver:58[0;39m - Exposing 2 endpoint(s) beneath base path '/actuator'
+2025-10-26 15:03:36.805 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - Scanning for classpath resources at 'classpath:db/callback' ...
+2025-10-26 15:03:36.805 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - Determining location urls for classpath:db/callback using ClassLoader org.springframework.boot.loader.LaunchedURLClassLoader@6433a2 ...
+2025-10-26 15:03:36.807 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - Unable to resolve location classpath:db/callback.
+2025-10-26 15:03:36.807 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - AWS SDK available: false
+2025-10-26 15:03:36.809 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - Google Cloud Storage available: false
+2025-10-26 15:03:36.811 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Scanning for classpath resources at 'classpath:flyway/sql/mysql' ...
+2025-10-26 15:03:36.812 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Determining location urls for classpath:flyway/sql/mysql using ClassLoader org.springframework.boot.loader.LaunchedURLClassLoader@6433a2 ...
+2025-10-26 15:03:36.814 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Scanning URL: jar:file:/E:/workspace/EMSProject_jeecg/JeecgBoot/jeecg-boot/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.7.2.jar!/BOOT-INF/classes!/flyway/sql/mysql
+2025-10-26 15:03:36.817 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.util.FeatureDetector:40[0;39m - JBoss VFS v2 available: false
+2025-10-26 15:03:36.827 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/
+2025-10-26 15:03:36.828 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/README.md
+2025-10-26 15:03:36.829 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/R__370_missingPermission.sql
+2025-10-26 15:03:36.830 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.6.2__all_upgrade.sql
+2025-10-26 15:03:36.830 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.6.3__all_upgrade.sql
+2025-10-26 15:03:36.832 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.7.0__all_upgrade.sql
+2025-10-26 15:03:36.833 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.7.12__jimu_dashboard_upgrade.sql
+2025-10-26 15:03:36.833 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.7.1__all_upgrade.sql
+2025-10-26 15:03:36.834 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.7.20__system_upgrade.sql
+2025-10-26 15:03:36.834 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Found resource: flyway/sql/mysql/V3.7.21__jimureport_upgrade.sql
+2025-10-26 15:03:36.834 [main] [39mDEBUG[0;39m [36mo.f.c.internal.scanner.classpath.ClassPathScanner:40[0;39m - Scanning for classes at classpath:flyway/sql/mysql
+2025-10-26 15:03:37.011 [main] [34mINFO [0;39m [36morg.flywaydb.core.internal.license.VersionPrinter:44[0;39m - Flyway Community Edition 7.15.0 by Redgate
+2025-10-26 15:03:37.015 [main] [34mINFO [0;39m [36mo.f.core.internal.database.base.BaseDatabaseType:44[0;39m - Database: jdbc:mysql://127.0.0.1:3306/EMSProject_jeecg (MySQL 5.7)
+2025-10-26 15:03:37.018 [main] [39mDEBUG[0;39m [36mo.f.core.internal.database.base.BaseDatabaseType:40[0;39m - Driver  : MySQL Connector/J mysql-connector-java-8.0.27 (Revision: e920b979015ae7117d60d72bcc8f077a839cd791)
+2025-10-26 15:03:37.056 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.Flyway:40[0;39m - DDL Transactions Supported: false
+2025-10-26 15:03:37.066 [main] [39mDEBUG[0;39m [36mo.f.c.internal.schemahistory.SchemaHistoryFactory:40[0;39m - Schemas: 
+2025-10-26 15:03:37.067 [main] [39mDEBUG[0;39m [36mo.f.c.internal.schemahistory.SchemaHistoryFactory:40[0;39m - Default schema: null
+2025-10-26 15:03:37.102 [main] [39mDEBUG[0;39m [36mo.f.c.internal.callback.SqlScriptCallbackFactory:40[0;39m - Scanning for SQL callbacks ...
+2025-10-26 15:03:37.103 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/README.md (filename: README.md)
+2025-10-26 15:03:37.104 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/ (filename: )
+2025-10-26 15:03:37.149 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.command.DbValidate:40[0;39m - Validating migrations ...
+2025-10-26 15:03:37.168 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/README.md (filename: README.md)
+2025-10-26 15:03:37.169 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/ (filename: )
+2025-10-26 15:03:37.170 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/R__370_missingPermission.sql (filename: R__370_missingPermission.sql)
+2025-10-26 15:03:37.268 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/README.md (filename: README.md)
+2025-10-26 15:03:37.270 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.7.21__jimureport_upgrade.sql (filename: V3.7.21__jimureport_upgrade.sql)
+2025-10-26 15:03:37.271 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.7.0__all_upgrade.sql (filename: V3.7.0__all_upgrade.sql)
+2025-10-26 15:03:37.273 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/ (filename: )
+2025-10-26 15:03:37.274 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.6.2__all_upgrade.sql (filename: V3.6.2__all_upgrade.sql)
+2025-10-26 15:03:37.275 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.7.12__jimu_dashboard_upgrade.sql (filename: V3.7.12__jimu_dashboard_upgrade.sql)
+2025-10-26 15:03:37.275 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.6.3__all_upgrade.sql (filename: V3.6.3__all_upgrade.sql)
+2025-10-26 15:03:37.276 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.7.1__all_upgrade.sql (filename: V3.7.1__all_upgrade.sql)
+2025-10-26 15:03:37.276 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.internal.scanner.Scanner:40[0;39m - Filtering out resource: flyway/sql/mysql/V3.7.20__system_upgrade.sql (filename: V3.7.20__system_upgrade.sql)
+2025-10-26 15:03:37.398 [main] [34mINFO [0;39m [36morg.flywaydb.core.internal.command.DbValidate:44[0;39m - Successfully validated 10 migrations (execution time 00:00.243s)
+2025-10-26 15:03:37.442 [main] [34mINFO [0;39m [36morg.flywaydb.core.internal.command.DbMigrate:44[0;39m - Current version of schema `emsproject_jeecg`: 3.7.21
+2025-10-26 15:03:37.446 [main] [34mINFO [0;39m [36morg.flywaydb.core.internal.command.DbMigrate:44[0;39m - Schema `emsproject_jeecg` is up to date. No migration necessary.
+2025-10-26 15:03:37.454 [main] [39mDEBUG[0;39m [36morg.flywaydb.core.Flyway:40[0;39m - Memory usage: 925 of 1547M
+2025-10-26 15:03:37.457 [main] [34mINFO [0;39m [36morg.jeecg.config.flyway.FlywayConfig:126[0;39m - „ÄêÊï∞ÊçÆÂ∫ìÂçáÁ∫ß„ÄëÂπ≥Âè∞ÈõÜÊàê‰∫ÜMySQLÂ∫ìÁöÑFlywayÔºåÊï∞ÊçÆÂ∫ìÁâàÊú¨Ëá™Âä®ÂçáÁ∫ß! 
+2025-10-26 15:03:37.523 [main] [34mINFO [0;39m [36morg.jeecg.config.init.CodeGenerateDbConfig:50[0;39m -  Init CodeGenerate Config [ Get Db Config From application.yml ] 
+2025-10-26 15:03:37.789 [main] [34mINFO [0;39m [36ms.d.s.w.WebMvcPropertySourcedRequestMappingHandlerMapping:69[0;39m - Mapped URL path [/v2/api-docs] onto method [springfox.documentation.swagger2.web.Swagger2ControllerWebMvc#getDocumentation(String, HttpServletRequest)]
+2025-10-26 15:03:43.067 [main] [34mINFO [0;39m [36morg.apache.coyote.http11.Http11NioProtocol:173[0;39m - Starting ProtocolHandler ["http-nio-8080"]
+2025-10-26 15:03:43.349 [main] [34mINFO [0;39m [36mo.s.boot.web.embedded.tomcat.TomcatWebServer:220[0;39m - Tomcat started on port(s): 8080 (http) with context path '/jeecg-boot'
+2025-10-26 15:03:43.349 [main] [34mINFO [0;39m [36ms.d.s.web.plugins.DocumentationPluginsBootstrapper:93[0;39m - Documentation plugins bootstrapped
+2025-10-26 15:03:43.392 [main] [34mINFO [0;39m [36ms.d.s.web.plugins.DocumentationPluginsBootstrapper:79[0;39m - Found 1 custom documentation plugin(s)
+2025-10-26 15:03:44.298 [main] [34mINFO [0;39m [36ms.d.spring.web.scanners.ApiListingReferenceScanner:44[0;39m - Scanning for api listing references
+2025-10-26 15:03:46.376 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: getModulesByDimensionUsingGET_1
+2025-10-26 15:03:46.674 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_1
+2025-10-26 15:03:46.684 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_1
+2025-10-26 15:03:46.690 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_1
+2025-10-26 15:03:46.695 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_1
+2025-10-26 15:03:46.699 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_1
+2025-10-26 15:03:46.703 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_1
+2025-10-26 15:03:46.760 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_1
+2025-10-26 15:03:46.818 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_2
+2025-10-26 15:03:46.839 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_2
+2025-10-26 15:03:46.853 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_2
+2025-10-26 15:03:46.868 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_2
+2025-10-26 15:03:46.872 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_2
+2025-10-26 15:03:46.883 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_2
+2025-10-26 15:03:46.905 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_3
+2025-10-26 15:03:46.911 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_3
+2025-10-26 15:03:46.928 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_3
+2025-10-26 15:03:46.944 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_3
+2025-10-26 15:03:46.954 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_3
+2025-10-26 15:03:46.960 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_3
+2025-10-26 15:03:46.979 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_2
+2025-10-26 15:03:46.992 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_4
+2025-10-26 15:03:46.997 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_4
+2025-10-26 15:03:47.001 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_4
+2025-10-26 15:03:47.007 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_4
+2025-10-26 15:03:47.017 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_4
+2025-10-26 15:03:47.024 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_4
+2025-10-26 15:03:47.042 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_3
+2025-10-26 15:03:47.060 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_5
+2025-10-26 15:03:47.074 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_5
+2025-10-26 15:03:47.078 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_5
+2025-10-26 15:03:47.088 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_5
+2025-10-26 15:03:47.091 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_5
+2025-10-26 15:03:47.095 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_5
+2025-10-26 15:03:47.110 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_4
+2025-10-26 15:03:47.145 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_6
+2025-10-26 15:03:47.156 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_6
+2025-10-26 15:03:47.161 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_6
+2025-10-26 15:03:47.170 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_6
+2025-10-26 15:03:47.173 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_6
+2025-10-26 15:03:47.179 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_6
+2025-10-26 15:03:47.192 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_5
+2025-10-26 15:03:47.205 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_7
+2025-10-26 15:03:47.210 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_7
+2025-10-26 15:03:47.213 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_7
+2025-10-26 15:03:47.227 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_7
+2025-10-26 15:03:47.232 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_7
+2025-10-26 15:03:47.238 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_7
+2025-10-26 15:03:47.251 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_6
+2025-10-26 15:03:47.281 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_7
+2025-10-26 15:03:47.285 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_8
+2025-10-26 15:03:47.309 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_8
+2025-10-26 15:03:47.315 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_8
+2025-10-26 15:03:47.320 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_8
+2025-10-26 15:03:47.323 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_8
+2025-10-26 15:03:47.333 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_8
+2025-10-26 15:03:47.349 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_9
+2025-10-26 15:03:47.353 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_9
+2025-10-26 15:03:47.357 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_9
+2025-10-26 15:03:47.372 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_9
+2025-10-26 15:03:47.375 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_9
+2025-10-26 15:03:47.379 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByCodeUsingGET_1
+2025-10-26 15:03:47.383 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_9
+2025-10-26 15:03:47.398 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_8
+2025-10-26 15:03:47.409 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_10
+2025-10-26 15:03:47.413 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_10
+2025-10-26 15:03:47.417 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_10
+2025-10-26 15:03:47.421 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_10
+2025-10-26 15:03:47.423 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_10
+2025-10-26 15:03:47.428 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_10
+2025-10-26 15:03:47.474 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryPageListUsingGET_9
+2025-10-26 15:03:47.489 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: addUsingPOST_11
+2025-10-26 15:03:47.495 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteUsingDELETE_11
+2025-10-26 15:03:47.500 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: deleteBatchUsingDELETE_11
+2025-10-26 15:03:47.509 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPUT_11
+2025-10-26 15:03:47.511 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: editUsingPOST_11
+2025-10-26 15:03:47.521 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: queryByIdUsingGET_11
+2025-10-26 15:03:47.548 [main] [34mINFO [0;39m [36ms.d.s.w.r.operation.CachingOperationNameGenerator:41[0;39m - Generating unique operation named: exportUsingPOST_1
+2025-10-26 15:03:52.569 [main] [34mINFO [0;39m [36mo.s.scheduling.quartz.SchedulerFactoryBean:734[0;39m - Will start Quartz Scheduler [MyScheduler] in 1 seconds
+2025-10-26 15:03:52.623 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:61[0;39m - Started JeecgSystemApplication in 68.483 seconds (JVM running for 69.739)
+2025-10-26 15:03:52.640 [main] [34mINFO [0;39m [36morg.jeecg.config.init.CodeTemplateInitListener:29[0;39m -  Init Code Generate Template [ Ê£ÄÊµãÂ¶ÇÊûúÊòØJARÂêØÂä®ÁéØÂ¢ÉÔºåCopyÊ®°ÊùøÂà∞configÁõÆÂΩï ] 
+2025-10-26 15:03:52.904 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:35[0;39m - 
+----------------------------------------------------------
+	Application Jeecg-Boot is running! Access URLs:
+	Local: 		http://localhost:8080/jeecg-boot/
+	External: 	http://192.168.2.138:8080/jeecg-boot/
+	SwaggerÊñáÊ°£: 	http://192.168.2.138:8080/jeecg-boot/doc.html
+----------------------------------------------------------
+2025-10-26 15:03:53.578 [Quartz Scheduler [MyScheduler]] [34mINFO [0;39m [36mo.s.scheduling.quartz.SchedulerFactoryBean:750[0;39m - Starting Quartz Scheduler now, after delay of 1 seconds
+2025-10-26 15:03:53.785 [Quartz Scheduler [MyScheduler]] [34mINFO [0;39m [36mo.s.scheduling.quartz.LocalDataSourceJobStore:3644[0;39m - ClusterManager: detected 1 failed or restarted instances.
+2025-10-26 15:03:53.785 [Quartz Scheduler [MyScheduler]] [34mINFO [0;39m [36mo.s.scheduling.quartz.LocalDataSourceJobStore:3503[0;39m - ClusterManager: Scanning for instance "hhrmichael1761461777731"'s failed in-progress jobs.
+2025-10-26 15:03:53.793 [Quartz Scheduler [MyScheduler]] [34mINFO [0;39m [36morg.quartz.core.QuartzScheduler:547[0;39m - Scheduler MyScheduler_$_hhrmichael1761462197167 started.

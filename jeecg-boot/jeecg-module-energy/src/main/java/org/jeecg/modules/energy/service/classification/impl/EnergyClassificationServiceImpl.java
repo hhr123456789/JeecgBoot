@@ -1,15 +1,21 @@
 package org.jeecg.modules.energy.service.classification.impl;
 
 import cn.hutool.core.date.DateUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.jeecg.modules.energy.entity.classification.TbEnergyClassificationSummary;
+import org.jeecg.modules.energy.entity.classification.TbEnergyTypeConfig;
+import org.jeecg.modules.energy.mapper.classification.TbEnergyClassificationSummaryMapper;
+import org.jeecg.modules.energy.mapper.classification.TbEnergyTypeConfigMapper;
 import org.jeecg.modules.energy.service.classification.IEnergyClassificationService;
 import org.jeecg.modules.energy.vo.classification.*;
 import org.jeecgframework.poi.excel.ExcelExportUtil;
 import org.jeecgframework.poi.excel.entity.ExportParams;
 import org.jeecgframework.poi.excel.entity.enmus.ExcelType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -27,7 +33,11 @@ import java.util.stream.Collectors;
 @Service
 public class EnergyClassificationServiceImpl implements IEnergyClassificationService {
     
-    // Removed unused autowired fields
+    @Autowired
+    private TbEnergyClassificationSummaryMapper summaryMapper;
+    
+    @Autowired
+    private TbEnergyTypeConfigMapper energyTypeConfigMapper;
     
     @Override
     public List<OrgTreeVO> getOrgTree() {
@@ -94,37 +104,29 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     
     @Override
     public List<EnergyTypeVO> getEnergyTypes() {
-        // Mock data for testing when database is not available
-        List<EnergyTypeVO> mockEnergyTypes = new ArrayList<>();
+        log.info("开始从数据库获取能源类型配置");
         
-        EnergyTypeVO electric = new EnergyTypeVO();
-        electric.setEnergyType(1);
-        electric.setEnergyName("电能");
-        electric.setEnergyUnit("kWh");
-        electric.setPricePerUnit(0.85);
-        electric.setCarbonFactor(0.785);
-        electric.setCoalFactor(0.1229);
-        mockEnergyTypes.add(electric);
+        // 从数据库获取能源类型配置
+        QueryWrapper<TbEnergyTypeConfig> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("status", "1").orderByAsc("sort_order");
+        List<TbEnergyTypeConfig> energyTypeConfigs = energyTypeConfigMapper.selectList(queryWrapper);
         
-        EnergyTypeVO water = new EnergyTypeVO();
-        water.setEnergyType(2);
-        water.setEnergyName("水能");
-        water.setEnergyUnit("m³");
-        water.setPricePerUnit(3.50);
-        water.setCarbonFactor(0.0);
-        water.setCoalFactor(0.0);
-        mockEnergyTypes.add(water);
+        log.info("从数据库查询到能源类型配置数量: {}", energyTypeConfigs.size());
         
-        EnergyTypeVO gas = new EnergyTypeVO();
-        gas.setEnergyType(3);
-        gas.setEnergyName("燃气");
-        gas.setEnergyUnit("m³");
-        gas.setPricePerUnit(2.80);
-        gas.setCarbonFactor(1.96);
-        gas.setCoalFactor(1.33);
-        mockEnergyTypes.add(gas);
+        List<EnergyTypeVO> result = new ArrayList<>();
+        for (TbEnergyTypeConfig config : energyTypeConfigs) {
+            EnergyTypeVO vo = new EnergyTypeVO();
+            vo.setEnergyType(config.getEnergyType());
+            vo.setEnergyName(config.getEnergyName());
+            vo.setEnergyUnit(config.getEnergyUnit());
+            vo.setPricePerUnit(config.getPricePerUnit().doubleValue());
+            vo.setCarbonFactor(config.getCarbonFactor().doubleValue());
+            vo.setCoalFactor(config.getCoalFactor().doubleValue());
+            result.add(vo);
+            log.info("添加能源类型: {} - {}", config.getEnergyType(), config.getEnergyName());
+        }
         
-        return mockEnergyTypes;
+        return result;
     }
     
     @Override
@@ -158,34 +160,83 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
         TrendDataVO.XAxisDataVO xAxis = new TrendDataVO.XAxisDataVO();
         xAxis.setType("category");
         
-        // 模拟X轴数据
-        List<String> xAxisData = Arrays.asList("1月", "2月", "3月", "4月", "5月", "6月");
+        // 构建查询条件
+        QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
+        
+        // 部门条件
+        if (StringUtils.hasText(param.getOrgCode())) {
+            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                queryWrapper.likeRight("org_code", param.getOrgCode());
+            } else {
+                queryWrapper.eq("org_code", param.getOrgCode());
+            }
+        }
+        
+        // 时间维度条件
+        queryWrapper.eq("time_dimension", param.getTimeDimension());
+        
+        // 时间范围条件
+        if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
+            queryWrapper.between("stat_date", param.getStartDate(), param.getEndDate());
+        }
+        
+        // 按时间和能源类型分组查询
+        queryWrapper.select("stat_month, energy_type, SUM(total_consumption) as total_consumption")
+                   .groupBy("stat_month, energy_type")
+                   .orderByAsc("stat_month");
+        
+        List<Map<String, Object>> trendData = summaryMapper.selectMaps(queryWrapper);
+        
+        // 构建X轴数据（月份）
+        Set<String> months = new TreeSet<>();
+        for (Map<String, Object> data : trendData) {
+            months.add((String) data.get("stat_month"));
+        }
+        List<String> xAxisData = new ArrayList<>(months);
         xAxis.setData(xAxisData);
         result.setXAxis(xAxis);
         
         // 构建系列数据
         List<TrendDataVO.SeriesDataVO> series = new ArrayList<>();
         
+        // 按能源类型分组
+        Map<Integer, List<BigDecimal>> energyTypeData = new HashMap<>();
+        for (Map<String, Object> data : trendData) {
+            Integer energyType = (Integer) data.get("energy_type");
+            BigDecimal consumption = (BigDecimal) data.get("total_consumption");
+            
+            if (!energyTypeData.containsKey(energyType)) {
+                energyTypeData.put(energyType, new ArrayList<>());
+            }
+            energyTypeData.get(energyType).add(consumption);
+        }
+        
         // 电能趋势
-        TrendDataVO.SeriesDataVO electricSeries = new TrendDataVO.SeriesDataVO();
-        electricSeries.setName("电能");
-        electricSeries.setType("line");
-        electricSeries.setData(Arrays.asList(150000, 160000, 145000, 155000, 165000, 170000));
-        series.add(electricSeries);
+        if (energyTypeData.containsKey(1)) {
+            TrendDataVO.SeriesDataVO electricSeries = new TrendDataVO.SeriesDataVO();
+            electricSeries.setName("电能");
+            electricSeries.setType("line");
+            electricSeries.setData(energyTypeData.get(1).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
+            series.add(electricSeries);
+        }
         
         // 水能趋势
-        TrendDataVO.SeriesDataVO waterSeries = new TrendDataVO.SeriesDataVO();
-        waterSeries.setName("水能");
-        waterSeries.setType("line");
-        waterSeries.setData(Arrays.asList(35000, 38000, 36000, 40000, 42000, 43000));
-        series.add(waterSeries);
+        if (energyTypeData.containsKey(2)) {
+            TrendDataVO.SeriesDataVO waterSeries = new TrendDataVO.SeriesDataVO();
+            waterSeries.setName("水能");
+            waterSeries.setType("line");
+            waterSeries.setData(energyTypeData.get(2).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
+            series.add(waterSeries);
+        }
         
         // 燃气趋势
-        TrendDataVO.SeriesDataVO gasSeries = new TrendDataVO.SeriesDataVO();
-        gasSeries.setName("燃气");
-        gasSeries.setType("line");
-        gasSeries.setData(Arrays.asList(25000, 28000, 26000, 29000, 30000, 31000));
-        series.add(gasSeries);
+        if (energyTypeData.containsKey(3)) {
+            TrendDataVO.SeriesDataVO gasSeries = new TrendDataVO.SeriesDataVO();
+            gasSeries.setName("燃气");
+            gasSeries.setType("line");
+            gasSeries.setData(energyTypeData.get(3).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
+            series.add(gasSeries);
+        }
         
         result.setSeries(series);
         return result;
@@ -239,36 +290,65 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     private StatisticsDataVO getStatisticsData(ClassificationQueryParam param) {
         StatisticsDataVO statisticsData = new StatisticsDataVO();
         
-        // 模拟统计数据，实际应该从数据库查询
-        if ("all".equals(param.getEnergyType())) {
-            statisticsData.setTotalConsumption(new BigDecimal("1256789.45"));
-            statisticsData.setElectricConsumption(new BigDecimal("856432.12"));
-            statisticsData.setWaterConsumption(new BigDecimal("234567.89"));
-            statisticsData.setGasConsumption(new BigDecimal("165789.44"));
-            statisticsData.setTotalCost(new BigDecimal("908781.15"));
-            statisticsData.setTotalCarbonEmission(new BigDecimal("1234.56"));
-        } else if ("1".equals(param.getEnergyType())) {
-            statisticsData.setTotalConsumption(new BigDecimal("856432.12"));
-            statisticsData.setElectricConsumption(new BigDecimal("856432.12"));
-            statisticsData.setWaterConsumption(BigDecimal.ZERO);
-            statisticsData.setGasConsumption(BigDecimal.ZERO);
-            statisticsData.setTotalCost(new BigDecimal("685145.70"));
-            statisticsData.setTotalCarbonEmission(new BigDecimal("853.86"));
-        } else if ("2".equals(param.getEnergyType())) {
-            statisticsData.setTotalConsumption(new BigDecimal("234567.89"));
-            statisticsData.setElectricConsumption(BigDecimal.ZERO);
-            statisticsData.setWaterConsumption(new BigDecimal("234567.89"));
-            statisticsData.setGasConsumption(BigDecimal.ZERO);
-            statisticsData.setTotalCost(new BigDecimal("140740.73"));
-            statisticsData.setTotalCarbonEmission(BigDecimal.ZERO);
-        } else if ("3".equals(param.getEnergyType())) {
-            statisticsData.setTotalConsumption(new BigDecimal("165789.44"));
-            statisticsData.setElectricConsumption(BigDecimal.ZERO);
-            statisticsData.setWaterConsumption(BigDecimal.ZERO);
-            statisticsData.setGasConsumption(new BigDecimal("165789.44"));
-            statisticsData.setTotalCost(new BigDecimal("414473.60"));
-            statisticsData.setTotalCarbonEmission(new BigDecimal("358.93"));
+        // 构建查询条件
+        QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
+        
+        // 部门条件
+        if (StringUtils.hasText(param.getOrgCode())) {
+            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                // 包含子部门，使用模糊查询
+                queryWrapper.likeRight("org_code", param.getOrgCode());
+            } else {
+                // 不包含子部门，精确匹配
+                queryWrapper.eq("org_code", param.getOrgCode());
+            }
         }
+        
+        // 时间维度条件
+        queryWrapper.eq("time_dimension", param.getTimeDimension());
+        
+        // 时间范围条件
+        if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
+            queryWrapper.between("stat_date", param.getStartDate(), param.getEndDate());
+        }
+        
+        // 能源类型条件
+        if (!"all".equals(param.getEnergyType())) {
+            queryWrapper.eq("energy_type", param.getEnergyType());
+        }
+        
+        // 查询数据
+        List<TbEnergyClassificationSummary> summaryList = summaryMapper.selectList(queryWrapper);
+        
+        // 统计汇总
+        BigDecimal totalConsumption = BigDecimal.ZERO;
+        BigDecimal electricConsumption = BigDecimal.ZERO;
+        BigDecimal waterConsumption = BigDecimal.ZERO;
+        BigDecimal gasConsumption = BigDecimal.ZERO;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        BigDecimal totalCarbonEmission = BigDecimal.ZERO;
+        
+        for (TbEnergyClassificationSummary summary : summaryList) {
+            totalConsumption = totalConsumption.add(summary.getTotalConsumption());
+            totalCost = totalCost.add(summary.getTotalCost());
+            totalCarbonEmission = totalCarbonEmission.add(summary.getCarbonEmission());
+            
+            // 按能源类型分类统计
+            if (summary.getEnergyType() == 1) {
+                electricConsumption = electricConsumption.add(summary.getTotalConsumption());
+            } else if (summary.getEnergyType() == 2) {
+                waterConsumption = waterConsumption.add(summary.getTotalConsumption());
+            } else if (summary.getEnergyType() == 3) {
+                gasConsumption = gasConsumption.add(summary.getTotalConsumption());
+            }
+        }
+        
+        statisticsData.setTotalConsumption(totalConsumption);
+        statisticsData.setElectricConsumption(electricConsumption);
+        statisticsData.setWaterConsumption(waterConsumption);
+        statisticsData.setGasConsumption(gasConsumption);
+        statisticsData.setTotalCost(totalCost);
+        statisticsData.setTotalCarbonEmission(totalCarbonEmission);
         
         return statisticsData;
     }
@@ -333,42 +413,91 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     private List<TableDataVO> getTableData(ClassificationQueryParam param, StatisticsDataVO statisticsData) {
         List<TableDataVO> tableData = new ArrayList<>();
         
-        // 模拟表格数据
-        if ("all".equals(param.getEnergyType())) {
-            TableDataVO data1 = new TableDataVO();
-            data1.setTime("2024-01");
-            data1.setElectric(new BigDecimal("856432.12"));
-            data1.setWater(new BigDecimal("234567.89"));
-            data1.setGas(new BigDecimal("165789.44"));
-            data1.setElectricCost(new BigDecimal("685145.70"));
-            data1.setWaterCost(new BigDecimal("140740.73"));
-            data1.setGasCost(new BigDecimal("82894.72"));
-            data1.setTotalCost(new BigDecimal("908781.15"));
-            tableData.add(data1);
+        // 构建查询条件
+        QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
+        
+        // 部门条件
+        if (StringUtils.hasText(param.getOrgCode())) {
+            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                queryWrapper.likeRight("org_code", param.getOrgCode());
+            } else {
+                queryWrapper.eq("org_code", param.getOrgCode());
+            }
+        }
+        
+        // 时间维度条件
+        queryWrapper.eq("time_dimension", param.getTimeDimension());
+        
+        // 时间范围条件
+        if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
+            queryWrapper.between("stat_date", param.getStartDate(), param.getEndDate());
+        }
+        
+        // 能源类型条件
+        if (!"all".equals(param.getEnergyType())) {
+            queryWrapper.eq("energy_type", param.getEnergyType());
+        }
+        
+        // 按时间分组查询
+        String timeField = "day".equals(param.getTimeDimension()) ? "stat_date" : "stat_month";
+        queryWrapper.select(timeField + " as time, energy_type, SUM(total_consumption) as total_consumption, SUM(total_cost) as total_cost")
+                   .groupBy(timeField + ", energy_type")
+                   .orderByAsc(timeField);
+        
+        List<Map<String, Object>> rawData = summaryMapper.selectMaps(queryWrapper);
+        
+        // 按时间分组整理数据
+        Map<String, Map<Integer, BigDecimal[]>> timeGroupData = new HashMap<>();
+        for (Map<String, Object> data : rawData) {
+            String time = (String) data.get("time");
+            Integer energyType = (Integer) data.get("energy_type");
+            BigDecimal consumption = (BigDecimal) data.get("total_consumption");
+            BigDecimal cost = (BigDecimal) data.get("total_cost");
             
-            TableDataVO data2 = new TableDataVO();
-            data2.setTime("2024-02");
-            data2.setElectric(new BigDecimal("845678.34"));
-            data2.setWater(new BigDecimal("225678.90"));
-            data2.setGas(new BigDecimal("158976.23"));
-            data2.setElectricCost(new BigDecimal("676542.67"));
-            data2.setWaterCost(new BigDecimal("135407.34"));
-            data2.setGasCost(new BigDecimal("79488.12"));
-            data2.setTotalCost(new BigDecimal("891438.13"));
-            tableData.add(data2);
-        } else {
-            // 单一能源类型
-            TableDataVO data1 = new TableDataVO();
-            data1.setTime("2024-01-01");
-            data1.setElectric(statisticsData.getTotalConsumption());
-            data1.setElectricCost(statisticsData.getTotalCost());
-            tableData.add(data1);
+            if (!timeGroupData.containsKey(time)) {
+                timeGroupData.put(time, new HashMap<>());
+            }
+            timeGroupData.get(time).put(energyType, new BigDecimal[]{consumption, cost});
+        }
+        
+        // 转换为TableDataVO
+        for (Map.Entry<String, Map<Integer, BigDecimal[]>> entry : timeGroupData.entrySet()) {
+            String time = entry.getKey();
+            Map<Integer, BigDecimal[]> energyData = entry.getValue();
             
-            TableDataVO data2 = new TableDataVO();
-            data2.setTime("2024-01-02");
-            data2.setElectric(statisticsData.getTotalConsumption().multiply(new BigDecimal("0.95")));
-            data2.setElectricCost(statisticsData.getTotalCost().multiply(new BigDecimal("0.95")));
-            tableData.add(data2);
+            TableDataVO tableRow = new TableDataVO();
+            tableRow.setTime(time);
+            
+            // 设置各能源类型数据
+            if (energyData.containsKey(1)) {
+                tableRow.setElectric(energyData.get(1)[0]);
+                tableRow.setElectricCost(energyData.get(1)[1]);
+            }
+            
+            if (energyData.containsKey(2)) {
+                tableRow.setWater(energyData.get(2)[0]);
+                tableRow.setWaterCost(energyData.get(2)[1]);
+            }
+            
+            if (energyData.containsKey(3)) {
+                tableRow.setGas(energyData.get(3)[0]);
+                tableRow.setGasCost(energyData.get(3)[1]);
+            }
+            
+            // 计算总费用
+            BigDecimal totalCost = BigDecimal.ZERO;
+            if (tableRow.getElectricCost() != null) {
+                totalCost = totalCost.add(tableRow.getElectricCost());
+            }
+            if (tableRow.getWaterCost() != null) {
+                totalCost = totalCost.add(tableRow.getWaterCost());
+            }
+            if (tableRow.getGasCost() != null) {
+                totalCost = totalCost.add(tableRow.getGasCost());
+            }
+            tableRow.setTotalCost(totalCost);
+            
+            tableData.add(tableRow);
         }
         
         return tableData;
