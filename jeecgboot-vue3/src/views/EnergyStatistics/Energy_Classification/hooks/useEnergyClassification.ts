@@ -32,7 +32,7 @@ export function useEnergyClassification() {
 
   // 时间、能源类型
   const timeUnit = ref<'day' | 'month' | 'year'>('month');
-  const selectedDate = ref<Dayjs>(dayjs());
+  const selectedDate = ref<Dayjs>(dayjs('2025-11-07')); // 修改为有数据的日期
   const energyType = ref<string>('all');
   const energyTypes = ref<EnergyTypeVO[]>([]);
 

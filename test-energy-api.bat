@@ -1,29 +1,25 @@
 @echo off
-echo 正在启动后端服务...
-cd /d "E:\workspace\EMSProject_jeecg\JeecgBoot\jeecg-boot\jeecg-module-system\jeecg-system-start"
-start /B java -jar target/jeecg-system-start-3.7.2.jar --spring.profiles.active=dev
-
-echo 等待服务启动...
-timeout /t 15 /nobreak >nul
-
-echo 测试企业分类分区统计接口...
-powershell -Command "try { Invoke-RestMethod -Uri 'http://localhost:8080/jeecg-boot/energy/classification/getOrgTree' -Method Get | ConvertTo-Json -Depth 10 } catch { $_.Exception.Message }"
-
+echo 测试企业分类分区统计API接口
 echo.
-echo 测试能源类型接口...
-powershell -Command "try { Invoke-RestMethod -Uri 'http://localhost:8080/jeecg-boot/energy/classification/getEnergyTypes' -Method Get | ConvertTo-Json -Depth 10 } catch { $_.Exception.Message }"
 
+echo 1. 测试获取部门树...
+curl -X GET http://localhost:8080/jeecg-boot/energy/classification/getOrgTree
 echo.
-echo 测试汇总数据接口...
-$body = @{
-    orgCode = "A01"
-    energyType = "all"
-    timeDimension = "month"
-    startDate = "2024-01-01"
-    endDate = "2024-01-31"
-    includeChildren = $true
-} | ConvertTo-Json
+echo.
 
-powershell -Command "try { Invoke-RestMethod -Uri 'http://localhost:8080/jeecg-boot/energy/classification/getSummaryData' -Method Post -ContentType 'application/json' -Body '$body' | ConvertTo-Json -Depth 10 } catch { $_.Exception.Message }"
+echo 2. 测试获取能源类型...
+curl -X GET http://localhost:8080/jeecg-boot/energy/classification/getEnergyTypes
+echo.
+echo.
+
+echo 3. 测试获取日数据汇总...
+curl -X POST http://localhost:8080/jeecg-boot/energy/classification/getSummaryData -H "Content-Type: application/json" -d "{\"orgCode\":\"A01\",\"energyType\":\"all\",\"timeDimension\":\"day\",\"startDate\":\"2025-11-07\",\"endDate\":\"2025-11-07\",\"includeChildren\":true}"
+echo.
+echo.
+
+echo 4. 测试获取日数据趋势...
+curl -X POST http://localhost:8080/jeecg-boot/energy/classification/getTrendData -H "Content-Type: application/json" -d "{\"orgCode\":\"A01\",\"energyType\":\"all\",\"timeDimension\":\"day\",\"startDate\":\"2025-11-07\",\"endDate\":\"2025-11-07\",\"includeChildren\":true}"
+echo.
+echo.
 
 pause

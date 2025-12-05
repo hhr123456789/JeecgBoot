@@ -5,7 +5,7 @@
             <div class="app-loading-dots">
                 <span class="dot dot-spin"><i></i><i></i><i></i><i></i></span>
             </div>
-            <div class="app-loading-title">能碳数字化管理</div>
+            <div class="app-loading-title">数字化能碳管理系统</div>
         </div>
     </div>
 </template>

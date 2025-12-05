@@ -2,4 +2,144 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.jeecg.modules.energy.mapper.classification.TbEnergyClassificationSummaryMapper">
 
+    <resultMap type="org.jeecg.modules.energy.entity.classification.TbEnergyClassificationSummary" id="TbEnergyClassificationSummaryResultMap">
+        <id column="id" property="id"/>
+        <result column="org_code" property="orgCode"/>
+        <result column="org_name" property="orgName"/>
+        <result column="parent_org_code" property="parentOrgCode"/>
+        <result column="energy_type" property="energyType"/>
+        <result column="energy_type_name" property="energyTypeName"/>
+        <result column="stat_date" property="statDate"/>
+        <result column="stat_month" property="statMonth"/>
+        <result column="stat_year" property="statYear"/>
+        <result column="time_dimension" property="timeDimension"/>
+        <result column="total_consumption" property="totalConsumption"/>
+        <result column="total_cost" property="totalCost"/>
+        <result column="carbon_emission" property="carbonEmission"/>
+        <result column="standard_coal" property="standardCoal"/>
+        <result column="peak_consumption" property="peakConsumption"/>
+        <result column="peak_cost" property="peakCost"/>
+        <result column="flat_consumption" property="flatConsumption"/>
+        <result column="flat_cost" property="flatCost"/>
+        <result column="valley_consumption" property="valleyConsumption"/>
+        <result column="valley_cost" property="valleyCost"/>
+        <result column="cusp_consumption" property="cuspConsumption"/>
+        <result column="cusp_cost" property="cuspCost"/>
+        <result column="meter_count" property="meterCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap type="org.jeecg.modules.energy.vo.classification.ClassificationStatisticsVO" id="ClassificationStatisticsVOResultMap">
+        <result column="org_code" property="orgCode"/>
+        <result column="energy_type" property="energyType"/>
+        <result column="stat_date" property="statDate"/>
+        <result column="stat_month" property="statMonth"/>
+        <result column="stat_year" property="statYear"/>
+        <result column="total_consumption" property="totalConsumption"/>
+        <result column="peak_consumption" property="peakConsumption"/>
+        <result column="flat_consumption" property="flatConsumption"/>
+        <result column="valley_consumption" property="valleyConsumption"/>
+        <result column="cusp_consumption" property="cuspConsumption"/>
+        <result column="meter_count" property="meterCount"/>
+    </resultMap>
+
+    <!-- 根据条件查询分类统计汇总数据 -->
+    <select id="selectByCondition" parameterType="map" resultMap="TbEnergyClassificationSummaryResultMap">
+        SELECT * FROM tb_energy_classification_summary 
+        WHERE org_code = #{orgCode} 
+        AND energy_type = #{energyType} 
+        AND time_dimension = #{timeDimension} 
+        AND stat_date = #{statDate}
+    </select>
+
+    <!-- 按部门编码、能源类型、时间维度分组统计日数据 -->
+    <select id="selectStatisticsGroupByOrgAndEnergyType" parameterType="map" resultMap="ClassificationStatisticsVOResultMap">
+        <![CDATA[
+        SELECT
+            m.sys_org_code as org_code,
+            m.energy_type,
+            DATE(d.dt) as stat_date,
+            DATE_FORMAT(d.dt, '%Y-%m') as stat_month,
+            DATE_FORMAT(d.dt, '%Y') as stat_year,
+            COALESCE(SUM(d.energy_count), 0) as total_consumption,
+            COALESCE(SUM(d.peak_count), 0) as peak_consumption,
+            COALESCE(SUM(d.level_count), 0) as flat_consumption,
+            COALESCE(SUM(d.valley_count), 0) as valley_consumption,
+            COALESCE(SUM(d.cusp_count), 0) as cusp_consumption,
+            COUNT(DISTINCT d.module_id) as meter_count
+        FROM tb_ep_equ_energy_daycount d
+        INNER JOIN tb_module m ON d.module_id = m.module_id
+        WHERE m.isaction = 'Y'
+        AND d.dt >= #{startDate}
+        AND d.dt <= #{endDate}
+        GROUP BY m.sys_org_code, m.energy_type, DATE(d.dt)
+        ORDER BY m.sys_org_code, m.energy_type, DATE(d.dt)
+        ]]>
+    </select>
+
+    <!-- 按部门编码、能源类型、时间维度分组统计月数据 -->
+    <select id="selectMonthlyStatisticsGroupByOrgAndEnergyType" parameterType="map" resultMap="ClassificationStatisticsVOResultMap">
+        <![CDATA[
+        SELECT
+            m.sys_org_code as org_code,
+            m.energy_type,
+            DATE(d.dt) as stat_date,
+            DATE_FORMAT(d.dt, '%Y-%m') as stat_month,
+            DATE_FORMAT(d.dt, '%Y') as stat_year,
+            COALESCE(SUM(d.energy_count), 0) as total_consumption,
+            COALESCE(SUM(d.peak_count), 0) as peak_consumption,
+            COALESCE(SUM(d.level_count), 0) as flat_consumption,
+            COALESCE(SUM(d.valley_count), 0) as valley_consumption,
+            COALESCE(SUM(d.cusp_count), 0) as cusp_consumption,
+            COUNT(DISTINCT d.module_id) as meter_count
+        FROM tb_ep_equ_energy_monthcount d
+        INNER JOIN tb_module m ON d.module_id = m.module_id
+        WHERE m.isaction = 'Y'
+        AND d.dt >= #{startDate}
+        AND d.dt <= #{endDate}
+        GROUP BY m.sys_org_code, m.energy_type, DATE_FORMAT(d.dt, '%Y-%m')
+        ORDER BY m.sys_org_code, m.energy_type, DATE_FORMAT(d.dt, '%Y-%m')
+        ]]>
+    </select>
+
+    <!-- 按部门编码、能源类型、时间维度分组统计数据 -->
+    <select id="selectYearlyStatisticsGroupByOrgAndEnergyType" parameterType="map" resultMap="ClassificationStatisticsVOResultMap">
+        <![CDATA[
+        SELECT
+            m.sys_org_code as org_code,
+            m.energy_type,
+            DATE(d.dt) as stat_date,
+            DATE_FORMAT(d.dt, '%Y-%m') as stat_month,
+            DATE_FORMAT(d.dt, '%Y') as stat_year,
+            COALESCE(SUM(d.energy_count), 0) as total_consumption,
+            COALESCE(SUM(d.peak_count), 0) as peak_consumption,
+            COALESCE(SUM(d.level_count), 0) as flat_consumption,
+            COALESCE(SUM(d.valley_count), 0) as valley_consumption,
+            COALESCE(SUM(d.cusp_count), 0) as cusp_consumption,
+            COUNT(DISTINCT d.module_id) as meter_count
+        FROM tb_ep_equ_energy_yearcount d
+        INNER JOIN tb_module m ON d.module_id = m.module_id
+        WHERE m.isaction = 'Y'
+        AND d.dt >= #{startDate}
+        AND d.dt <= #{endDate}
+        GROUP BY m.sys_org_code, m.energy_type, DATE_FORMAT(d.dt, '%Y')
+        ORDER BY m.sys_org_code, m.energy_type, DATE_FORMAT(d.dt, '%Y')
+        ]]>
+    </select>
+
+    <!-- 删除指定时间范围的数据 -->
+    <delete id="deleteByDateRange" parameterType="map">
+        <![CDATA[
+        DELETE FROM tb_energy_classification_summary
+        WHERE stat_date >= #{startDate}
+        AND stat_date <= #{endDate}
+        ]]>
+    </delete>
+
+    <!-- 获取最新统计日期 -->
+    <select id="getLatestStatisticsDate" resultType="date">
+        SELECT MAX(stat_date) FROM tb_energy_classification_summary
+    </select>
+
 </mapper>

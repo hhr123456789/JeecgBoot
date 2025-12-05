@@ -1,6 +1,7 @@
 import type { App } from 'vue';
 import { registerJVxeTable } from '/@/components/jeecg/JVxeTable';
 import { registerJVxeCustom } from '/@/components/JVxeCustom';
+import * as Icons from '@ant-design/icons-vue';
 
 // 注册全局dayjs
 import dayjs from 'dayjs';
@@ -9,6 +10,12 @@ import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { createAsyncComponent } from '/@/utils/factory/createAsyncComponent';
 
 export async function registerThirdComp(app: App) {
+  //---------------------------------------------------------------------
+  // 注册 Ant Design Vue 图标
+  const icons: any = Icons;
+  for (const [key, component] of Object.entries(icons)) {
+    app.component(key, component as any);
+  }
   //---------------------------------------------------------------------
   // 注册 JVxeTable 组件
   registerJVxeTable(app);

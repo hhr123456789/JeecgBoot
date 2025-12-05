@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.influxdb.InfluxDB;
 import org.influxdb.dto.QueryResult;
-import org.jeecg.common.util.DateUtils;
+
 import org.jeecg.modules.energy.config.InfluxDBConfig;
 import org.jeecg.modules.energy.entity.TbEpEquEnergyDaycount;
 import org.jeecg.modules.energy.entity.TbEpEquEnergyMonthcount;

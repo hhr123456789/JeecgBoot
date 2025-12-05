@@ -2,4 +2,165 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.jeecg.modules.energy.mapper.classification.TbEnergyTypeConfigMapper">
 
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.energy.entity.classification.TbEnergyTypeConfig">
+        <id column="id" property="id" jdbcType="VARCHAR"/>
+        <result column="energy_type" property="energyType" jdbcType="INTEGER"/>
+        <result column="energy_name" property="energyName" jdbcType="VARCHAR"/>
+        <result column="energy_unit" property="energyUnit" jdbcType="VARCHAR"/>
+        <result column="price_per_unit" property="pricePerUnit" jdbcType="DECIMAL"/>
+        <result column="carbon_factor" property="carbonFactor" jdbcType="DECIMAL"/>
+        <result column="coal_factor" property="coalFactor" jdbcType="DECIMAL"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
+        <result column="create_by" property="createBy" jdbcType="VARCHAR"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_by" property="updateBy" jdbcType="VARCHAR"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+        <result column="remark" property="remark" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <resultMap id="EnergyTypeConfigVOResultMap" type="org.jeecg.modules.energy.vo.classification.EnergyTypeConfigVO">
+        <id column="energy_type" property="energyType" jdbcType="INTEGER"/>
+        <result column="energy_name" property="energyName" jdbcType="VARCHAR"/>
+        <result column="energy_unit" property="energyUnit" jdbcType="VARCHAR"/>
+        <result column="price_per_unit" property="pricePerUnit" jdbcType="DECIMAL"/>
+        <result column="carbon_factor" property="carbonFactor" jdbcType="DECIMAL"/>
+        <result column="coal_factor" property="coalFactor" jdbcType="DECIMAL"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, energy_type, energy_name, energy_unit, price_per_unit, carbon_factor, coal_factor,
+        status, sort_order, create_by, create_time, update_by, update_time, remark
+    </sql>
+
+    <!-- 根据能源类型编码获取配置信息 -->
+    <select id="selectByEnergyType" parameterType="java.lang.Integer" resultMap="EnergyTypeConfigVOResultMap">
+        SELECT
+            energy_type,
+            energy_name,
+            energy_unit,
+            price_per_unit,
+            carbon_factor,
+            coal_factor
+        FROM tb_energy_type_config
+        WHERE energy_type = #{energyType,jdbcType=INTEGER}
+        AND status = '1'
+    </select>
+
+    <!-- 获取所有启用的能源类型配置 -->
+    <select id="selectAllEnabled" resultMap="EnergyTypeConfigVOResultMap">
+        SELECT
+            energy_type,
+            energy_name,
+            energy_unit,
+            price_per_unit,
+            carbon_factor,
+            coal_factor
+        FROM tb_energy_type_config
+        WHERE status = '1'
+        ORDER BY sort_order ASC, energy_type ASC
+    </select>
+
+    <!-- 获取能源类型名称 -->
+    <select id="selectEnergyTypeName" parameterType="java.lang.Integer" resultType="java.lang.String">
+        SELECT energy_name
+        FROM tb_energy_type_config
+        WHERE energy_type = #{energyType,jdbcType=INTEGER}
+        AND status = '1'
+        LIMIT 1
+    </select>
+
+    <!-- 批量插入能源类型配置 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO tb_energy_type_config (
+            id, energy_type, energy_name, energy_unit, price_per_unit, carbon_factor, coal_factor,
+            status, sort_order, create_by, create_time, remark
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.id,jdbcType=VARCHAR},
+                #{item.energyType,jdbcType=INTEGER},
+                #{item.energyName,jdbcType=VARCHAR},
+                #{item.energyUnit,jdbcType=VARCHAR},
+                #{item.pricePerUnit,jdbcType=DECIMAL},
+                #{item.carbonFactor,jdbcType=DECIMAL},
+                #{item.coalFactor,jdbcType=DECIMAL},
+                #{item.status,jdbcType=VARCHAR},
+                #{item.sortOrder,jdbcType=INTEGER},
+                #{item.createBy,jdbcType=VARCHAR},
+                #{item.createTime,jdbcType=TIMESTAMP},
+                #{item.remark,jdbcType=VARCHAR}
+            )
+        </foreach>
+    </insert>
+
+    <!-- 更新能源类型配置 -->
+    <update id="updateByEnergyType" parameterType="org.jeecg.modules.energy.entity.classification.TbEnergyTypeConfig">
+        UPDATE tb_energy_type_config
+        <set>
+            energy_name = #{energyName,jdbcType=VARCHAR},
+            energy_unit = #{energyUnit,jdbcType=VARCHAR},
+            price_per_unit = #{pricePerUnit,jdbcType=DECIMAL},
+            carbon_factor = #{carbonFactor,jdbcType=DECIMAL},
+            coal_factor = #{coalFactor,jdbcType=DECIMAL},
+            status = #{status,jdbcType=VARCHAR},
+            sort_order = #{sortOrder,jdbcType=INTEGER},
+            update_by = #{updateBy,jdbcType=VARCHAR},
+            update_time = #{updateTime,jdbcType=TIMESTAMP},
+            remark = #{remark,jdbcType=VARCHAR}
+        </set>
+        WHERE energy_type = #{energyType,jdbcType=INTEGER}
+    </update>
+
+    <!-- 删除能源类型配置 -->
+    <delete id="deleteByEnergyType" parameterType="java.lang.Integer">
+        DELETE FROM tb_energy_type_config
+        WHERE energy_type = #{energyType,jdbcType=INTEGER}
+    </delete>
+
+    <!-- 检查能源类型是否存在 -->
+    <select id="existsByEnergyType" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM tb_energy_type_config
+        WHERE energy_type = #{energyType,jdbcType=INTEGER}
+    </select>
+
+    <!-- 获取能源类型配置列表（分页） -->
+    <select id="selectListByPage" resultMap="BaseResultMap">
+        SELECT
+            <include refid="Base_Column_List"/>
+        FROM tb_energy_type_config
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="energyType != null">
+                AND energy_type = #{energyType}
+            </if>
+            <if test="energyName != null and energyName != ''">
+                AND energy_name LIKE CONCAT('%', #{energyName}, '%')
+            </if>
+        </where>
+        ORDER BY sort_order ASC, energy_type ASC
+        <if test="start != null and end != null">
+            LIMIT #{start}, #{end}
+        </if>
+    </select>
+
+    <!-- 获取能源类型配置总数 -->
+    <select id="selectCountByCondition" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM tb_energy_type_config
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="energyType != null">
+                AND energy_type = #{energyType}
+            </if>
+            <if test="energyName != null and energyName != ''">
+                AND energy_name LIKE CONCAT('%', #{energyName}, '%')
+            </if>
+        </where>
+    </select>
 </mapper>

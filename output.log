@@ -1,0 +1,80 @@
+正在停止可能存在的Java进程...
+SUCCESS: The process with PID 18792 (child process of PID 19248) has been terminated.
+SUCCESS: The process with PID 27336 (child process of PID 22560) has been terminated.
+等待3秒...
+ERROR: Input redirection is not supported, exiting the process immediately.
+正在启动JeecgBoot后端服务...
+等待服务启动...
+ERROR: Input redirection is not supported, exiting the process immediately.
+检查服务状态...
+后端服务已启动！
+Press any key to continue . . . 
+18:07:48,968 |-INFO in ch.qos.logback.core.joran.action.StatusListenerAction - Added status listener of type [ch.qos.logback.core.status.OnConsoleStatusListener]
+18:07:48,973 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.ConsoleAppender]
+18:07:48,974 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [STDOUT]
+18:07:49,336 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.FileAppender]
+18:07:49,394 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [FILE]
+18:07:49,399 |-INFO in ch.qos.logback.core.FileAppender[FILE] - File property is set to [../logs/jeecgboot.log]
+18:07:49,406 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+18:07:49,409 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [ROLLING_FILE]
+18:07:49,518 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@1641415002 - Archive files will be limited to [10 MB] each.
+18:07:49,586 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@1641415002 - No compression will be used
+18:07:49,595 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@1641415002 - Will use the pattern ../logs/jeecgboot-%d{yyyy-MM-dd}.%i.log for the active file
+18:07:49,611 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@5136d012 - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/jeecgboot-%d{yyyy-MM-dd}.%i.log'.
+18:07:49,611 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@5136d012 - Roll-over at midnight.
+18:07:49,729 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@5136d012 - Setting initial period to Sat Nov 08 18:06:48 CST 2025
+18:07:49,821 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[ROLLING_FILE] - Active log file name: ../logs/jeecgboot-rolling.log
+18:07:49,821 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[ROLLING_FILE] - File property is set to [../logs/jeecgboot-rolling.log]
+18:07:49,825 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.FileAppender]
+18:07:49,826 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [HTML]
+18:07:49,876 |-INFO in ch.qos.logback.core.FileAppender[HTML] - File property is set to [../logs/error-log.html]
+18:07:49,887 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+18:07:49,887 |-INFO in ch.qos.logback.core.joran.action.AppenderAction - Naming appender as [FILE_HTML]
+18:07:49,890 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@777379084 - Archive files will be limited to [10 MB] each.
+18:07:49,890 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@777379084 - No compression will be used
+18:07:49,891 |-INFO in c.q.l.core.rolling.SizeAndTimeBasedRollingPolicy@777379084 - Will use the pattern ../logs/jeecgboot-%d{yyyy-MM-dd}.%i.html for the active file
+18:07:49,894 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@74455848 - The date pattern is 'yyyy-MM-dd' from file name pattern '../logs/jeecgboot-%d{yyyy-MM-dd}.%i.html'.
+18:07:49,894 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@74455848 - Roll-over at midnight.
+18:07:49,895 |-INFO in ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP@74455848 - Setting initial period to Sat Nov 08 18:07:49 CST 2025
+18:07:49,902 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE_HTML] - Active log file name: ../logs/jeecgboot-2025-11-08.0.html
+18:07:49,902 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE_HTML] - File property is set to [null]
+18:07:49,905 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [com.apache.ibatis] to TRACE
+18:07:49,906 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating TRACE level on Logger[com.apache.ibatis] onto the JUL framework
+18:07:49,908 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.Connection] to DEBUG
+18:07:49,939 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating DEBUG level on Logger[java.sql.Connection] onto the JUL framework
+18:07:49,947 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.Statement] to DEBUG
+18:07:49,948 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating DEBUG level on Logger[java.sql.Statement] onto the JUL framework
+18:07:49,949 |-INFO in ch.qos.logback.classic.joran.action.LoggerAction - Setting level of logger [java.sql.PreparedStatement] to DEBUG
+18:07:49,949 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating DEBUG level on Logger[java.sql.PreparedStatement] onto the JUL framework
+18:07:49,950 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to INFO
+18:07:49,950 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating INFO level on Logger[ROOT] onto the JUL framework
+18:07:49,951 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [STDOUT] to Logger[ROOT]
+18:07:49,951 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [FILE] to Logger[ROOT]
+18:07:49,952 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [ROLLING_FILE] to Logger[ROOT]
+18:07:49,952 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [HTML] to Logger[ROOT]
+18:07:49,953 |-INFO in ch.qos.logback.core.joran.action.AppenderRefAction - Attaching appender named [FILE_HTML] to Logger[ROOT]
+18:07:49,953 |-INFO in ch.qos.logback.classic.joran.action.ConfigurationAction - End of configuration.
+18:07:49,954 |-INFO in org.springframework.boot.logging.logback.SpringBootJoranConfigurator@1eb5174b - Registering current configuration as safe fallback point
+18:07:49,980 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating DEBUG level on Logger[org.flywaydb] onto the JUL framework
+18:07:49,981 |-INFO in ch.qos.logback.classic.jul.LevelChangePropagator@e7edb54 - Propagating INFO level on Logger[org.jeecg.modules.system.mapper] onto the JUL framework
+[94m
+   (_)                          | |               | |
+    _  ___  ___  ___ __ _ ______| |__   ___   ___ | |_ 
+   | |/ _ \/ _ \/ __/ _` |______| '_ \ / _ \ / _ \| __|
+   | |  __/  __/ (_| (_| |      | |_) | (_) | (_) | |_ 
+   | |\___|\___|\___\__, |      |_.__/ \___/ \___/ \__|
+  _/ |               __/ |                             
+ |__/               |___/
+
+
+[92m
+Jeecg  Boot Version: 3.7.2
+Spring Boot Version: 2.7.18 (v2.7.18)
+产品官网： www.jeecg.com
+版权所属： 北京国炬信息技术有限公司
+公司官网： www.guojusoft.com
+[30m
+
+2025-11-08 18:07:50.773 [background-preinit] [34mINFO [0;39m [36morg.hibernate.validator.internal.util.Version:21[0;39m - HV000001: Hibernate Validator 6.2.5.Final
+2025-11-08 18:07:51.288 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:55[0;39m - Starting JeecgSystemApplication v3.7.2 using Java 17.0.14 on hhrmichael with PID 26748 (E:\workspace\EMSProject_jeecg\JeecgBoot\jeecg-boot\jeecg-module-system\jeecg-system-start\target\jeecg-system-start-3.7.2.jar started by michael in E:\workspace\EMSProject_jeecg\JeecgBoot\jeecg-boot\jeecg-module-system\jeecg-system-start)
+2025-11-08 18:07:51.291 [main] [34mINFO [0;39m [36morg.jeecg.JeecgSystemApplication:638[0;39m - The following 1 profile is active: "dev"

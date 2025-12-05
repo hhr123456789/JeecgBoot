@@ -32,7 +32,7 @@
             <div class="text-2xl font-bold">2</div>
           </div>
           <div class="bg-gray-50 rounded p-3">
-            <div class="text-sm text-gray-600 mb-2">方差系数标准差除以均值(kWh/㎡)</div>
+            <div class="text-sm text-gray-600 mb-2">方差系数标准差除以均值(kWh/t)</div>
             <div class="text-2xl font-bold">4.4541</div>
           </div>
         </div>
@@ -96,25 +96,25 @@ const selectedKeys = ref<string[]>(['1-1']);
 // 树形菜单数据
 const treeData = ref<TreeDataItem[]>([
   {
-    title: '分厂1',
+    title: '熔炼生产线',
     key: '1',
     children: [
       {
-        title: '1号生产线',
+        title: 'JK熔炼生产线',
         key: '1-1',
       },
       {
-        title: '2号生产线',
+        title: 'MN熔炼生产线',
         key: '1-2',
       }
     ]
   },
   {
-    title: '分厂2',
+    title: '挤压生产线',
     key: '2',
     children: [
       {
-        title: '1号生产线',
+        title: '42#2800T生产线',
         key: '2-1',
       }
     ]
@@ -175,7 +175,7 @@ const columns: TableColumnsType = [
     align: 'right',
   },
   {
-    title: '建筑面积(㎡)',
+    title: '产量(吨)',
     dataIndex: 'area',
     width: 150,
     align: 'right',
@@ -186,21 +186,21 @@ const columns: TableColumnsType = [
 const tableData = ref([
   {
     key: '1',
-    department: '分厂1-1号生产线',
+    department: 'JK熔炼生产线',
     intensity: 4.5,
     total: 450,
     area: 10000
   },
   {
     key: '2',
-    department: '分厂1-2号生产线',
+    department: 'MN熔炼生产线',
     intensity: 3.8,
     total: 380,
     area: 10000
   },
   {
     key: '3',
-    department: '分厂2-1号生产线',
+    department: '42#2800T生产线',
     intensity: 4.1,
     total: 410,
     area: 10000

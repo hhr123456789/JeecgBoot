@@ -120,25 +120,25 @@ const selectedKeys = ref<string[]>(['1-1']);
 // 树形菜单数据
 const treeData = ref<TreeDataItem[]>([
   {
-    title: '分厂1',
+    title: '熔炼生产线',
     key: '1',
     children: [
       {
-        title: '1号生产线',
+        title: 'JK熔炼生产线',
         key: '1-1',
       },
       {
-        title: '2号生产线',
+        title: 'MN熔炼生产线',
         key: '1-2',
       }
     ]
   },
   {
-    title: '分厂2',
+    title: '挤压生产线',
     key: '2',
     children: [
       {
-        title: '1号生产线',
+        title: '2800T生产线',
         key: '2-1',
       }
     ]

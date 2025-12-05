@@ -26,10 +26,16 @@
   </template>
   
   <script lang="ts" setup>
-    import { inject, nextTick, ref, onMounted, defineExpose } from 'vue';
+    import { inject, nextTick, ref, onMounted, defineExpose, h } from 'vue';
     import { useMessage } from '/@/hooks/web/useMessage';
     import { BasicTree } from '/@/components/Tree';
     import { queryMydimensionTreeList, searchByKeywords } from '../depart.user.api';
+    import {
+      BuildOutlined,
+      BankOutlined,
+      SettingOutlined,
+      ToolOutlined
+    } from '@ant-design/icons-vue';
   
     const prefixCls = inject('prefixCls');
     const props_type = defineProps({
@@ -63,10 +69,13 @@
       queryMydimensionTreeList({ keyWord: props_type.nowtype})
         .then((res) => {
           console.log('reshhr20250630=',res);
+          console.log('原始数据（处理前）:', JSON.parse(JSON.stringify(res.result)));
           if (res.success) {
             if (Array.isArray(res.result)) {
-              
-              treeData.value = res.result;
+
+              // 为树数据添加图标和类型标识
+              treeData.value = enhanceTreeDataWithIcons(res.result);
+              console.log('处理后的树数据（带nodeType）:', treeData.value);
               userIdentity.value = res.message;
               //autoExpandParentNode();
               autoExpandToTargetLevelNode(props_type.selectLevel);
@@ -200,7 +209,8 @@
         searchByKeywords({ keyWord: value, myDeptSearch: '1' })
           .then((result) => {
             if (Array.isArray(result)) {
-              treeData.value = result;
+              // 为搜索结果添加图标和类型标识
+              treeData.value = enhanceTreeDataWithIcons(result);
             } else {
               createMessage.warning('未查询到部门信息');
               treeData.value = [];
@@ -227,6 +237,71 @@
       expandedKeys.value = keys;
       autoExpandParent.value = false;
     }
+
+    
+
+    // 为树节点数据添加图标和类型标识
+    function enhanceTreeDataWithIcons(data: any[], level: number = 0): any[] {
+      return data.map(node => {
+        const enhancedNode = { ...node };
+
+        // 先删除所有可能影响图标显示的字段
+        delete enhancedNode['icon'];
+        delete enhancedNode['slots'];
+        delete enhancedNode['scopedSlots'];
+
+        // 根据节点层级和特征确定类型
+        if (!node.nodeType) {
+          // 第一层级：公司
+          if (level === 0) {
+            enhancedNode.nodeType = 'company';
+          }
+          // 第二层级：部门/类别
+          else if (level === 1) {
+            enhancedNode.nodeType = 'category';
+          }
+          // 第三层级：设备
+          else if (level === 2) {
+            enhancedNode.nodeType = 'device';
+          }
+          // 第四层级及以上：组件
+          else {
+            enhancedNode.nodeType = 'component';
+          }
+        }
+
+        // 也可以根据标题关键字进行判断（作为补充）
+        if (node.title) {
+          if (node.title.includes('公司') || node.title.includes('总部')) {
+            enhancedNode.nodeType = 'company';
+          } else if (node.title.includes('部门') || node.title.includes('部') || node.title.includes('厂')) {
+            enhancedNode.nodeType = 'category';
+          } else if (node.title.match(/\d+号|#\d+|机组|设备/)) {
+            enhancedNode.nodeType = 'device';
+          }
+        }
+
+        // 根据 nodeType 设置新图标
+        const nodeType = enhancedNode.nodeType;
+        if (nodeType === 'company') {
+          enhancedNode.icon = 'ant-design:build-outlined';
+        } else if (nodeType === 'category') {
+          enhancedNode.icon = 'ant-design:bank-outlined';
+        } else if (nodeType === 'device') {
+          enhancedNode.icon = 'ant-design:setting-outlined';
+        } else {
+          enhancedNode.icon = 'ant-design:tool-outlined';
+        }
+
+        // 递归处理子节点，传递下一层级
+        if (enhancedNode.children && enhancedNode.children.length > 0) {
+          enhancedNode.children = enhanceTreeDataWithIcons(enhancedNode.children, level + 1);
+        }
+
+        return enhancedNode;
+      });
+    }
+
     
     // 向父组件暴露方法
     defineExpose({
@@ -239,6 +314,35 @@
     /*升级antd3后，查询框与树贴的太近，样式优化*/
     :deep(.jeecg-tree-header) {
       margin-bottom: 6px;
+    }
+
+    /* 隐藏所有可能的重复图标 */
+    :deep(.ant-tree-iconEle) {
+      display: none !important;
+    }
+
+    /* 只隐藏叶子节点的文件图标，保留有子节点的展开/收起箭头 */
+    :deep(.ant-tree-switcher-noop) {
+      .ant-tree-switcher-line-icon {
+        display: none !important;
+      }
+    }
+
+    /* 隐藏复选框图标 */
+    :deep(.ant-tree-checkbox) {
+      margin-right: 4px; /* 只调整间距，不隐藏 */
+    }
+
+    /* 隐藏文件夹默认图标 */
+    :deep(.ant-tree-node-content-wrapper) {
+      .ant-tree-iconEle::before {
+        display: none !important;
+      }
+    }
+
+    /* 确保自定义图标正常显示 */
+    :deep(.anticon) {
+      font-size: 14px;
     }
   </style>
   

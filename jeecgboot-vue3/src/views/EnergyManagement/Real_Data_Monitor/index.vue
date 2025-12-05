@@ -799,10 +799,11 @@ function getDefaultQueryInterval() {
 function getDefaultQueryIntervalOptions() {
   // 使用默认数据，使用数字值与字典保持一致
   queryIntervalOptions.value = [
-    { text: '15分钟', value: '1' },
-    { text: '30分钟', value: '2' },
-    { text: '60分钟', value: '3' },
-    { text: '120分钟', value: '4' }
+    { text: '5分钟', value: '1' },
+    { text: '15分钟', value: '2' },
+    { text: '30分钟', value: '3' },
+    { text: '60分钟', value: '4' },
+    { text: '120分钟', value: '5' }
   ];
 
   const defaultValue = getDefaultQueryInterval();

@@ -19,7 +19,14 @@
           @check="onCheck"
           @expand="onExpand"
           @search="onSearch"
-        />
+        >
+          <template #icon="{ dataRef }">
+            <FolderOutlined v-if="getNodeLevel(dataRef) === 1" style="color: #1890ff" />
+            <BankOutlined v-else-if="getNodeLevel(dataRef) === 2" style="color: #fa8c16" />
+            <SettingOutlined v-else-if="getNodeLevel(dataRef) === 3" style="color: #13c2c2" />
+            <ToolOutlined v-else style="color: #52c41a" />
+          </template>
+        </BasicTree>
       </template>
       <a-empty v-else description="普通员工无此权限" />
     </a-spin>
@@ -31,6 +38,12 @@
   import { useMessage } from '/@/hooks/web/useMessage';
   import { BasicTree } from '/@/components/Tree';
   import { queryMydimensionTreeList, searchByKeywords } from '../../../Energy_Depart/depart.user.api';
+  import { 
+    FolderOutlined, 
+    BankOutlined, 
+    SettingOutlined, 
+    ToolOutlined 
+  } from '@ant-design/icons-vue';
 
   const prefixCls = inject('prefixCls');
   const props_type = defineProps({
@@ -216,11 +229,43 @@
     autoExpandParent.value = false;
   }
   
+  // 获取节点层级
+  function getNodeLevel(node: any): number {
+    // 通过节点的层级属性或key判断层级
+    if (!node) return 1;
+    
+    // 如果节点有level属性，直接使用
+    if (node.level !== undefined) {
+      return node.level;
+    }
+    
+    // 通过父节点关系计算层级
+    const calculateLevel = (node: any, currentLevel: number = 1): number => {
+      if (!node.parent) {
+        return currentLevel;
+      }
+      return calculateLevel(node.parent, currentLevel + 1);
+    };
+    
+    // 通过title内容判断层级（备用方案）
+    const title = node.title || '';
+    if (title.includes('公司') || title.includes('总部') || title.includes('集团')) {
+      return 1; // 公司级别
+    } else if (title.includes('车间') || title.includes('部门') || title.includes('分厂')) {
+      return 2; // 部门级别
+    } else if (title.includes('机组') || title.includes('机房') || title.includes('生产线')) {
+      return 3; // 设备组级别
+    } else {
+      return 4; // 设备/器件级别
+    }
+  }
+
   // 向父组件暴露方法
   defineExpose({
     loadDepartTreeData,
     getSelectedNodeData,
-    autoExpandToTargetLevelNode
+    autoExpandToTargetLevelNode,
+    getNodeLevel
   });
 </script>
 

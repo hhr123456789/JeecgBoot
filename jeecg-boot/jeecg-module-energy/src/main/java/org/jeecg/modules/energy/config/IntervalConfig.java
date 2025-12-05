@@ -18,15 +18,17 @@ public class IntervalConfig {
     private static final Map<Integer, String> INTERVAL_DISPLAY_MAP = new HashMap<>();
 
     static {
-        INTERVAL_MAP.put(1, "15m");   // 15分钟
-        INTERVAL_MAP.put(2, "30m");   // 30分钟
-        INTERVAL_MAP.put(3, "1h");    // 1小时
-        INTERVAL_MAP.put(4, "2h");    // 2小时
+        INTERVAL_MAP.put(1, "5m");   // 5分钟
+        INTERVAL_MAP.put(2, "15m");   // 15分钟
+        INTERVAL_MAP.put(3, "30m");   // 30分钟
+        INTERVAL_MAP.put(4, "1h");    // 1小时
+        INTERVAL_MAP.put(5, "2h");    // 2小时
 
-        INTERVAL_DISPLAY_MAP.put(1, "15分钟");
-        INTERVAL_DISPLAY_MAP.put(2, "30分钟");
-        INTERVAL_DISPLAY_MAP.put(3, "60分钟");
-        INTERVAL_DISPLAY_MAP.put(4, "120分钟");
+        INTERVAL_DISPLAY_MAP.put(1, "5分钟");
+        INTERVAL_DISPLAY_MAP.put(2, "15分钟");
+        INTERVAL_DISPLAY_MAP.put(3, "30分钟");
+        INTERVAL_DISPLAY_MAP.put(4, "60分钟");
+        INTERVAL_DISPLAY_MAP.put(5, "120分钟");
     }
 
     /**
