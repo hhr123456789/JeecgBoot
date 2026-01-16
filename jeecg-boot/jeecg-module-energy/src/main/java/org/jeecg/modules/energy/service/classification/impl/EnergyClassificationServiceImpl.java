@@ -676,7 +676,7 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
             // 构建查询条件
             QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
 
-            // 部门条件 - 需要将 orgCode 转换为部门ID
+            // 部门条件 - 需要将 orgCode 转换为部门ID，并使用 FIND_IN_SET 匹配
             if (StringUtils.hasText(param.getOrgCode())) {
                 // 根据 orgCode 查询部门信息，获取部门ID
                 LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
@@ -685,7 +685,10 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
                 SysDepart depart = sysDepartMapper.selectOne(departQuery);
 
                 if (depart != null) {
-                    // 使用部门ID进行查询
+                    log.info("导出数据 - 找到部门: id={}, departName={}, orgCode={}",
+                            depart.getId(), depart.getDepartName(), depart.getOrgCode());
+                    
+                    // 使用部门ID进行查询，使用 FIND_IN_SET 匹配逗号分隔的 org_code 字段
                     if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
                         // 包含子部门，查询该部门及其所有子部门
                         LambdaQueryWrapper<SysDepart> childQuery = new LambdaQueryWrapper<>();
@@ -700,12 +703,23 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
                             departIds.addAll(childDeparts.stream().map(SysDepart::getId).collect(Collectors.toList()));
                         }
 
-                        queryWrapper.in("org_code", departIds);
+                        // 使用 FIND_IN_SET 匹配逗号分隔的 org_code 字段
+                        StringBuilder findInSetCondition = new StringBuilder();
+                        for (int i = 0; i < departIds.size(); i++) {
+                            if (i > 0) {
+                                findInSetCondition.append(" OR ");
+                            }
+                            findInSetCondition.append("FIND_IN_SET('").append(departIds.get(i)).append("', org_code)");
+                        }
+                        queryWrapper.and(wrapper -> wrapper.apply(findInSetCondition.toString()));
+                        log.info("导出数据 - 查询部门ID列表(FIND_IN_SET): {}", departIds);
                     } else {
-                        queryWrapper.eq("org_code", depart.getId());
+                        // 使用 FIND_IN_SET 匹配
+                        queryWrapper.apply("FIND_IN_SET({0}, org_code)", depart.getId());
+                        log.info("导出数据 - 查询部门ID(FIND_IN_SET): {}", depart.getId());
                     }
                 } else {
-                    log.warn("未找到部门信息: orgCode={}", param.getOrgCode());
+                    log.warn("导出数据 - 未找到部门信息: orgCode={}", param.getOrgCode());
                 }
             }
             
