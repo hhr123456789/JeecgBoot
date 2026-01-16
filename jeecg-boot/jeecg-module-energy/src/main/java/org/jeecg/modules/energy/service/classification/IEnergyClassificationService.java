@@ -1,6 +1,11 @@
 package org.jeecg.modules.energy.service.classification;
 
-import org.jeecg.modules.energy.vo.classification.*;
+import org.jeecg.modules.energy.vo.classification.ClassificationQueryParam;
+import org.jeecg.modules.energy.vo.classification.ClassificationSummaryVO;
+import org.jeecg.modules.energy.vo.classification.ComparisonDataVO;
+import org.jeecg.modules.energy.vo.classification.EnergyTypeVO;
+import org.jeecg.modules.energy.vo.classification.OrgTreeVO;
+import org.jeecg.modules.energy.vo.classification.TrendDataVO;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.Date;
@@ -20,10 +25,17 @@ public interface IEnergyClassificationService {
     List<OrgTreeVO> getOrgTree();
     
     /**
-     * 获取能源类型列表
+     * 获取能源类型列表(从tb_energy_ratio_info表查询)
      * @return 能源类型列表
      */
     List<EnergyTypeVO> getEnergyTypes();
+    
+    /**
+     * 根据orgCode获取该部门下设备的能源类型列表
+     * @param orgCode 部门编码
+     * @return 该部门下设备的能源类型列表
+     */
+    List<EnergyTypeVO> getEnergyTypesByOrgCode(String orgCode);
     
     /**
      * 查询分类分区统计汇总数据
@@ -161,4 +173,18 @@ public interface IEnergyClassificationService {
      * @return 进度信息
      */
     Map<String, Object> getSyncProgress(String taskId);
+    
+    /**
+     * 获取横向对比数据(部门或设备级别)
+     * @param param 查询参数
+     * @return 对比数据
+     */
+    ComparisonDataVO getComparisonData(ClassificationQueryParam param);
+
+    /**
+     * 获取汇总表调试数据
+     * @param limit 返回记录数限制
+     * @return 调试数据
+     */
+    Map<String, Object> getDebugSummaryData(Integer limit);
 }

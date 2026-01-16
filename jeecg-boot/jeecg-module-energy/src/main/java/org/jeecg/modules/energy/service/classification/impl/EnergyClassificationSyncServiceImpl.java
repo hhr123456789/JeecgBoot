@@ -479,8 +479,10 @@ public class EnergyClassificationSyncServiceImpl implements IEnergyClassificatio
                 List<TbEpEquEnergyDaycount> records = daycountMapper.selectList(wrapper);
                 
                 for (TbEpEquEnergyDaycount record : records) {
-                    // 通过moduleId获取module信息
-                    TbModule module = moduleMapper.selectById(record.getModuleId());
+                    // 通过moduleId（仪表编号）获取module信息
+                    // 注意：tb_ep_equ_energy_daycount.module_id 存储的是仪表编号，不是主键
+                    List<TbModule> modules = moduleMapper.selectByModuleId(record.getModuleId());
+                    TbModule module = (modules != null && !modules.isEmpty()) ? modules.get(0) : null;
                     if (module != null) {
                         // 统计能源类型
                         Integer energyType = module.getEnergyType();
@@ -528,24 +530,24 @@ public class EnergyClassificationSyncServiceImpl implements IEnergyClassificatio
             calendar.add(Calendar.DAY_OF_MONTH, 1);
             Date endDate = calendar.getTime();
 
-            // 获取实时表数据量
+            // 1. 先检查实时表是否有数据
             LambdaQueryWrapper<TbEpEquEnergyDaycount> wrapper = new LambdaQueryWrapper<>();
             wrapper.between(TbEpEquEnergyDaycount::getDt, startDate, endDate);
             long realTimeCount = daycountMapper.selectCount(wrapper);
 
             if (realTimeCount > 0) {
-                // 检查汇总表是否已有对应日期的数据
-                List<ClassificationStatisticsVO> summaryData = 
-                    summaryMapper.selectStatisticsGroupByOrgAndEnergyType(startDate, endDate);
+                // 2. 检查汇总表是否已有对应日期的数据（使用汇总表计数）
+                long summaryCount = summaryMapper.countByDateRange(startDate, endDate);
                 
-                boolean hasSynced = summaryData != null && !summaryData.isEmpty();
+                boolean hasSynced = summaryCount > 0;
                 
-                log.debug("未同步数据检查: targetDate={}, realTimeCount={}, hasSynced={}", 
-                         targetDate, realTimeCount, hasSynced);
+                log.debug("未同步数据检查: targetDate={}, realTimeCount={}, summaryCount={}, hasSynced={}", 
+                         targetDate, realTimeCount, summaryCount, hasSynced);
                 
                 return !hasSynced;
             }
 
+            log.debug("实时表无数据，无需同步: targetDate={}", targetDate);
             return false;
 
         } catch (Exception e) {

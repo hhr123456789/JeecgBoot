@@ -64,17 +64,16 @@ GROUP BY m.sys_org_code, m.energy_type, DATE(d.dt)
 ORDER BY DATE(d.dt) DESC, m.sys_org_code, m.energy_type;
 
 -- 6. 检查能源类型配置表
-SELECT '6. 能源类型配置表(tb_energy_type_config)' AS check_item;
+SELECT '6. 能源类型配置表(tb_energy_ratio_info)' AS check_item;
 SELECT
-    energy_type,
+    isenergy_type AS energy_type,
     energy_name,
     energy_unit,
     price_per_unit,
-    carbon_factor,
-    coal_factor,
-    status
-FROM tb_energy_type_config
-ORDER BY energy_type;
+    tpfxs_value AS carbon_factor,
+    zbmxs_value AS coal_factor
+FROM tb_energy_ratio_info
+ORDER BY isenergy_type;
 
 -- ========== 第二部分：检查目标数据表 ==========
 
@@ -192,3 +191,116 @@ SELECT time_dimension, COUNT(*) as count
 FROM tb_energy_classification_summary
 WHERE time_dimension = 'month' AND stat_year = '2025'
 GROUP BY time_dimension;
+
+-- ========== 第五部分：快速诊断汇总 ==========
+
+-- 16. 快速诊断汇总（一次性检查所有关键指标）
+SELECT '16. 快速诊断汇总' AS check_item;
+SELECT
+    (SELECT COUNT(*) FROM tb_ep_equ_energy_daycount) AS '实时表总记录数',
+    (SELECT COUNT(*) FROM tb_ep_equ_energy_daycount WHERE dt >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS '最近7天实时数据',
+    (SELECT COUNT(*) FROM tb_module) AS '仪表总数',
+    (SELECT COUNT(*) FROM tb_module WHERE isaction = 'Y') AS '已启用仪表数',
+    (SELECT COUNT(*) FROM tb_module WHERE sys_org_code IS NOT NULL AND sys_org_code != '') AS '有部门编码的仪表数',
+    (SELECT COUNT(*) FROM tb_module WHERE energy_type IS NOT NULL) AS '有能源类型的仪表数',
+    (SELECT COUNT(*) FROM tb_module WHERE isaction = 'Y' AND sys_org_code IS NOT NULL AND sys_org_code != '' AND energy_type IS NOT NULL) AS '配置完整的仪表数',
+    (SELECT COUNT(*) FROM tb_energy_classification_summary) AS '汇总表总记录数',
+    (SELECT COUNT(*) FROM tb_energy_classification_summary WHERE stat_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS '最近7天汇总数据';
+
+-- 17. 诊断结果判断
+SELECT '17. 问题诊断结果' AS check_item;
+SELECT
+    CASE
+        WHEN (SELECT COUNT(*) FROM tb_ep_equ_energy_daycount WHERE dt >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) = 0
+        THEN '问题1: 实时表最近7天没有数据，请检查数据采集系统'
+        WHEN (SELECT COUNT(*) FROM tb_module WHERE isaction = 'Y') = 0
+        THEN '问题2: 没有启用的仪表，请执行: UPDATE tb_module SET isaction = ''Y'' WHERE module_id IN (...)'
+        WHEN (SELECT COUNT(*) FROM tb_module WHERE isaction = 'Y' AND (sys_org_code IS NULL OR sys_org_code = '')) > 0
+        THEN '问题3: 存在启用但缺少部门编码的仪表，请执行第19项SQL修复'
+        WHEN (SELECT COUNT(*) FROM tb_module WHERE isaction = 'Y' AND energy_type IS NULL) > 0
+        THEN '问题4: 存在启用但缺少能源类型的仪表，请执行第20项SQL修复'
+        WHEN (SELECT COUNT(*) FROM tb_ep_equ_energy_daycount d
+              INNER JOIN tb_module m ON d.module_id = m.module_id
+              WHERE m.isaction = 'Y' AND d.dt >= DATE_SUB(CURDATE(), INTERVAL 1 DAY)) = 0
+        THEN '问题5: 实时表和仪表表无法关联，请检查module_id是否匹配'
+        ELSE '数据配置正常，请检查定时任务是否正常运行'
+    END AS diagnosis_result;
+
+-- 18. 检查module_id关联情况
+SELECT '18. 检查module_id关联失败的记录' AS check_item;
+SELECT
+    d.module_id AS unmatched_module_id,
+    COUNT(*) AS record_count,
+    MIN(d.dt) AS earliest_date,
+    MAX(d.dt) AS latest_date
+FROM tb_ep_equ_energy_daycount d
+LEFT JOIN tb_module m ON d.module_id = m.module_id
+WHERE m.module_id IS NULL
+GROUP BY d.module_id
+ORDER BY record_count DESC
+LIMIT 10;
+
+-- ========== 第六部分：修复SQL模板 ==========
+
+-- 19. 修复缺少部门编码的仪表（示例，需要根据实际情况修改）
+SELECT '19. 修复缺少部门编码的仪表 - 请根据实际情况修改' AS fix_template;
+-- 查看需要修复的仪表
+SELECT module_id, module_name, sys_org_code, energy_type, isaction
+FROM tb_module
+WHERE isaction = 'Y' AND (sys_org_code IS NULL OR sys_org_code = '');
+
+-- 修复SQL示例（取消注释并修改后执行）：
+-- UPDATE tb_module SET sys_org_code = '部门ID' WHERE module_id = 'xxx';
+
+-- 20. 修复缺少能源类型的仪表（示例）
+SELECT '20. 修复缺少能源类型的仪表 - 请根据实际情况修改' AS fix_template;
+-- 查看需要修复的仪表
+SELECT module_id, module_name, sys_org_code, energy_type, isaction
+FROM tb_module
+WHERE isaction = 'Y' AND energy_type IS NULL;
+
+-- 修复SQL示例（1=电能, 2=水能, 3=燃气）：
+-- UPDATE tb_module SET energy_type = 1 WHERE module_id = 'xxx';
+
+-- 21. 批量启用仪表（示例）
+SELECT '21. 批量启用仪表 - 请根据实际情况修改' AS fix_template;
+-- 查看未启用的仪表
+SELECT module_id, module_name, isaction
+FROM tb_module
+WHERE isaction != 'Y' OR isaction IS NULL
+LIMIT 20;
+
+-- 启用SQL示例：
+-- UPDATE tb_module SET isaction = 'Y' WHERE module_id IN ('id1', 'id2', 'id3');
+
+-- ========== 第七部分：手动触发同步 ==========
+
+-- 22. 手动同步说明
+SELECT '22. 手动触发同步的方法' AS manual_sync_guide;
+SELECT '方法1: 调用REST API' AS method,
+       'GET /jeecg-boot/energy/classification/syncByDate?targetDate=2025-01-13' AS url,
+       '手动触发指定日期的数据同步' AS description
+UNION ALL
+SELECT '方法2: 调用REST API',
+       'GET /jeecg-boot/energy/classification/triggerSync?startDate=2025-01-01&endDate=2025-01-13',
+       '手动触发日期范围内的数据同步'
+UNION ALL
+SELECT '方法3: 等待定时任务',
+       '定时任务每5分钟自动执行一次',
+       '同步前一日和当日的数据';
+
+-- 23. 验证同步结果
+SELECT '23. 验证同步结果' AS check_item;
+SELECT
+    stat_date,
+    org_code,
+    energy_type,
+    energy_type_name,
+    total_consumption,
+    total_cost,
+    meter_count,
+    create_time
+FROM tb_energy_classification_summary
+WHERE stat_date >= DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+ORDER BY create_time DESC
+LIMIT 20;

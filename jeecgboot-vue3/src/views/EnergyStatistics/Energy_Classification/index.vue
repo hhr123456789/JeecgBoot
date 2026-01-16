@@ -1,26 +1,19 @@
 <template>
   <div class="energy-classification-container flex min-h-screen bg-gray-50 p-4">
-    <!-- 左侧部门树 -->
-    <div class="w-80 bg-white p-4 mr-4 rounded-lg shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <span class="text-base font-medium text-gray-700">部门列表</span>
-        <a-input-search
-          v-model:value="searchText"
-          placeholder="搜索部门"
-          class="w-40"
-          size="middle"
-          @search="handleSearch"
-          @input="handleSearch"
-        />
-      </div>
-      <a-tree
-        v-model:selectedKeys="selectedOrgKeys"
-        v-model:expandedKeys="expandedKeys"
-        :tree-data="filteredOrgTreeData"
-        :field-names="{ title: 'orgName', key: 'id', children: 'children' }"
-        @select="handleOrgSelect"
-        class="org-tree"
-      />
+    <!-- 左侧维度树 -->
+    <div class="left-panel bg-white p-2 mr-4 rounded-lg shadow-sm" style="width:310px; flex-shrink: 0;">
+      <a-tabs v-model:activeKey="activeTabKey" @change="handleTabChange" style="height: 100%;">
+        <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title">
+          <ClassificationDimensionTree 
+            v-if="activeTabKey === item.key"
+            :ref="(el) => setTreeRef(el, item.key)" 
+            @select="onDepartTreeSelect" 
+            :nowtype="item.nowtype" 
+            :select-level="2" 
+            style="margin-top:-5px;" 
+          />
+        </a-tab-pane>
+      </a-tabs>
     </div>
 
     <!-- 右侧内容区域 -->
@@ -36,7 +29,6 @@
               button-style="solid"
               size="middle"
             >
-              <a-radio-button value="day">日</a-radio-button>
               <a-radio-button value="month">月</a-radio-button>
               <a-radio-button value="year">年</a-radio-button>
             </a-radio-group>
@@ -49,22 +41,8 @@
             class="w-40"
             size="middle"
             @change="handleDateChange"
+            :placeholder="timeUnit === 'month' ? '选择月份(显示每日)' : '选择年份(显示每月)'"
           />
-          
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-600">能源类型:</span>
-            <a-select 
-              v-model:value="energyType" 
-              class="w-32"
-              size="middle"
-              @change="handleEnergyTypeChange"
-            >
-              <a-select-option value="all">全部能源</a-select-option>
-              <a-select-option value="1">电能</a-select-option>
-              <a-select-option value="2">水能</a-select-option>
-              <a-select-option value="3">燃气</a-select-option>
-            </a-select>
-          </div>
           
           <a-button 
             type="primary" 
@@ -92,55 +70,56 @@
       </div>
 
       <!-- 统计卡片 -->
-      <div class="grid grid-cols-4 gap-4 mb-4">
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+      <div class="grid gap-4 mb-4" :class="energyType === 'all' ? 'grid-cols-4' : 'grid-cols-2'">
+        <!-- 全部能源类型时：显示总能耗 -->
+        <div v-if="energyType === 'all'" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
           <div class="text-gray-600 mb-3 text-sm">总能耗</div>
-          <div class="text-3xl font-bold text-gray-800 mb-2">{{ formatNumber(summaryData?.statisticsData?.totalConsumption || 0) }}</div>
+          <div class="text-3xl font-bold mb-2 text-gray-800">
+            {{ formatNumber(summaryData?.statisticsData?.totalConsumption || 0) }}
+          </div>
           <div class="text-sm text-gray-500">单位: {{ getUnit() }}</div>
         </div>
         
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+        <!-- 全部能源类型时显示电能分项 -->
+        <div v-if="energyType === 'all'" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
           <div class="text-gray-600 mb-3 text-sm">电能消耗</div>
           <div class="text-3xl font-bold text-blue-600 mb-2">{{ formatNumber(summaryData?.statisticsData?.electricConsumption || 0) }}</div>
           <div class="text-sm text-gray-500">单位: kWh</div>
         </div>
         
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+        <!-- 全部能源类型时显示水能分项 -->
+        <div v-if="energyType === 'all'" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
           <div class="text-gray-600 mb-3 text-sm">水能消耗</div>
           <div class="text-3xl font-bold text-cyan-600 mb-2">{{ formatNumber(summaryData?.statisticsData?.waterConsumption || 0) }}</div>
           <div class="text-sm text-gray-500">单位: m³</div>
         </div>
         
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+        <!-- 全部能源类型时显示燃气分项 -->
+        <div v-if="energyType === 'all'" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
           <div class="text-gray-600 mb-3 text-sm">燃气消耗</div>
           <div class="text-3xl font-bold text-orange-600 mb-2">{{ formatNumber(summaryData?.statisticsData?.gasConsumption || 0) }}</div>
           <div class="text-sm text-gray-500">单位: m³</div>
         </div>
+        
+        <!-- 单一能源类型时：显示该能源类型的消耗 -->
+        <div v-if="energyType !== 'all'" class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+          <div class="text-gray-600 mb-3 text-sm">{{ getEnergyTypeName(energyType) }}消耗</div>
+          <div class="text-3xl font-bold mb-2 text-blue-600">
+            {{ formatNumber(summaryData?.statisticsData?.totalConsumption || 0) }}
+          </div>
+          <div class="text-sm text-gray-500">单位: {{ getUnit() }}</div>
+        </div>
+        
+        <!-- 总成本卡片（所有情况都显示） -->
+        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100 min-h-[170px]">
+          <div class="text-gray-600 mb-3 text-sm">总成本</div>
+          <div class="text-3xl font-bold text-green-600 mb-2">{{ formatNumber(summaryData?.statisticsData?.totalCost || 0) }}</div>
+          <div class="text-sm text-gray-500">单位: 元</div>
+        </div>
       </div>
 
       <!-- 图表区域 -->
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div class="bg-white rounded-lg p-4 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-base font-medium text-gray-800">能源分类占比</span>
-            <a-radio-group 
-              v-model:value="chartType" 
-              button-style="solid" 
-              size="middle"
-            >
-              <a-radio-button value="consumption">能耗量</a-radio-button>
-              <a-radio-button value="cost">成本</a-radio-button>
-            </a-radio-group>
-          </div>
-          <EnergyDistributionPie 
-            :chartData="summaryData?.pieChartData || { series: [] }" 
-            v-if="summaryData?.pieChartData?.series?.length > 0"
-          />
-          <div v-else class="flex items-center justify-center h-64 text-gray-500">
-            暂无数据
-          </div>
-        </div>
-
+      <div class="mb-4">
         <div class="bg-white rounded-lg p-4 shadow-sm">
           <div class="mb-4">
             <span class="text-base font-medium text-gray-800">能源趋势对比</span>
@@ -182,18 +161,16 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, nextTick } from 'vue';
+import { onMounted, nextTick, ref } from 'vue';
 import { useEnergyClassification } from './hooks/useEnergyClassification';
 import EnergyDistributionPie from './components/EnergyDistributionPie.vue';
 import EnergyTrendLine from './components/EnergyTrendLine.vue';
+import ClassificationDimensionTree from './components/ClassificationDimensionTree.vue';
 
 const {
   // 数据
-  orgTreeData,
-  filteredOrgTreeData,
-  selectedOrgKeys,
-  expandedKeys,
-  searchText,
+  dimensionList,
+  activeTabKey,
   selectedOrgInfo,
   queryParam,
   timeUnit,
@@ -213,7 +190,7 @@ const {
   dynamicColumns,
   
   // 方法
-  handleOrgSelect,
+  handleTabChange,
   handleTimeUnitChange,
   handleEnergyTypeChange,
   handleTrendTypeChange,
@@ -223,12 +200,9 @@ const {
   formatNumber,
   getUnit,
   getEnergyTypeName,
-  filterOrgTree
+  onDepartTreeSelect,
+  setTreeRef
 } = useEnergyClassification();
-
-const handleSearch = (value: string) => {
-  filterOrgTree(value);
-};
 
 onMounted(() => {
   // 组件挂载时的初始化逻辑已在hook中处理
@@ -241,6 +215,29 @@ onMounted(() => {
 <style scoped lang="less">
 .energy-classification-container {
   min-height: calc(100vh - 120px);
+}
+
+.left-panel {
+  min-height: 600px;
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  
+  :deep(.ant-tabs) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  :deep(.ant-tabs-content) {
+    flex: 1;
+    overflow: auto;
+  }
+}
+
+.tab-content {
+  padding: 8px 0;
 }
 
 .org-tree {

@@ -1,16 +1,31 @@
 package org.jeecg.modules.energy.service.classification.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ArrayUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.jeecg.common.config.TenantContext;
+import org.jeecg.common.constant.CommonConstant;
+import org.jeecg.common.constant.SymbolConstant;
+import org.jeecg.common.system.vo.LoginUser;
+import org.jeecg.common.util.oConvertUtils;
+import org.jeecg.config.mybatis.MybatisPlusSaasConfig;
+import org.jeecg.modules.energy.entity.TbModule;
 import org.jeecg.modules.energy.entity.classification.TbEnergyClassificationSummary;
 import org.jeecg.modules.energy.entity.classification.TbEnergyTypeConfig;
+import org.jeecg.modules.energy.mapper.TbEnergyRatioInfoMapper;
+import org.jeecg.modules.energy.mapper.TbModuleMapper;
 import org.jeecg.modules.energy.mapper.classification.TbEnergyClassificationSummaryMapper;
 import org.jeecg.modules.energy.mapper.classification.TbEnergyTypeConfigMapper;
 import org.jeecg.modules.energy.service.classification.IEnergyClassificationService;
 import org.jeecg.modules.energy.service.classification.IEnergyClassificationSyncService;
 import org.jeecg.modules.energy.vo.classification.*;
+import org.jeecg.modules.system.entity.SysDepart;
+import org.jeecg.modules.system.mapper.SysDepartMapper;
+import org.jeecg.modules.system.model.SysDepartTreeModel;
+import org.jeecg.modules.system.util.FindsDepartsChildrenUtil;
 import org.jeecgframework.poi.excel.ExcelExportUtil;
 import org.jeecgframework.poi.excel.entity.ExportParams;
 import org.jeecgframework.poi.excel.entity.enmus.ExcelType;
@@ -43,92 +58,419 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     @Autowired
     private IEnergyClassificationSyncService syncService;
     
+    @Autowired
+    private SysDepartMapper sysDepartMapper;
+    
+    @Autowired
+    private TbEnergyRatioInfoMapper energyRatioInfoMapper;
+    
+    @Autowired
+    private TbModuleMapper moduleMapper;
+    
     @Override
     public List<OrgTreeVO> getOrgTree() {
-        // 模拟部门树数据，实际应该从sys_depart表获取
-        List<OrgTreeVO> treeData = new ArrayList<>();
+        log.info("==== 开始从sys_depart表查询部门树形结构(只展示到二级) ====");
         
-        // 根节点
-        OrgTreeVO root = new OrgTreeVO();
-        root.setId("1");
-        root.setOrgCode("A");
-        root.setOrgName("总公司");
-        root.setParentId("0");
-        
-        // 生产部门
-        OrgTreeVO production = new OrgTreeVO();
-        production.setId("1-1");
-        production.setOrgCode("A01");
-        production.setOrgName("生产部门");
-        production.setParentId("1");
-        
-        List<OrgTreeVO> productionChildren = new ArrayList<>();
-        String[] productionChildNames = {"一号车间", "二号车间", "三号车间"};
-        String[] productionChildCodes = {"A01-01", "A01-02", "A01-03"};
-        
-        for (int i = 0; i < productionChildNames.length; i++) {
-            OrgTreeVO child = new OrgTreeVO();
-            child.setId("1-1-" + (i + 1));
-            child.setOrgCode(productionChildCodes[i]);
-            child.setOrgName(productionChildNames[i]);
-            child.setParentId("1-1");
-            productionChildren.add(child);
+        try {
+            // 查询所有启用的部门
+            LambdaQueryWrapper<SysDepart> query = new LambdaQueryWrapper<>();
+            query.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+            query.eq(SysDepart::getStatus, "1"); // 启用状态
+            
+            // 如果开启多租户,过滤租户
+            if(MybatisPlusSaasConfig.OPEN_SYSTEM_TENANT_CONTROL){
+                int tenantId = oConvertUtils.getInt(TenantContext.getTenant(), 0);
+                query.eq(SysDepart::getTenantId, tenantId);
+                log.info("多租户模式已启用,租户ID: {}", tenantId);
+            } else {
+                log.info("多租户模式未启用");
+            }
+            
+            query.orderByAsc(SysDepart::getDepartOrder);
+            List<SysDepart> allDepartList = sysDepartMapper.selectList(query);
+            
+            if(allDepartList == null || allDepartList.isEmpty()){
+                log.warn("==== 未查询到部门数据,返回空列表 ====");
+                return new ArrayList<>();
+            }
+            
+            log.info("==== 查询到部门数量: {} ====", allDepartList.size());
+            // 打印前3个部门信息用于调试
+            for(int i = 0; i < Math.min(3, allDepartList.size()); i++) {
+                SysDepart dept = allDepartList.get(i);
+                log.info("部门{}: id={}, orgCode={}, departName={}, parentId={}", 
+                    i+1, dept.getId(), dept.getOrgCode(), dept.getDepartName(), dept.getParentId());
+            }
+            
+            // 构建树形结构
+            List<SysDepartTreeModel> treeList = FindsDepartsChildrenUtil.wrapTreeDataToTreeList(allDepartList);
+            log.info("构建树形结构完成,根节点数量: {}", treeList.size());
+            
+            // 转换为OrgTreeVO并只保留到二级
+            List<OrgTreeVO> result = convertToOrgTreeVO(treeList, 0, 2);
+            
+            log.info("==== 返回部门树节点数量: {} ====", result.size());
+            // 打印结果树结构
+            for(int i = 0; i < Math.min(2, result.size()); i++) {
+                OrgTreeVO vo = result.get(i);
+                log.info("结果树节点{}: id={}, orgCode={}, orgName={}, 子节点数={}", 
+                    i+1, vo.getId(), vo.getOrgCode(), vo.getOrgName(), 
+                    vo.getChildren() != null ? vo.getChildren().size() : 0);
+            }
+            return result;
+            
+        } catch (Exception e) {
+            log.error("==== 查询部门树形结构失败 ====", e);
+            return new ArrayList<>();
         }
-        production.setChildren(productionChildren);
-        
-        // 辅助部门
-        OrgTreeVO auxiliary = new OrgTreeVO();
-        auxiliary.setId("1-2");
-        auxiliary.setOrgCode("A02");
-        auxiliary.setOrgName("辅助部门");
-        auxiliary.setParentId("1");
-        
-        List<OrgTreeVO> auxiliaryChildren = new ArrayList<>();
-        String[] auxiliaryChildNames = {"动力车间", "维修车间"};
-        String[] auxiliaryChildCodes = {"A02-01", "A02-02"};
-        
-        for (int i = 0; i < auxiliaryChildNames.length; i++) {
-            OrgTreeVO child = new OrgTreeVO();
-            child.setId("1-2-" + (i + 1));
-            child.setOrgCode(auxiliaryChildCodes[i]);
-            child.setOrgName(auxiliaryChildNames[i]);
-            child.setParentId("1-2");
-            auxiliaryChildren.add(child);
+    }
+    
+    /**
+     * 将SysDepartTreeModel转换为OrgTreeVO,只保留到指定级别
+     * @param treeList 源树列表
+     * @param currentLevel 当前级别
+     * @param maxLevel 最大级别
+     * @return 转换后的树列表
+     */
+    private List<OrgTreeVO> convertToOrgTreeVO(List<SysDepartTreeModel> treeList, int currentLevel, int maxLevel) {
+        if(treeList == null || treeList.isEmpty() || currentLevel >= maxLevel) {
+            return new ArrayList<>();
         }
-        auxiliary.setChildren(auxiliaryChildren);
         
-        List<OrgTreeVO> rootChildren = new ArrayList<>();
-        rootChildren.add(production);
-        rootChildren.add(auxiliary);
-        root.setChildren(rootChildren);
+        List<OrgTreeVO> result = new ArrayList<>();
+        for(SysDepartTreeModel model : treeList) {
+            OrgTreeVO vo = new OrgTreeVO();
+            vo.setId(model.getId());
+            vo.setOrgCode(model.getOrgCode());
+            vo.setOrgName(model.getDepartName());
+            vo.setParentId(model.getParentId());
+            
+            // 如果还没到达最大级别且有子节点,递归处理
+            if(currentLevel < maxLevel - 1 && model.getChildren() != null && !model.getChildren().isEmpty()) {
+                List<OrgTreeVO> children = convertToOrgTreeVO(model.getChildren(), currentLevel + 1, maxLevel);
+                vo.setChildren(children);
+            }
+            
+            result.add(vo);
+        }
         
-        treeData.add(root);
-        return treeData;
+        return result;
     }
     
     @Override
     public List<EnergyTypeVO> getEnergyTypes() {
-        log.info("开始从数据库获取能源类型配置");
+        log.info("开始从tb_energy_ratio_info表查询能源类型配置");
         
-        // 从数据库获取能源类型配置
-        QueryWrapper<TbEnergyTypeConfig> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("status", "1").orderByAsc("sort_order");
-        List<TbEnergyTypeConfig> energyTypeConfigs = energyTypeConfigMapper.selectList(queryWrapper);
-        
-        log.info("从数据库查询到能源类型配置数量: {}", energyTypeConfigs.size());
-        
-        List<EnergyTypeVO> result = new ArrayList<>();
-        for (TbEnergyTypeConfig config : energyTypeConfigs) {
-            EnergyTypeVO vo = new EnergyTypeVO();
-            vo.setEnergyType(config.getEnergyType());
-            vo.setEnergyName(config.getEnergyName());
-            vo.setEnergyUnit(config.getEnergyUnit());
-            vo.setPricePerUnit(config.getPricePerUnit().doubleValue());
-            vo.setCarbonFactor(config.getCarbonFactor().doubleValue());
-            vo.setCoalFactor(config.getCoalFactor().doubleValue());
-            result.add(vo);
-            log.info("添加能源类型: {} - {}", config.getEnergyType(), config.getEnergyName());
+        try {
+            List<EnergyTypeVO> result = energyRatioInfoMapper.selectAllEnergyTypes();
+            log.info("查询到能源类型数量: {}", result != null ? result.size() : 0);
+            return result != null ? result : new ArrayList<>();
+        } catch (Exception e) {
+            log.error("查询能源类型失败", e);
+            return new ArrayList<>();
         }
+    }
+    
+    @Override
+    public List<EnergyTypeVO> getEnergyTypesByOrgCode(String orgCode) {
+        log.info("根据orgCode查询该部门下设备的能源类型: {}", orgCode);
+        
+        if(orgCode == null || orgCode.trim().isEmpty()) {
+            log.warn("部门编码为空,返回所有能源类型");
+            return getEnergyTypes();
+        }
+        
+        try {
+            List<EnergyTypeVO> result = energyRatioInfoMapper.selectEnergyTypesByOrgCode(orgCode);
+            log.info("查询到该部门下设备的能源类型数量: {}", result != null ? result.size() : 0);
+            
+            if(result == null || result.isEmpty()) {
+                log.warn("该部门下没有启用的设备,返回空列表");
+                return new ArrayList<>();
+            }
+            
+            return result;
+        } catch (Exception e) {
+            log.error("根据orgCode查询能源类型失败: {}", orgCode, e);
+            return new ArrayList<>();
+        }
+    }
+    
+    @Override
+    public ComparisonDataVO getComparisonData(ClassificationQueryParam param) {
+        log.info("获取横向对比数据: {}", param);
+        
+        ComparisonDataVO result = new ComparisonDataVO();
+        
+        if(param == null || param.getOrgCode() == null || param.getOrgCode().trim().isEmpty()) {
+            log.warn("部门编码为空,返回空对比数据");
+            return result;
+        }
+        
+        try {
+            // 1. 查询当前部门信息,判断层级
+            LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+            departQuery.eq(SysDepart::getOrgCode, param.getOrgCode());
+            departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+            SysDepart currentDepart = sysDepartMapper.selectOne(departQuery);
+            
+            if(currentDepart == null) {
+                log.warn("未找到部门信息: {}", param.getOrgCode());
+                return result;
+            }
+            
+            // 2. 判断层级: 如果parentId为空或为"0",则为一级部门; 否则为二级部门
+            boolean isFirstLevel = (currentDepart.getParentId() == null || 
+                                   "0".equals(currentDepart.getParentId()) || 
+                                   currentDepart.getParentId().trim().isEmpty());
+            
+            if(isFirstLevel) {
+                // 一级部门: 查询其下所有二级子部门的统计数据
+                result = getSubDepartmentComparison(currentDepart, param);
+            } else {
+                // 二级部门: 查询该部门下所有设备的统计数据
+                result = getDeviceComparison(currentDepart, param);
+            }
+            
+            return result;
+        } catch (Exception e) {
+            log.error("获取横向对比数据失败: {}", param.getOrgCode(), e);
+            return result;
+        }
+    }
+    
+    /**
+     * 获取子部门横向对比数据(一级部门展示其下所有二级部门对比)
+     */
+    private ComparisonDataVO getSubDepartmentComparison(SysDepart parentDepart, ClassificationQueryParam param) {
+        ComparisonDataVO result = new ComparisonDataVO();
+        result.setComparisonType("department");
+        result.setParentOrgCode(parentDepart.getOrgCode());
+        result.setParentOrgName(parentDepart.getDepartName());
+
+        // 1. 查询该一级部门下的所有二级子部门
+        LambdaQueryWrapper<SysDepart> query = new LambdaQueryWrapper<>();
+        query.eq(SysDepart::getParentId, parentDepart.getId());
+        query.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+        query.eq(SysDepart::getStatus, "1");
+        query.orderByAsc(SysDepart::getDepartOrder);
+
+        List<SysDepart> subDeparts = sysDepartMapper.selectList(query);
+        if(subDeparts == null || subDeparts.isEmpty()) {
+            log.warn("一级部门 {} 下没有二级子部门", parentDepart.getOrgCode());
+            return result;
+        }
+
+        // 2. 构建X轴数据(部门名称列表)
+        List<String> xAxisData = subDeparts.stream()
+            .map(SysDepart::getDepartName)
+            .collect(Collectors.toList());
+        result.setXAxisData(xAxisData);
+
+        // 3. 查询每个子部门的统计数据
+        List<ComparisonItemVO> comparisonItems = new ArrayList<>();
+        Map<Integer, List<BigDecimal>> energyTypeDataMap = new HashMap<>();
+
+        for(SysDepart subDepart : subDeparts) {
+            // 查询该子部门的统计汇总数据 - 使用部门ID而不是orgCode
+            LambdaQueryWrapper<TbEnergyClassificationSummary> summaryQuery = new LambdaQueryWrapper<>();
+            summaryQuery.eq(TbEnergyClassificationSummary::getOrgCode, subDepart.getId()); // 修改：使用部门ID
+            summaryQuery.eq(TbEnergyClassificationSummary::getTimeDimension, param.getTimeDimension());
+            
+            // 如果指定了能源类型
+            if(!"all".equalsIgnoreCase(param.getEnergyType())) {
+                summaryQuery.eq(TbEnergyClassificationSummary::getEnergyType, Integer.parseInt(param.getEnergyType()));
+            }
+            
+            // 时间范围过滤
+            if(param.getStartDate() != null && param.getEndDate() != null) {
+                summaryQuery.between(TbEnergyClassificationSummary::getStatDate, param.getStartDate(), param.getEndDate());
+            }
+            
+            List<TbEnergyClassificationSummary> summaries = summaryMapper.selectList(summaryQuery);
+            
+            // 按能源类型汇总
+            Map<Integer, ComparisonItemVO> energyTypeMap = new HashMap<>();
+            for(TbEnergyClassificationSummary summary : summaries) {
+                Integer energyType = summary.getEnergyType();
+                ComparisonItemVO item = energyTypeMap.get(energyType);
+                if(item == null) {
+                    item = new ComparisonItemVO();
+                    item.setId(subDepart.getOrgCode());
+                    item.setName(subDepart.getDepartName());
+                    item.setEnergyType(energyType);
+                    item.setEnergyTypeName(summary.getEnergyTypeName());
+                    item.setTotalConsumption(BigDecimal.ZERO);
+                    item.setTotalCost(BigDecimal.ZERO);
+                    item.setCarbonEmission(BigDecimal.ZERO);
+                    item.setStandardCoal(BigDecimal.ZERO);
+                    item.setPeakConsumption(BigDecimal.ZERO);
+                    item.setFlatConsumption(BigDecimal.ZERO);
+                    item.setValleyConsumption(BigDecimal.ZERO);
+                    item.setMeterCount(0);
+                    energyTypeMap.put(energyType, item);
+                }
+                
+                // 累加各项数据
+                item.setTotalConsumption(item.getTotalConsumption().add(summary.getTotalConsumption() != null ? summary.getTotalConsumption() : BigDecimal.ZERO));
+                item.setTotalCost(item.getTotalCost().add(summary.getTotalCost() != null ? summary.getTotalCost() : BigDecimal.ZERO));
+                item.setCarbonEmission(item.getCarbonEmission().add(summary.getCarbonEmission() != null ? summary.getCarbonEmission() : BigDecimal.ZERO));
+                item.setStandardCoal(item.getStandardCoal().add(summary.getStandardCoal() != null ? summary.getStandardCoal() : BigDecimal.ZERO));
+                
+                if(energyType == 1) { // 电力数据才有峰谷平
+                    item.setPeakConsumption(item.getPeakConsumption().add(summary.getPeakConsumption() != null ? summary.getPeakConsumption() : BigDecimal.ZERO));
+                    item.setFlatConsumption(item.getFlatConsumption().add(summary.getFlatConsumption() != null ? summary.getFlatConsumption() : BigDecimal.ZERO));
+                    item.setValleyConsumption(item.getValleyConsumption().add(summary.getValleyConsumption() != null ? summary.getValleyConsumption() : BigDecimal.ZERO));
+                }
+                
+                item.setMeterCount(item.getMeterCount() + (summary.getMeterCount() != null ? summary.getMeterCount() : 0));
+            }
+            
+            comparisonItems.addAll(energyTypeMap.values());
+            
+            // 为图表准备数据 - 按能源类型分组
+            for(Map.Entry<Integer, ComparisonItemVO> entry : energyTypeMap.entrySet()) {
+                Integer energyType = entry.getKey();
+                BigDecimal consumption = entry.getValue().getTotalConsumption();
+                
+                if(!energyTypeDataMap.containsKey(energyType)) {
+                    energyTypeDataMap.put(energyType, new ArrayList<>());
+                }
+                energyTypeDataMap.get(energyType).add(consumption);
+            }
+        }
+        
+        result.setComparisonItems(comparisonItems);
+        
+        // 4. 构建系列数据(用于图表展示)
+        List<ComparisonSeriesVO> seriesData = new ArrayList<>();
+        for(Map.Entry<Integer, List<BigDecimal>> entry : energyTypeDataMap.entrySet()) {
+            ComparisonSeriesVO series = new ComparisonSeriesVO();
+            series.setType("bar");
+            series.setData(entry.getValue());
+            
+            // 设置系列名称
+            if(entry.getKey() == 1) {
+                series.setName("电能");
+                series.setUnit("kWh");
+            } else if(entry.getKey() == 2) {
+                series.setName("水能");
+                series.setUnit("t");
+            } else if(entry.getKey() == 3) {
+                series.setName("燃气");
+                series.setUnit("m³");
+            } else {
+                series.setName("能源类型" + entry.getKey());
+                series.setUnit("");
+            }
+            
+            seriesData.add(series);
+        }
+        result.setSeriesData(seriesData);
+        
+        return result;
+    }
+    
+    /**
+     * 获取设备横向对比数据(二级部门展示其下所有设备对比)
+     */
+    private ComparisonDataVO getDeviceComparison(SysDepart depart, ClassificationQueryParam param) {
+        ComparisonDataVO result = new ComparisonDataVO();
+        result.setComparisonType("device");
+        result.setParentOrgCode(depart.getOrgCode());
+        result.setParentOrgName(depart.getDepartName());
+
+        // 1. 查询该部门下的所有启用设备 - 使用部门ID而不是orgCode
+        LambdaQueryWrapper<TbModule> moduleQuery = new LambdaQueryWrapper<>();
+        moduleQuery.eq(TbModule::getSysOrgCode, depart.getId()); // 修改：使用部门ID
+        moduleQuery.eq(TbModule::getIsaction, "Y"); // 启用的设备
+        
+        // 如果指定了能源类型
+        if(!"all".equalsIgnoreCase(param.getEnergyType())) {
+            moduleQuery.eq(TbModule::getEnergyType, Integer.parseInt(param.getEnergyType()));
+        }
+        
+        List<TbModule> modules = moduleMapper.selectList(moduleQuery);
+        if(modules == null || modules.isEmpty()) {
+            log.warn("二级部门 {} 下没有启用的设备", depart.getOrgCode());
+            return result;
+        }
+        
+        // 2. 构建X轴数据(设备名称列表)
+        List<String> xAxisData = modules.stream()
+            .map(TbModule::getModuleName)
+            .collect(Collectors.toList());
+        result.setXAxisData(xAxisData);
+        
+        // 3. 查询每个设备的统计数据
+        // 注意: 由于当前 tb_energy_classification_summary 表可能不支持设备级统计
+        // 这里需要从 tb_ep_equ_energy_daycount 等表查询实时数据
+        // 暂时返回基础结构,实际数据查询逻辑需要根据实际表结构调整
+        
+        List<ComparisonItemVO> comparisonItems = new ArrayList<>();
+        Map<Integer, List<BigDecimal>> energyTypeDataMap = new HashMap<>();
+        
+        for(TbModule module : modules) {
+            ComparisonItemVO item = new ComparisonItemVO();
+            item.setId(module.getModuleId());
+            item.setName(module.getModuleName());
+            item.setEnergyType(module.getEnergyType());
+            
+            // 设置能源类型名称
+            if(module.getEnergyType() == 1) {
+                item.setEnergyTypeName("电能");
+            } else if(module.getEnergyType() == 2) {
+                item.setEnergyTypeName("水能");
+            } else if(module.getEnergyType() == 3) {
+                item.setEnergyTypeName("燃气");
+            }
+            
+            // TODO: 这里需要查询设备的实际统计数据
+            // 暂时设置为0,后续需要根据实际业务调整
+            item.setTotalConsumption(BigDecimal.ZERO);
+            item.setTotalCost(BigDecimal.ZERO);
+            item.setCarbonEmission(BigDecimal.ZERO);
+            item.setStandardCoal(BigDecimal.ZERO);
+            item.setPeakConsumption(BigDecimal.ZERO);
+            item.setFlatConsumption(BigDecimal.ZERO);
+            item.setValleyConsumption(BigDecimal.ZERO);
+            item.setMeterCount(1);
+            
+            comparisonItems.add(item);
+            
+            // 为图表准备数据
+            Integer energyType = module.getEnergyType();
+            if(!energyTypeDataMap.containsKey(energyType)) {
+                energyTypeDataMap.put(energyType, new ArrayList<>());
+            }
+            energyTypeDataMap.get(energyType).add(item.getTotalConsumption());
+        }
+        
+        result.setComparisonItems(comparisonItems);
+        
+        // 4. 构建系列数据
+        List<ComparisonSeriesVO> seriesData = new ArrayList<>();
+        for(Map.Entry<Integer, List<BigDecimal>> entry : energyTypeDataMap.entrySet()) {
+            ComparisonSeriesVO series = new ComparisonSeriesVO();
+            series.setType("bar");
+            series.setData(entry.getValue());
+            
+            if(entry.getKey() == 1) {
+                series.setName("电能");
+                series.setUnit("kWh");
+            } else if(entry.getKey() == 2) {
+                series.setName("水能");
+                series.setUnit("t");
+            } else if(entry.getKey() == 3) {
+                series.setName("燃气");
+                series.setUnit("m³");
+            }
+            
+            seriesData.add(series);
+        }
+        result.setSeriesData(seriesData);
+        
+        log.info("设备对比数据查询完成,部门: {}, 设备数量: {}", depart.getDepartName(), modules.size());
         
         return result;
     }
@@ -166,34 +508,57 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
         
         // 构建查询条件
         QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
-        
-        // 部门条件
+
+        // 部门条件 - 需要将 orgCode 转换为部门ID
         if (StringUtils.hasText(param.getOrgCode())) {
-            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
-                // 包含子部门，需要判断是否是子部门
-                String orgCode = param.getOrgCode();
-                // 如果是子部门（如A01-01），查询该子部门及其下的所有部门
-                // 但根据部门结构，子部门下没有更下一级的部门，所以只查询该部门本身
-                if (orgCode.contains("-")) {
-                    // 子部门没有更下一级的子部门，所以只查询该部门本身
-                    queryWrapper.eq("org_code", orgCode);
+            // 根据 orgCode 查询部门信息，获取部门ID
+            LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+            departQuery.eq(SysDepart::getOrgCode, param.getOrgCode());
+            departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+            SysDepart depart = sysDepartMapper.selectOne(departQuery);
+
+            if (depart != null) {
+                // 使用部门ID进行查询
+                if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                    // 包含子部门，查询该部门及其所有子部门
+                    LambdaQueryWrapper<SysDepart> childQuery = new LambdaQueryWrapper<>();
+                    childQuery.eq(SysDepart::getParentId, depart.getId());
+                    childQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+                    List<SysDepart> childDeparts = sysDepartMapper.selectList(childQuery);
+
+                    // 收集所有部门ID
+                    List<String> departIds = new ArrayList<>();
+                    departIds.add(depart.getId());
+                    if (childDeparts != null && !childDeparts.isEmpty()) {
+                        departIds.addAll(childDeparts.stream().map(SysDepart::getId).collect(Collectors.toList()));
+                    }
+
+                    // 使用 FIND_IN_SET 匹配逗号分隔的 org_code 字段
+                    StringBuilder findInSetCondition = new StringBuilder();
+                    for (int i = 0; i < departIds.size(); i++) {
+                        if (i > 0) {
+                            findInSetCondition.append(" OR ");
+                        }
+                        findInSetCondition.append("FIND_IN_SET('").append(departIds.get(i)).append("', org_code)");
+                    }
+                    queryWrapper.and(wrapper -> wrapper.apply(findInSetCondition.toString()));
                 } else {
-                    // 如果是父部门（如A01），查询该部门及其所有子部门
-                    queryWrapper.likeRight("org_code", orgCode);
+                    // 使用 FIND_IN_SET 匹配
+                    queryWrapper.apply("FIND_IN_SET({0}, org_code)", depart.getId());
                 }
             } else {
-                queryWrapper.eq("org_code", param.getOrgCode());
+                log.warn("未找到部门信息: orgCode={}", param.getOrgCode());
             }
         }
-        
-        // 时间维度条件
-        queryWrapper.eq("time_dimension", param.getTimeDimension());
-        
+
+        // 注意：time_dimension 条件已移除，因为数据固定为 'day'
+        // queryWrapper.eq("time_dimension", param.getTimeDimension());
+
         // 时间范围条件
         if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
             queryWrapper.between("stat_date", param.getStartDate(), param.getEndDate());
         }
-        
+
         // 根据时间维度选择字段
         String timeField;
         if ("day".equals(param.getTimeDimension())) {
@@ -264,31 +629,41 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
             energyTypeData.get(energyType).add(consumption);
         }
         
-        // 电能趋势
-        if (energyTypeData.containsKey(1)) {
-            TrendDataVO.SeriesDataVO electricSeries = new TrendDataVO.SeriesDataVO();
-            electricSeries.setName("电能");
-            electricSeries.setType("line");
-            electricSeries.setData(energyTypeData.get(1).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
-            series.add(electricSeries);
-        }
+        System.out.println("按能源类型分组后的数据: " + energyTypeData.keySet());
         
-        // 水能趋势
-        if (energyTypeData.containsKey(2)) {
-            TrendDataVO.SeriesDataVO waterSeries = new TrendDataVO.SeriesDataVO();
-            waterSeries.setName("水能");
-            waterSeries.setType("line");
-            waterSeries.setData(energyTypeData.get(2).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
-            series.add(waterSeries);
-        }
-        
-        // 燃气趋势
-        if (energyTypeData.containsKey(3)) {
-            TrendDataVO.SeriesDataVO gasSeries = new TrendDataVO.SeriesDataVO();
-            gasSeries.setName("燃气");
-            gasSeries.setType("line");
-            gasSeries.setData(energyTypeData.get(3).stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
-            series.add(gasSeries);
+        // 动态处理所有能源类型
+        for (Map.Entry<Integer, List<BigDecimal>> entry : energyTypeData.entrySet()) {
+            Integer energyType = entry.getKey();
+            List<BigDecimal> consumptions = entry.getValue();
+            
+            TrendDataVO.SeriesDataVO seriesItem = new TrendDataVO.SeriesDataVO();
+            seriesItem.setType("line");
+            seriesItem.setData(consumptions.stream().map(BigDecimal::doubleValue).collect(Collectors.toList()));
+            
+            // 根据能源类型设置系列名称
+            switch (energyType) {
+                case 1:
+                    seriesItem.setName("电能");
+                    break;
+                case 2:
+                    seriesItem.setName("水能");
+                    break;
+                case 3:
+                    seriesItem.setName("燃气");
+                    break;
+                case 5:
+                    seriesItem.setName("压缩空气");
+                    break;
+                case 8:
+                    seriesItem.setName("天然气");
+                    break;
+                default:
+                    seriesItem.setName("能源类型" + energyType);
+                    break;
+            }
+            
+            series.add(seriesItem);
+            System.out.println("添加系列: " + seriesItem.getName() + ", 数据点数: " + consumptions.size());
         }
         
         result.setSeries(series);
@@ -300,28 +675,42 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
         try {
             // 构建查询条件
             QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
-            
-            // 部门条件
+
+            // 部门条件 - 需要将 orgCode 转换为部门ID
             if (StringUtils.hasText(param.getOrgCode())) {
-                if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
-                    // 包含子部门，需要判断是否是子部门
-                    String orgCode = param.getOrgCode();
-                    // 如果是子部门（如A01-01），查询该子部门及其下的所有部门
-                    // 但根据部门结构，子部门下没有更下一级的部门，所以只查询该部门本身
-                    if (orgCode.contains("-")) {
-                        // 子部门没有更下一级的子部门，所以只查询该部门本身
-                        queryWrapper.eq("org_code", orgCode);
+                // 根据 orgCode 查询部门信息，获取部门ID
+                LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+                departQuery.eq(SysDepart::getOrgCode, param.getOrgCode());
+                departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+                SysDepart depart = sysDepartMapper.selectOne(departQuery);
+
+                if (depart != null) {
+                    // 使用部门ID进行查询
+                    if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                        // 包含子部门，查询该部门及其所有子部门
+                        LambdaQueryWrapper<SysDepart> childQuery = new LambdaQueryWrapper<>();
+                        childQuery.eq(SysDepart::getParentId, depart.getId());
+                        childQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+                        List<SysDepart> childDeparts = sysDepartMapper.selectList(childQuery);
+
+                        // 收集所有部门ID
+                        List<String> departIds = new ArrayList<>();
+                        departIds.add(depart.getId());
+                        if (childDeparts != null && !childDeparts.isEmpty()) {
+                            departIds.addAll(childDeparts.stream().map(SysDepart::getId).collect(Collectors.toList()));
+                        }
+
+                        queryWrapper.in("org_code", departIds);
                     } else {
-                        // 如果是父部门（如A01），查询该部门及其所有子部门
-                        queryWrapper.likeRight("org_code", orgCode);
+                        queryWrapper.eq("org_code", depart.getId());
                     }
                 } else {
-                    queryWrapper.eq("org_code", param.getOrgCode());
+                    log.warn("未找到部门信息: orgCode={}", param.getOrgCode());
                 }
             }
             
-            // 时间维度条件
-            queryWrapper.eq("time_dimension", param.getTimeDimension());
+            // 注意：time_dimension 条件已移除，因为数据固定为 'day'
+            // queryWrapper.eq("time_dimension", param.getTimeDimension());
             
             // 时间范围条件
             if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
@@ -375,98 +764,128 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     }
     
     private StatisticsDataVO getStatisticsData(ClassificationQueryParam param) {
+        log.info("========== getStatisticsData 开始 ==========");
+        log.info("接收到的查询参数: orgCode={}, energyType={}, timeDimension={}, startDate={}, endDate={}, includeChildren={}",
+                param.getOrgCode(), param.getEnergyType(), param.getTimeDimension(),
+                param.getStartDate(), param.getEndDate(), param.getIncludeChildren());
+
         StatisticsDataVO statisticsData = new StatisticsDataVO();
-        
+
         // 构建查询条件
         QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
-        
-        // 部门条件
+
+        // 部门条件 - 需要将 orgCode 转换为部门ID
         if (StringUtils.hasText(param.getOrgCode())) {
-            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
-                // 包含子部门，需要判断是否是子部门
-                String orgCode = param.getOrgCode();
-                // 如果是子部门（如A01-01），查询该子部门及其下的所有部门
-                // 但根据部门结构，子部门下没有更下一级的部门，所以只查询该部门本身
-                if (orgCode.contains("-")) {
-                    // 子部门没有更下一级的子部门，所以只查询该部门本身
-                    queryWrapper.eq("org_code", orgCode);
-                } else {
-                    // 如果是父部门（如A01），查询该部门及其所有子部门
-                    queryWrapper.likeRight("org_code", orgCode);
-                }
-            } else {
-                // 不包含子部门，精确匹配
-                queryWrapper.eq("org_code", param.getOrgCode());
+            log.info("开始根据 orgCode 查询部门信息: {}", param.getOrgCode());
+
+            // 根据 orgCode 查询部门信息，获取部门ID
+            LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+            departQuery.eq(SysDepart::getOrgCode, param.getOrgCode());
+            departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+            SysDepart depart = sysDepartMapper.selectOne(departQuery);
+
+            if (depart == null) {
+                log.error("❌ 未找到部门信息: orgCode={}", param.getOrgCode());
+                log.error("请检查: 1.orgCode是否正确 2.部门是否被删除 3.部门状态是否启用");
+                // 返回空数据
+                statisticsData.setTotalConsumption(BigDecimal.ZERO);
+                statisticsData.setElectricConsumption(BigDecimal.ZERO);
+                statisticsData.setWaterConsumption(BigDecimal.ZERO);
+                statisticsData.setGasConsumption(BigDecimal.ZERO);
+                statisticsData.setTotalCost(BigDecimal.ZERO);
+                statisticsData.setTotalCarbonEmission(BigDecimal.ZERO);
+                return statisticsData;
             }
+
+            log.info("✓ 找到部门: id={}, departName={}, orgCode={}",
+                    depart.getId(), depart.getDepartName(), depart.getOrgCode());
+
+            // 使用部门ID进行查询
+            if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
+                // 包含子部门，查询该部门及其所有子部门
+                log.info("查询模式: 包含子部门");
+
+                // 查询所有子部门
+                LambdaQueryWrapper<SysDepart> childQuery = new LambdaQueryWrapper<>();
+                childQuery.eq(SysDepart::getParentId, depart.getId());
+                childQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+                List<SysDepart> childDeparts = sysDepartMapper.selectList(childQuery);
+
+                // 收集所有部门ID（包括当前部门和子部门）
+                List<String> departIds = new ArrayList<>();
+                departIds.add(depart.getId());
+                if (childDeparts != null && !childDeparts.isEmpty()) {
+                    departIds.addAll(childDeparts.stream().map(SysDepart::getId).collect(Collectors.toList()));
+                    log.info("找到 {} 个子部门", childDeparts.size());
+                }
+
+                // 使用 FIND_IN_SET 匹配逗号分隔的 org_code 字段
+                // org_code 格式如: "id1,id2,id3"，需要用 FIND_IN_SET 匹配
+                StringBuilder findInSetCondition = new StringBuilder();
+                for (int i = 0; i < departIds.size(); i++) {
+                    if (i > 0) {
+                        findInSetCondition.append(" OR ");
+                    }
+                    findInSetCondition.append("FIND_IN_SET('").append(departIds.get(i)).append("', org_code)");
+                }
+                queryWrapper.and(wrapper -> wrapper.apply(findInSetCondition.toString()));
+                log.info("✓ 查询部门ID列表(FIND_IN_SET): {}", departIds);
+            } else {
+                // 不包含子部门，使用 FIND_IN_SET 匹配
+                log.info("查询模式: 仅查询当前部门");
+                queryWrapper.apply("FIND_IN_SET({0}, org_code)", depart.getId());
+                log.info("✓ 查询部门ID(FIND_IN_SET): {}", depart.getId());
+            }
+        } else {
+            log.warn("⚠️ orgCode 参数为空，将查询所有部门数据");
         }
         
-        // 时间维度条件
-        queryWrapper.eq("time_dimension", param.getTimeDimension());
-        
+        // 注意：time_dimension 条件已移除
+        // 因为同步数据时 time_dimension 固定为 'day'，但前端可能查询 'month' 或 'year'
+        // 改为使用日期范围过滤，然后根据 timeDimension 参数聚合结果
+        // queryWrapper.eq("time_dimension", param.getTimeDimension());
+        log.info("时间维度参数(用于聚合): {}", param.getTimeDimension());
+
         // 时间范围条件
         if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
             queryWrapper.between("stat_date", param.getStartDate(), param.getEndDate());
+            log.info("添加时间范围条件: {} 到 {}", param.getStartDate(), param.getEndDate());
         }
-        
+
         // 能源类型条件
         if (!"all".equals(param.getEnergyType())) {
             queryWrapper.eq("energy_type", param.getEnergyType());
+            log.info("添加能源类型条件: {}", param.getEnergyType());
+        } else {
+            log.info("查询所有能源类型");
         }
-        
-        // 输出完整的SQL语句
-        System.out.println("========== 查询分类分区统计数据的SQL详细信息 ==========");
-        System.out.println("查询条件 - orgCode: " + param.getOrgCode() + 
-                          ", energyType: " + param.getEnergyType() + 
-                          ", timeDimension: " + param.getTimeDimension() + 
-                          ", startDate: " + param.getStartDate() + 
-                          ", endDate: " + param.getEndDate() + 
-                          ", includeChildren: " + param.getIncludeChildren());
-        
-        // 获取完整的SQL语句
-        try {
-            // 构建SQL
-            StringBuilder sql = new StringBuilder();
-            sql.append("SELECT * FROM tb_energy_classification_summary WHERE 1=1");
-            
-            // 部门条件
-            if (StringUtils.hasText(param.getOrgCode())) {
-                if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
-                    // 包含子部门，需要判断是否是子部门
-                    String orgCode = param.getOrgCode();
-                    // 如果是子部门（如A01-01），查询该子部门及其下的所有部门
-                    // 但根据部门结构，子部门下没有更下一级的部门，所以只查询该部门本身
-                    if (orgCode.contains("-")) {
-                        // 子部门没有更下一级的子部门，所以只查询该部门本身
-                        sql.append(" AND org_code = '").append(orgCode).append("'");
-                    } else {
-                        // 如果是父部门（如A01），查询该部门及其所有子部门
-                        sql.append(" AND org_code LIKE '").append(orgCode).append("%'");
-                    }
-                } else {
-                    sql.append(" AND org_code = '").append(param.getOrgCode()).append("'");
-                }
-            }
-            
-            // 时间维度条件
-            sql.append(" AND time_dimension = '").append(param.getTimeDimension()).append("'");
-            
-            // 时间范围条件
-            if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
-                sql.append(" AND stat_date BETWEEN '").append(param.getStartDate()).append("' AND '").append(param.getEndDate()).append("'");
-            }
-            
-            // 能源类型条件
-            if (!"all".equals(param.getEnergyType())) {
-                sql.append(" AND energy_type = ").append(param.getEnergyType());
-            }
-            
-            System.out.println("完整SQL: " + sql.toString());
-        } catch (Exception e) {
-            System.out.println("获取SQL失败: " + e.getMessage());
-        }
-        
+
+        log.info("========== 开始执行查询 ==========");
+        log.info("MyBatis-Plus QueryWrapper: {}", queryWrapper.getCustomSqlSegment());
+
         // 查询数据
         List<TbEnergyClassificationSummary> summaryList = summaryMapper.selectList(queryWrapper);
+
+        log.info("========== 查询结果 ==========");
+        log.info("查询到 {} 条记录", summaryList != null ? summaryList.size() : 0);
+
+        if (summaryList == null || summaryList.isEmpty()) {
+            log.warn("⚠️⚠️⚠️ 没有查询到任何数据！");
+            log.warn("可能的原因:");
+            log.warn("1. tb_energy_classification_summary 表中没有数据");
+            log.warn("2. org_code 字段值与部门ID不匹配");
+            log.warn("3. 时间范围内没有数据");
+            log.warn("4. 能源类型不匹配");
+            log.warn("建议: 请运行 debug_query.sql 脚本检查数据库数据");
+        } else {
+            log.info("✓ 成功查询到数据，前3条记录:");
+            for (int i = 0; i < Math.min(3, summaryList.size()); i++) {
+                TbEnergyClassificationSummary item = summaryList.get(i);
+                log.info("  [{}] orgCode={}, orgName={}, energyType={}, consumption={}, date={}",
+                        i + 1, item.getOrgCode(), item.getOrgName(), item.getEnergyTypeName(),
+                        item.getTotalConsumption(), item.getStatDate());
+            }
+        }
         
         // 统计汇总
         BigDecimal totalConsumption = BigDecimal.ZERO;
@@ -481,13 +900,17 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
             totalCost = totalCost.add(summary.getTotalCost());
             totalCarbonEmission = totalCarbonEmission.add(summary.getCarbonEmission());
             
-            // 按能源类型分类统计
-            if (summary.getEnergyType() == 1) {
-                electricConsumption = electricConsumption.add(summary.getTotalConsumption());
-            } else if (summary.getEnergyType() == 2) {
-                waterConsumption = waterConsumption.add(summary.getTotalConsumption());
-            } else if (summary.getEnergyType() == 3) {
-                gasConsumption = gasConsumption.add(summary.getTotalConsumption());
+            // 只有查询全部能源类型时，才按能源类型分类统计
+            // 否则，所有消耗都算入总能耗，不拆分到分项
+            if ("all".equals(param.getEnergyType())) {
+                // 按能源类型分类统计
+                if (summary.getEnergyType() == 1) {
+                    electricConsumption = electricConsumption.add(summary.getTotalConsumption());
+                } else if (summary.getEnergyType() == 2) {
+                    waterConsumption = waterConsumption.add(summary.getTotalConsumption());
+                } else if (summary.getEnergyType() == 3) {
+                    gasConsumption = gasConsumption.add(summary.getTotalConsumption());
+                }
             }
         }
         
@@ -497,6 +920,9 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
         statisticsData.setGasConsumption(gasConsumption);
         statisticsData.setTotalCost(totalCost);
         statisticsData.setTotalCarbonEmission(totalCarbonEmission);
+        
+        log.info("统计数据汇总完成: 总能耗={}, 电能={}, 水能={}, 燃气={}", 
+                totalConsumption, electricConsumption, waterConsumption, gasConsumption);
         
         return statisticsData;
     }
@@ -574,31 +1000,54 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
     
     private List<TableDataVO> getTableData(ClassificationQueryParam param, StatisticsDataVO statisticsData) {
         List<TableDataVO> tableData = new ArrayList<>();
-        
+
         // 构建查询条件
         QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
-        
-        // 部门条件
+
+        // 部门条件 - 需要将 orgCode 转换为部门ID
         if (StringUtils.hasText(param.getOrgCode())) {
+            // 根据 orgCode 查询部门信息，获取部门ID
+            LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+            departQuery.eq(SysDepart::getOrgCode, param.getOrgCode());
+            departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+            SysDepart depart = sysDepartMapper.selectOne(departQuery);
+
+            if (depart == null) {
+                log.warn("未找到部门信息: orgCode={}", param.getOrgCode());
+                return tableData;
+            }
+
+            // 使用部门ID进行查询
             if (param.getIncludeChildren() != null && param.getIncludeChildren()) {
-                // 包含子部门，需要判断是否是子部门
-                String orgCode = param.getOrgCode();
-                // 如果是子部门（如A01-01），查询该子部门及其下的所有部门
-                // 但根据部门结构，子部门下没有更下一级的部门，所以只查询该部门本身
-                if (orgCode.contains("-")) {
-                    // 子部门没有更下一级的子部门，所以只查询该部门本身
-                    queryWrapper.eq("org_code", orgCode);
-                } else {
-                    // 如果是父部门（如A01），查询该部门及其所有子部门
-                    queryWrapper.likeRight("org_code", orgCode);
+                // 包含子部门，查询该部门及其所有子部门
+                LambdaQueryWrapper<SysDepart> childQuery = new LambdaQueryWrapper<>();
+                childQuery.eq(SysDepart::getParentId, depart.getId());
+                childQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString());
+                List<SysDepart> childDeparts = sysDepartMapper.selectList(childQuery);
+
+                // 收集所有部门ID
+                List<String> departIds = new ArrayList<>();
+                departIds.add(depart.getId());
+                if (childDeparts != null && !childDeparts.isEmpty()) {
+                    departIds.addAll(childDeparts.stream().map(SysDepart::getId).collect(Collectors.toList()));
                 }
+
+                // 使用 FIND_IN_SET 匹配逗号分隔的 org_code 字段
+                StringBuilder findInSetCondition = new StringBuilder();
+                for (int i = 0; i < departIds.size(); i++) {
+                    if (i > 0) {
+                        findInSetCondition.append(" OR ");
+                    }
+                    findInSetCondition.append("FIND_IN_SET('").append(departIds.get(i)).append("', org_code)");
+                }
+                queryWrapper.and(wrapper -> wrapper.apply(findInSetCondition.toString()));
             } else {
-                queryWrapper.eq("org_code", param.getOrgCode());
+                queryWrapper.apply("FIND_IN_SET({0}, org_code)", depart.getId());
             }
         }
         
-        // 时间维度条件
-        queryWrapper.eq("time_dimension", param.getTimeDimension());
+        // 注意：time_dimension 条件已移除，因为数据固定为 'day'
+        // queryWrapper.eq("time_dimension", param.getTimeDimension());
         
         // 时间范围条件
         if (StringUtils.hasText(param.getStartDate()) && StringUtils.hasText(param.getEndDate())) {
@@ -624,31 +1073,24 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
         Map<String, Map<Integer, BigDecimal[]>> timeGroupData = new HashMap<>();
         
         try {
-            queryWrapper.select(selectTimeField + " as time, energy_type, SUM(total_consumption) as total_consumption, SUM(total_cost) as total_cost")
+            queryWrapper.select(selectTimeField + " as time, energy_type, SUM(total_consumption) as total_consumption, SUM(total_cost) as total_cost, SUM(carbon_emission) as carbon_emission")
                        .groupBy(selectTimeField + ", energy_type")
                        .orderByAsc(selectTimeField);
             
-            System.out.println("========== getTableData 调试信息 ==========");
-            System.out.println("查询参数: " + param);
-            System.out.println("时间字段: " + selectTimeField);
-            System.out.println("SQL WHERE条件: " + queryWrapper.getCustomSqlSegment());
-            System.out.println("SQL参数: " + queryWrapper.getParamNameValuePairs());
+            log.info("========== getTableData 调试信息 ==========");
+            log.info("查询参数: {}", param);
+            log.info("时间字段: {}", selectTimeField);
+            log.info("SQL WHERE条件: {}", queryWrapper.getCustomSqlSegment());
             
             List<Map<String, Object>> rawData = summaryMapper.selectMaps(queryWrapper);
-            System.out.println("查询到原始数据条数: " + rawData.size());
+            log.info("查询到原始数据条数: {}", rawData.size());
             
             // 如果没有数据，返回空列表
             if (rawData.isEmpty()) {
-                System.out.println("警告：没有查询到数据，请检查数据库中是否有符合条件的数据");
-                // 尝试查询所有数据看看是否有数据
-                QueryWrapper<TbEnergyClassificationSummary> checkWrapper = new QueryWrapper<>();
-                checkWrapper.eq("time_dimension", param.getTimeDimension())
-                           .last("LIMIT 5");
-                List<TbEnergyClassificationSummary> checkData = summaryMapper.selectList(checkWrapper);
-                System.out.println("数据库中该时间维度的数据示例: " + checkData.size() + " 条");
-                for (TbEnergyClassificationSummary item : checkData) {
-                    System.out.println("  - " + item.getOrgCode() + ", " + item.getStatDate() + ", " + item.getTimeDimension());
-                }
+                log.warn("警告：getTableData没有查询到数据");
+                log.warn("查询参数: orgCode={}, energyType={}, timeDimension={}, startDate={}, endDate={}", 
+                        param.getOrgCode(), param.getEnergyType(), param.getTimeDimension(), 
+                        param.getStartDate(), param.getEndDate());
                 return tableData;
             }
             
@@ -667,11 +1109,13 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
                 Integer energyType = (Integer) data.get("energy_type");
                 BigDecimal consumption = (BigDecimal) data.get("total_consumption");
                 BigDecimal cost = (BigDecimal) data.get("total_cost");
+                BigDecimal carbonEmission = (BigDecimal) data.get("carbon_emission");
                 
                 if (!timeGroupData.containsKey(time)) {
                     timeGroupData.put(time, new HashMap<>());
                 }
-                timeGroupData.get(time).put(energyType, new BigDecimal[]{consumption, cost});
+                // 存储: [consumption, cost, carbonEmission]
+                timeGroupData.get(time).put(energyType, new BigDecimal[]{consumption, cost, carbonEmission != null ? carbonEmission : BigDecimal.ZERO});
             }
         } catch (Exception e) {
             System.err.println("getTableData查询失败: " + e.getMessage());
@@ -687,34 +1131,46 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
             TableDataVO tableRow = new TableDataVO();
             tableRow.setTime(time);
             
-            // 设置各能源类型数据
-            if (energyData.containsKey(1)) {
-                tableRow.setElectric(energyData.get(1)[0]);
-                tableRow.setElectricCost(energyData.get(1)[1]);
+            // 判断是查询所有能源类型还是单一能源类型
+            if ("all".equals(param.getEnergyType())) {
+                // 查询所有能源类型：填充 electric, water, gas 等字段
+                if (energyData.containsKey(1)) {
+                    tableRow.setElectric(energyData.get(1)[0]);
+                    tableRow.setElectricCost(energyData.get(1)[1]);
+                }
+                
+                if (energyData.containsKey(2)) {
+                    tableRow.setWater(energyData.get(2)[0]);
+                    tableRow.setWaterCost(energyData.get(2)[1]);
+                }
+                
+                if (energyData.containsKey(3)) {
+                    tableRow.setGas(energyData.get(3)[0]);
+                    tableRow.setGasCost(energyData.get(3)[1]);
+                }
+                
+                // 计算总费用
+                BigDecimal totalCost = BigDecimal.ZERO;
+                if (tableRow.getElectricCost() != null) {
+                    totalCost = totalCost.add(tableRow.getElectricCost());
+                }
+                if (tableRow.getWaterCost() != null) {
+                    totalCost = totalCost.add(tableRow.getWaterCost());
+                }
+                if (tableRow.getGasCost() != null) {
+                    totalCost = totalCost.add(tableRow.getGasCost());
+                }
+                tableRow.setTotalCost(totalCost);
+            } else {
+                // 查询单一能源类型：填充 consumption, cost, carbonEmission 字段
+                Integer selectedEnergyType = Integer.parseInt(param.getEnergyType());
+                if (energyData.containsKey(selectedEnergyType)) {
+                    BigDecimal[] data = energyData.get(selectedEnergyType);
+                    tableRow.setConsumption(data[0]);  // 消耗量
+                    tableRow.setCost(data[1]);          // 成本
+                    tableRow.setCarbonEmission(data[2]); // 碳排放
+                }
             }
-            
-            if (energyData.containsKey(2)) {
-                tableRow.setWater(energyData.get(2)[0]);
-                tableRow.setWaterCost(energyData.get(2)[1]);
-            }
-            
-            if (energyData.containsKey(3)) {
-                tableRow.setGas(energyData.get(3)[0]);
-                tableRow.setGasCost(energyData.get(3)[1]);
-            }
-            
-            // 计算总费用
-            BigDecimal totalCost = BigDecimal.ZERO;
-            if (tableRow.getElectricCost() != null) {
-                totalCost = totalCost.add(tableRow.getElectricCost());
-            }
-            if (tableRow.getWaterCost() != null) {
-                totalCost = totalCost.add(tableRow.getWaterCost());
-            }
-            if (tableRow.getGasCost() != null) {
-                totalCost = totalCost.add(tableRow.getGasCost());
-            }
-            tableRow.setTotalCost(totalCost);
             
             tableData.add(tableRow);
         }
@@ -970,5 +1426,84 @@ public class EnergyClassificationServiceImpl implements IEnergyClassificationSer
             errorProgress.put("errorMessage", e.getMessage());
             return errorProgress;
         }
+    }
+
+    @Override
+    public Map<String, Object> getDebugSummaryData(Integer limit) {
+        log.info("获取汇总表调试数据，limit={}", limit);
+        
+        Map<String, Object> debugInfo = new HashMap<>();
+        
+        try {
+            // 1. 获取汇总表总记录数
+            long totalCount = summaryMapper.selectCount(null);
+            debugInfo.put("totalRecordCount", totalCount);
+            
+            // 2. 获取最近的记录样例
+            QueryWrapper<TbEnergyClassificationSummary> queryWrapper = new QueryWrapper<>();
+            queryWrapper.orderByDesc("stat_date")
+                       .last("LIMIT " + limit);
+            List<TbEnergyClassificationSummary> recentRecords = summaryMapper.selectList(queryWrapper);
+            
+            // 3. 转换为简化格式
+            List<Map<String, Object>> records = new ArrayList<>();
+            for (TbEnergyClassificationSummary record : recentRecords) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", record.getId());
+                item.put("orgCode", record.getOrgCode());
+                item.put("orgName", record.getOrgName());
+                item.put("energyType", record.getEnergyType());
+                item.put("energyTypeName", record.getEnergyTypeName());
+                item.put("statDate", record.getStatDate());
+                item.put("statMonth", record.getStatMonth());
+                item.put("statYear", record.getStatYear());
+                item.put("timeDimension", record.getTimeDimension());
+                item.put("totalConsumption", record.getTotalConsumption());
+                item.put("totalCost", record.getTotalCost());
+                item.put("meterCount", record.getMeterCount());
+                records.add(item);
+            }
+            debugInfo.put("recentRecords", records);
+            
+            // 4. 统计各 time_dimension 的记录数
+            QueryWrapper<TbEnergyClassificationSummary> dimQuery = new QueryWrapper<>();
+            dimQuery.select("time_dimension, COUNT(*) as count")
+                   .groupBy("time_dimension");
+            List<Map<String, Object>> dimensionStats = summaryMapper.selectMaps(dimQuery);
+            debugInfo.put("timeDimensionStats", dimensionStats);
+            
+            // 5. 统计各 org_code 的记录数（前10个）
+            QueryWrapper<TbEnergyClassificationSummary> orgQuery = new QueryWrapper<>();
+            orgQuery.select("org_code, COUNT(*) as count")
+                   .groupBy("org_code")
+                   .orderByDesc("count")
+                   .last("LIMIT 10");
+            List<Map<String, Object>> orgStats = summaryMapper.selectMaps(orgQuery);
+            debugInfo.put("topOrgCodeStats", orgStats);
+            
+            // 6. 获取 sys_depart 表的部门ID样例
+            LambdaQueryWrapper<SysDepart> departQuery = new LambdaQueryWrapper<>();
+            departQuery.eq(SysDepart::getDelFlag, CommonConstant.DEL_FLAG_0.toString())
+                      .last("LIMIT 10");
+            List<SysDepart> departs = sysDepartMapper.selectList(departQuery);
+            List<Map<String, Object>> departSamples = new ArrayList<>();
+            for (SysDepart d : departs) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", d.getId());
+                item.put("departName", d.getDepartName());
+                item.put("orgCode", d.getOrgCode());
+                item.put("parentId", d.getParentId());
+                departSamples.add(item);
+            }
+            debugInfo.put("departSamples", departSamples);
+            
+            log.info("调试数据获取成功: 总记录数={}, 样例数={}", totalCount, records.size());
+            
+        } catch (Exception e) {
+            log.error("获取调试数据失败", e);
+            debugInfo.put("error", e.getMessage());
+        }
+        
+        return debugInfo;
     }
 }

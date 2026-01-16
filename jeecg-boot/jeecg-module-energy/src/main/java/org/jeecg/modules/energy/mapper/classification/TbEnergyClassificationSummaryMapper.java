@@ -62,4 +62,13 @@ public interface TbEnergyClassificationSummaryMapper extends BaseMapper<TbEnergy
      * 获取最新统计日期
      */
     Date getLatestStatisticsDate();
+
+    /**
+     * 检查汇总表中指定日期范围是否有数据
+     * 用于判断数据是否已同步
+     */
+    long countByDateRange(
+            @Param("startDate") Date startDate,
+            @Param("endDate") Date endDate
+    );
 }

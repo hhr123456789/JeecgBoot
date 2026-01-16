@@ -142,4 +142,13 @@
         SELECT MAX(stat_date) FROM tb_energy_classification_summary
     </select>
 
+    <!-- 检查汇总表中指定日期范围是否有数据 -->
+    <select id="countByDateRange" parameterType="map" resultType="long">
+        <![CDATA[
+        SELECT COUNT(*) FROM tb_energy_classification_summary
+        WHERE stat_date >= #{startDate}
+        AND stat_date < #{endDate}
+        ]]>
+    </select>
+
 </mapper>

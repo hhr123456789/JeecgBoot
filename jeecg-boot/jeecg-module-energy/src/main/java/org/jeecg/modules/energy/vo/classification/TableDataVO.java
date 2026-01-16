@@ -39,4 +39,14 @@ public class TableDataVO implements Serializable {
     
     @ApiModelProperty(value = "总成本")
     private BigDecimal totalCost;
+    
+    // 单个能源类型字段（用于筛选单一能源类型时）
+    @ApiModelProperty(value = "能源消耗(单一类型)")
+    private BigDecimal consumption;
+    
+    @ApiModelProperty(value = "成本(单一类型)")
+    private BigDecimal cost;
+    
+    @ApiModelProperty(value = "碳排放")
+    private BigDecimal carbonEmission;
 }
