@@ -16,12 +16,13 @@ const props = defineProps<{
     };
     series: {
       name: string;
-      type: 'bar';
+      type: 'bar' | 'line';
       stack?: string;
       data: number[];
       itemStyle?: {
         color: string;
       };
+      smooth?: boolean;
     }[];
     markLine?: {
       data: {
@@ -34,6 +35,7 @@ const props = defineProps<{
       }[];
     };
   };
+  chartType?: 'bar' | 'line';
 }>();
 
 // 图表DOM引用
@@ -54,13 +56,19 @@ const initChart = () => {
       trigger: 'axis',
       axisPointer: {
         type: 'shadow'
+      },
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      textStyle: {
+        color: '#374151'
       }
     },
     legend: {
       data: props.chartData.series.map(item => item.name),
       bottom: '0%',
       textStyle: {
-        fontSize: 12
+        fontSize: 12,
+        color: '#374151'
       }
     },
     grid: {
@@ -74,11 +82,11 @@ const initChart = () => {
       data: props.chartData.xAxis.data,
       axisLine: {
         lineStyle: {
-          color: '#999'
+          color: '#d1d5db'
         }
       },
       axisLabel: {
-        color: '#666',
+        color: '#6b7280',
         fontSize: 12
       }
     },
@@ -86,27 +94,38 @@ const initChart = () => {
       type: 'value',
       name: '能耗',
       nameTextStyle: {
-        color: '#666',
+        color: '#6b7280',
         fontSize: 12
       },
       axisLine: {
         show: true,
         lineStyle: {
-          color: '#999'
+          color: '#d1d5db'
         }
       },
       axisLabel: {
-        color: '#666',
+        color: '#6b7280',
         fontSize: 12
       },
       splitLine: {
         lineStyle: {
           type: 'dashed',
-          color: '#eee'
+          color: '#f3f4f6'
         }
       }
     },
-    series: props.chartData.series,
+    series: props.chartData.series.map(item => ({
+      ...item,
+      barWidth: '20%',  // 细长柱形，宽度20%
+      barGap: '30%',    // 柱间距
+      emphasis: {
+        focus: 'series',
+        itemStyle: {
+          shadowBlur: 10,
+          shadowColor: 'rgba(59, 130, 246, 0.3)'
+        }
+      }
+    })),
     markLine: props.chartData.markLine
   };
   

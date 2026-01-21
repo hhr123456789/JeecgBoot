@@ -40,6 +40,11 @@ const initChart = () => {
       trigger: 'item',
       formatter: (params: any) => {
         return `${params.name}<br/>占比: ${params.value}%`;
+      },
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      textStyle: {
+        color: '#374151'
       }
     },
     legend: {
@@ -49,14 +54,15 @@ const initChart = () => {
       itemWidth: 10,
       itemHeight: 10,
       textStyle: {
-        fontSize: 12
+        fontSize: 12,
+        color: '#374151'
       },
       formatter: (name: string) => {
         const item = props.chartData.series[0].data.find(d => d.name === name);
         return `${name} ${item?.value}%`;
       }
     },
-    color: ['#4B7BE5', '#23C343', '#FF9F40'],
+    color: ['#3b82f6', '#06b6d4', '#8b5cf6'],  // 科技蓝色系
     series: [
       {
         ...props.chartData.series[0],
@@ -66,9 +72,18 @@ const initChart = () => {
         emphasis: {
           label: {
             show: true,
-            fontSize: 12,
-            fontWeight: 'bold'
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: '#374151'
+          },
+          itemStyle: {
+            shadowBlur: 20,
+            shadowColor: 'rgba(59, 130, 246, 0.3)'
           }
+        },
+        itemStyle: {
+          borderColor: '#ffffff',
+          borderWidth: 2
         }
       }
     ]
