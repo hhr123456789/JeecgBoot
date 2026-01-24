@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.TbEnergyTeamMapper">
+
+    <select id="selectByDimension" resultType="org.jeecg.modules.energy.entity.TbEnergyTeam">
+        SELECT t.*
+        FROM tb_energy_team t
+        INNER JOIN tb_energy_team_rel r ON t.id = r.team_id
+        WHERE r.dimension_code = #{dimensionCode}
+        AND r.dimension_type = #{dimensionType}
+        ORDER BY t.team_code
+    </select>
+
+</mapper>
