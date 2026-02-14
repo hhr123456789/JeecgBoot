@@ -1,22 +1,27 @@
 <template>
   <div class="team-energy-container flex min-h-screen bg-gray-50 p-4">
-    <!-- 左侧维度树 -->
+    <!-- 左侧部门树 -->
     <div class="left-panel bg-white p-4 mr-4 rounded-lg shadow-sm" style="width: 310px; flex-shrink: 0;">
-      <a-col :xl="6" :lg="8" :md="10" :sm="24" style="flex: 1;height: 100%;background-color: white;padding-left: 10px;">
-        <a-tabs v-model:activeKey="activeTabKey" @change="handleTabChange" style="height: 100%;width:300px;">
-          <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title" :forceRender="item.key === 'info1'">
-            <a-card :bordered="false" style="height: 100%">
-              <DimensionTree
-                :ref="(el) => setTreeRef(el, item.key)"
-                @select="onDepartTreeSelect"
-                :nowtype="item.nowtype"
-                :select-level="2"
-                style="margin-top:-20px;"
-              />
-            </a-card>
-          </a-tab-pane>
-        </a-tabs>
-      </a-col>
+      <div class="panel-header mb-4">
+        <h3 class="text-base font-semibold text-gray-800">部门结构</h3>
+      </div>
+      <a-spin :spinning="treeLoading">
+        <a-tree
+          v-if="orgTreeData.length > 0"
+          :tree-data="orgTreeData"
+          :expanded-keys="expandedKeys"
+          :selected-keys="selectedKeys"
+          :auto-expand-parent="autoExpandParent"
+          show-line
+          @select="onDepartTreeSelect"
+          @expand="onTreeExpand"
+        >
+          <template #title="{ title }">
+            <span>{{ title }}</span>
+          </template>
+        </a-tree>
+        <a-empty v-else description="暂无部门数据" :image="simpleImage" />
+      </a-spin>
     </div>
 
     <!-- 右侧内容区域 -->
@@ -32,15 +37,15 @@
               <a-radio-button value="year">年</a-radio-button>
             </a-radio-group>
           </div>
-
-          <a-date-picker
+          
+          <a-date-picker 
             v-model:value="selectedDate"
             :picker="pickerType"
             :format="dateFormat"
             class="w-40"
             size="middle"
           />
-
+          
           <div class="flex items-center gap-2">
             <span class="text-sm text-gray-600">班组:</span>
             <a-select
@@ -56,10 +61,10 @@
               </a-select-option>
             </a-select>
           </div>
-
-          <a-select
-            v-model:value="energyType"
-            class="w-36"
+          
+          <a-select 
+            v-model:value="energyType" 
+            class="w-36" 
             size="middle"
           >
             <a-select-option value="all">综合能耗</a-select-option>
@@ -68,18 +73,18 @@
             <a-select-option value="8">天然气</a-select-option>
             <a-select-option value="5">压缩空气</a-select-option>
           </a-select>
-
-          <a-button
-            type="primary"
+          
+          <a-button 
+            type="primary" 
             size="middle"
             @click="handleQuery"
             :loading="loading"
           >
             查询
           </a-button>
-
-          <a-button
-            type="default"
+          
+          <a-button 
+            type="default" 
             size="middle"
             @click="handleExport"
             :disabled="!selectedOrgCode"
@@ -87,7 +92,7 @@
             导出数据
           </a-button>
         </div>
-
+        
         <!-- 当前选中部门信息 -->
         <div v-if="selectedOrgName" class="mt-2 text-sm text-gray-600">
           当前部门: {{ selectedOrgName }}
@@ -101,7 +106,7 @@
           <div>
             <div class="text-xs text-gray-500 mb-1">总能耗</div>
             <div class="text-2xl font-bold text-gray-800">{{ statsData.totalConsumption }}</div>
-            <div class="text-xs text-gray-400 mt-1">{{ statsData.energyUnit }}</div>
+            <div class="text-xs text-gray-400 mt-1">{{ getEnergyUnit() }}</div>
           </div>
           <div class="stat-icon bg-blue-500 rounded-lg p-3">
             <ThunderboltOutlined style="font-size: 24px; color: #ffffff" />
@@ -219,66 +224,83 @@
           </template>
         </a-table>
       </div>
+      </div>
     </div>
-  </div>
-</template>
+  </template>
 
 <script lang="ts" setup>
-import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import dayjs, { Dayjs } from 'dayjs';
 import { Empty } from 'ant-design-vue';
-import {
-  SearchOutlined,
-  ThunderboltOutlined,
-  DollarOutlined,
-  CloudOutlined,
-  FireOutlined
+import { 
+  SearchOutlined, 
+  ThunderboltOutlined, 
+  DollarOutlined, 
+  CloudOutlined, 
+  FireOutlined 
 } from '@ant-design/icons-vue';
 import TeamEnergyTrend from './components/TeamEnergyTrend.vue';
 import TeamEnergyRanking from './components/TeamEnergyRanking.vue';
 import TeamEnergyPie from './components/TeamEnergyPie.vue';
-import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
-import { useMessage } from '/@/hooks/web/useMessage';
-import { defHttp } from '/@/utils/http/axios';
-import {
-  getTeamListByDimension,
-  getTeamEnergyStatistics,
-  getTeamEnergyTrendData,
-  getTeamEnergyRankingData,
-  getTeamEnergyTableData
-} from './team-energy.api';
 
-const { createMessage } = useMessage();
 const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE;
 
 // ==================== 查询参数 ====================
-const selectedOrgCode = ref<string>('');
-const selectedOrgName = ref<string>('');
+const selectedOrgCode = ref<string>('A01B03');
+const selectedOrgName = ref<string>('1#车间');
 const selectedTeamCode = ref<string>('all');
 const timeUnit = ref<'day' | 'month' | 'year'>('day');
 const selectedDate = ref<Dayjs>(dayjs());
 const energyType = ref<string>('all');
 
-// ==================== 维度相关 ====================
-const activeTabKey = ref('info1');
-const currentDimensionType = ref(1);
-const dimensionList = ref<any[]>([]);
-const treeRefs = ref<Record<string, any>>({});
+// ==================== 部门树状态 ====================
+const treeLoading = ref<boolean>(false);
+const expandedKeys = ref<string[]>(['A01']);
+const selectedKeys = ref<string[]>(['A01B03']);
+const autoExpandParent = ref<boolean>(true);
 
-// 存储每个标签页选中的节点信息
-const selectedNodesMap = ref({
-  info1: null,
-  info2: null,
-  info3: null,
-  info4: null,
-  info5: null
-});
+// ==================== 部门树数据 ====================
+const orgTreeData = ref([
+  {
+    title: '企业总部',
+    value: 'A01',
+    key: 'A01',
+    children: [
+      {
+        title: '1#车间',
+        value: 'A01B03',
+        key: 'A01B03',
+        children: [
+          {
+            title: '线路1',
+            value: 'A01B03C01',
+            key: 'A01B03C01'
+          },
+          {
+            title: '线路2',
+            value: 'A01B03C02',
+            key: 'A01B03C02'
+          }
+        ]
+      },
+      {
+        title: '2#车间',
+        value: 'A01B04',
+        key: 'A01B04'
+      }
+    ]
+  }
+]);
 
 // ==================== 班组数据 ====================
-const teamList = ref<{ code: string; name: string }[]>([]);
-
-// ==================== 加载状态 ====================
-const loading = ref(false);
+const teamList = ref<{ code: string; name: string }[]>([
+  { code: 'A-1', name: 'A-1班' },
+  { code: 'A-2', name: 'A-2班' },
+  { code: 'B-1', name: 'B-1班' },
+  { code: '1-A', name: '1号班' },
+  { code: '2-A', name: '2号班' },
+  { code: '3-A', name: '3号班' }
+]);
 
 // ==================== 计算属性 ====================
 const pickerType = computed(() => {
@@ -307,23 +329,166 @@ const dateFormat = computed(() => {
 
 // ==================== 统计卡片数据 ====================
 const statsData = reactive({
-  totalConsumption: '0.00',
-  totalCost: '0.00',
-  carbonEmission: '0.00',
-  standardCoal: '0.00',
-  energyUnit: 'kWh'
+  totalConsumption: '162.00',
+  totalCost: '129.60',
+  carbonEmission: '161.51',
+  standardCoal: '19.92'
 });
 
 // ==================== 趋势图数据 ====================
 const trendChartType = ref<'bar' | 'line'>('bar');
 const trendMetric = ref<string>('consumption');
-const trendChartData = ref<any>({
-  xAxis: { type: 'category', data: [] },
-  series: []
+
+const trendChartData = computed(() => {
+  if (timeUnit.value === 'day') {
+    // 日维度：按小时统计
+    return {
+      xAxis: {
+        type: 'category',
+        data: ['00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00', '08:00', 
+               '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', 
+               '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
+      },
+      series: selectedTeamCode.value === 'all' ? [
+        {
+          name: 'A-1班',
+          type: trendChartType.value,
+          stack: trendChartType.value === 'bar' ? 'total' : undefined,
+          data: [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          itemStyle: {
+            color: '#4B7BE5'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'A-2班',
+          type: trendChartType.value,
+          stack: trendChartType.value === 'bar' ? 'total' : undefined,
+          data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 0],
+          itemStyle: {
+            color: '#23C343'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'B-1班',
+          type: trendChartType.value,
+          stack: trendChartType.value === 'bar' ? 'total' : undefined,
+          data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7],
+          itemStyle: {
+            color: '#FF9F40'
+          },
+          smooth: trendChartType.value === 'line'
+        }
+      ] : [
+        {
+          name: selectedTeamCode.value,
+          type: trendChartType.value,
+          data: [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          itemStyle: {
+            color: '#4B7BE5'
+          },
+          smooth: trendChartType.value === 'line'
+        }
+      ]
+    };
+  } else if (timeUnit.value === 'month') {
+    // 月维度：按日统计
+    const days = Array.from({ length: 30 }, (_, i) => `${i + 1}日`);
+    return {
+      xAxis: {
+        type: 'category',
+        data: days
+      },
+      series: [
+        {
+          name: 'A-1班',
+          type: trendChartType.value,
+          data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 50 + 70)),
+          itemStyle: {
+            color: '#4B7BE5'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'A-2班',
+          type: trendChartType.value,
+          data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 50 + 60)),
+          itemStyle: {
+            color: '#23C343'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'B-1班',
+          type: trendChartType.value,
+          data: Array.from({ length: 30 }, () => Math.floor(Math.random() * 50 + 75)),
+          itemStyle: {
+            color: '#FF9F40'
+          },
+          smooth: trendChartType.value === 'line'
+        }
+      ]
+    };
+  } else {
+    // 年维度：按月统计
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+    return {
+      xAxis: {
+        type: 'category',
+        data: months
+      },
+      series: [
+        {
+          name: 'A-1班',
+          type: trendChartType.value,
+          data: [2100, 2200, 2150, 2300, 2250, 2400, 2350, 2450, 2380, 2500, 2420, 2550],
+          itemStyle: {
+            color: '#4B7BE5'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'A-2班',
+          type: trendChartType.value,
+          data: [1900, 2000, 1950, 2100, 2050, 2200, 2150, 2250, 2180, 2300, 2220, 2350],
+          itemStyle: {
+            color: '#23C343'
+          },
+          smooth: trendChartType.value === 'line'
+        },
+        {
+          name: 'B-1班',
+          type: trendChartType.value,
+          data: [2200, 2300, 2250, 2400, 2350, 2500, 2450, 2550, 2480, 2600, 2520, 2650],
+          itemStyle: {
+            color: '#FF9F40'
+          },
+          smooth: trendChartType.value === 'line'
+        }
+      ]
+    };
+  }
 });
 
 // ==================== 排名数据 ====================
-const rankingData = ref<any[]>([]);
+const rankingData = ref([
+  {
+    name: 'B-1班',
+    value: 42.53,
+    unit: energyType.value === 'all' ? 'tce' : getEnergyUnit()
+  },
+  {
+    name: 'A-1班',
+    value: 41.65,
+    unit: energyType.value === 'all' ? 'tce' : getEnergyUnit()
+  },
+  {
+    name: 'A-2班',
+    value: 40.15,
+    unit: energyType.value === 'all' ? 'tce' : getEnergyUnit()
+  }
+]);
 
 // ==================== 饼图数据 ====================
 const pieChartData = computed(() => ({
@@ -332,15 +497,17 @@ const pieChartData = computed(() => ({
       name: '班组用能占比',
       type: 'pie',
       radius: ['50%', '70%'],
-      data: rankingData.value.map(item => ({
-        value: item.value,
-        name: item.name
-      }))
+      data: [
+        { value: 33.5, name: 'A-1班' },
+        { value: 32.29, name: 'A-2班' },
+        { value: 34.21, name: 'B-1班' }
+      ]
     }
   ]
 }));
 
 // ==================== 数据表 ====================
+const loading = ref(false);
 const tableColumns = [
   {
     title: '班组名称',
@@ -362,7 +529,7 @@ const tableColumns = [
     width: 150
   },
   {
-    title: `能耗`,
+    title: `能耗(${getEnergyUnit()})`,
     dataIndex: 'consumption',
     key: 'consumption',
     width: 120,
@@ -412,12 +579,52 @@ const tableColumns = [
   }
 ];
 
-const tableData = ref<any[]>([]);
+const tableData = ref([
+  {
+    key: '1',
+    teamName: 'A-1班',
+    shiftType: '早班',
+    statTime: '2026-01-15',
+    consumption: '84.00',
+    cost: '67.20',
+    carbon: '83.75',
+    coal: '10.33',
+    peak: '20.00',
+    flat: '40.00',
+    valley: '24.00'
+  },
+  {
+    key: '2',
+    teamName: 'A-2班',
+    shiftType: '中班',
+    statTime: '2026-01-15',
+    consumption: '36.00',
+    cost: '28.80',
+    carbon: '35.89',
+    coal: '4.43',
+    peak: '12.00',
+    flat: '18.00',
+    valley: '6.00'
+  },
+  {
+    key: '3',
+    teamName: 'B-1班',
+    shiftType: '晚班',
+    statTime: '2026-01-15',
+    consumption: '42.00',
+    cost: '33.60',
+    carbon: '41.87',
+    coal: '5.16',
+    peak: '14.00',
+    flat: '21.00',
+    valley: '7.00'
+  }
+]);
 
 const pagination = {
   current: 1,
   pageSize: 10,
-  total: 0,
+  total: 3,
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total: number) => `共 ${total} 条`
@@ -461,261 +668,48 @@ function getShiftColor(shiftType: string) {
   return colorMap[shiftType] || 'default';
 }
 
-// ==================== 维度相关函数 ====================
-// 设置树组件引用
-const setTreeRef = (el, key) => {
-  if (el) {
-    treeRefs.value[key] = el;
-  }
-};
-
-// 获取维度字典数据
-function loadDimensionDictData() {
-  defHttp.get({
-    url: '/sys/dict/getDictItems/dimensionCode'
-  })
-  .then((res) => {
-    if (res && Array.isArray(res)) {
-      dimensionList.value = res.map((item, index) => {
-        return {
-          key: `info${index + 1}`,
-          title: item.text,
-          nowtype: Number(index + 1),
-          value: Number(index + 1)
-        };
-      });
-
-      if (dimensionList.value.length > 0) {
-        activeTabKey.value = dimensionList.value[0].key;
-        currentDimensionType.value = dimensionList.value[0].nowtype;
-      }
-    } else {
-      dimensionList.value = [
-        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
-        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
-        { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
-        { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
-        { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
-      ];
-    }
-  })
-  .catch(() => {
-    dimensionList.value = [
-      { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
-      { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
-      { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
-      { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
-      { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
-    ];
-  });
-}
-
-// 处理标签页切换
-function handleTabChange(key) {
-  activeTabKey.value = key;
-
-  const selectedDimension = dimensionList.value.find(item => item.key === key);
-  if (selectedDimension) {
-    currentDimensionType.value = selectedDimension.nowtype;
-  }
-
-  const savedNode = selectedNodesMap.value[key];
-  if (savedNode) {
-    selectedOrgCode.value = savedNode.orgCode;
-    selectedOrgName.value = savedNode.orgName;
-    loadTeamList(savedNode.orgCode, currentDimensionType.value);
-    // 切换标签页后自动加载数据
-    handleQuery();
-  }
-
-  nextTick(() => {
-    const currentTreeRef = treeRefs.value[key];
-    if (currentTreeRef && !savedNode) {
-      // 树组件会自动选择默认节点并触发select事件
-    }
-  });
-}
-
-// 左侧树选择后触发
-function onDepartTreeSelect(data) {
-  if (data && data.orgCode) {
-    selectedOrgCode.value = data.orgCode;
-    selectedOrgName.value = data.title || data.orgName || '';
-
-    selectedNodesMap.value[activeTabKey.value] = {
-      orgCode: data.orgCode,
-      orgName: selectedOrgName.value,
-      data: data
-    };
-
-    loadTeamList(data.orgCode, currentDimensionType.value);
-
-    // 自动加载数据
-    handleQuery();
-  }
-}
-
-// ==================== 数据加载函数 ====================
-// 加载班组列表
-async function loadTeamList(dimensionCode: string, dimensionType: number) {
-  if (!dimensionCode) return;
-
-  try {
-    const res = await getTeamListByDimension({ dimensionCode, dimensionType });
-    if (res.success && res.result) {
-      teamList.value = res.result;
-      selectedTeamCode.value = 'all';
-    } else {
-      teamList.value = [];
-      createMessage.warning('获取班组列表失败');
-    }
-  } catch (error) {
-    console.error('加载班组列表失败:', error);
-    teamList.value = [];
-  }
-}
-
-// 加载统计数据
-async function loadStatistics() {
-  if (!selectedOrgCode.value) return;
-
-  const params = {
-    orgCode: selectedOrgCode.value,
-    teamCode: selectedTeamCode.value,
-    timeUnit: timeUnit.value,
-    queryDate: selectedDate.value.format(dateFormat.value),
-    energyType: energyType.value,
-    dimensionType: currentDimensionType.value,
-    metricType: trendMetric.value
-  };
-
-  try {
-    const res = await getTeamEnergyStatistics(params);
-    if (res.success && res.result) {
-      Object.assign(statsData, res.result);
-    }
-  } catch (error) {
-    console.error('加载统计数据失败:', error);
-  }
-}
-
-// 加载趋势数据
-async function loadTrendData() {
-  if (!selectedOrgCode.value) return;
-
-  const params = {
-    orgCode: selectedOrgCode.value,
-    teamCode: selectedTeamCode.value,
-    timeUnit: timeUnit.value,
-    queryDate: selectedDate.value.format(dateFormat.value),
-    energyType: energyType.value,
-    dimensionType: currentDimensionType.value,
-    metricType: trendMetric.value
-  };
-
-  try {
-    const res = await getTeamEnergyTrendData(params);
-    if (res.success && res.result) {
-      trendChartData.value = {
-        xAxis: {
-          type: 'category',
-          data: res.result.xAxisData
-        },
-        series: res.result.seriesData.map(item => ({
-          name: item.name,
-          type: trendChartType.value,
-          stack: trendChartType.value === 'bar' ? 'total' : undefined,
-          data: item.data,
-          itemStyle: {
-            color: item.color
-          },
-          smooth: trendChartType.value === 'line'
-        }))
-      };
-    }
-  } catch (error) {
-    console.error('加载趋势数据失败:', error);
-  }
-}
-
-// 加载排名数据
-async function loadRankingData() {
-  if (!selectedOrgCode.value) return;
-
-  const params = {
-    orgCode: selectedOrgCode.value,
-    teamCode: selectedTeamCode.value,
-    timeUnit: timeUnit.value,
-    queryDate: selectedDate.value.format(dateFormat.value),
-    energyType: energyType.value,
-    dimensionType: currentDimensionType.value,
-    metricType: trendMetric.value
-  };
-
-  try {
-    const res = await getTeamEnergyRankingData(params);
-    if (res.success && res.result) {
-      rankingData.value = res.result;
-    }
-  } catch (error) {
-    console.error('加载排名数据失败:', error);
-  }
-}
-
-// 加载表格数据
-async function loadTableData() {
-  if (!selectedOrgCode.value) return;
-
-  const params = {
-    orgCode: selectedOrgCode.value,
-    teamCode: selectedTeamCode.value,
-    timeUnit: timeUnit.value,
-    queryDate: selectedDate.value.format(dateFormat.value),
-    energyType: energyType.value,
-    dimensionType: currentDimensionType.value,
-    metricType: trendMetric.value
-  };
-
-  try {
-    const res = await getTeamEnergyTableData(params);
-    if (res.success && res.result) {
-      tableData.value = res.result.map((item, index) => ({
-        ...item,
-        key: index.toString()
-      }));
-      pagination.total = res.result.length;
-    }
-  } catch (error) {
-    console.error('加载表格数据失败:', error);
-  }
-}
-
 // ==================== 事件处理 ====================
+// 部门树选择事件
+function onDepartTreeSelect(selectedKeysValue: string[], info: any) {
+  if (selectedKeysValue.length > 0) {
+    const selectedKey = selectedKeysValue[0];
+    selectedKeys.value = [selectedKey];
+    selectedOrgCode.value = selectedKey;
+    
+    // 更新选中的部门名称
+    if (info.selectedNodes && info.selectedNodes.length > 0) {
+      selectedOrgName.value = info.selectedNodes[0].title;
+    }
+    
+    console.log('部门选择:', selectedKey, selectedOrgName.value);
+    // TODO: 根据部门加载班组列表和数据
+  }
+}
+
+// 部门树展开事件
+function onTreeExpand(expandedKeysValue: string[]) {
+  expandedKeys.value = expandedKeysValue;
+  autoExpandParent.value = false;
+}
+
 function handleTeamChange(value: string) {
   console.log('班组切换:', value);
 }
 
-async function handleQuery() {
-  if (!selectedOrgCode.value) {
-    createMessage.warning('请先选择部门');
-    return;
-  }
-
+function handleQuery() {
+  console.log('查询参数:', {
+    orgCode: selectedOrgCode.value,
+    orgName: selectedOrgName.value,
+    teamCode: selectedTeamCode.value,
+    timeUnit: timeUnit.value,
+    date: selectedDate.value.format(dateFormat.value),
+    energyType: energyType.value
+  });
+  // TODO: 调用后端接口查询数据
   loading.value = true;
-  try {
-    await Promise.all([
-      loadStatistics(),
-      loadTrendData(),
-      loadRankingData(),
-      loadTableData()
-    ]);
-    createMessage.success('查询成功');
-  } catch (error) {
-    console.error('查询失败:', error);
-    createMessage.error('查询失败');
-  } finally {
+  setTimeout(() => {
     loading.value = false;
-  }
+  }, 1000);
 }
 
 function handleExport() {
@@ -727,17 +721,13 @@ function handleExport() {
     date: selectedDate.value.format(dateFormat.value),
     energyType: energyType.value
   });
-  // TODO: 实现导出功能
-  createMessage.info('导出功能开发中');
+  // TODO: 调用后端接口导出数据
 }
 
 // ==================== 生命周期 ====================
 onMounted(() => {
-  loadDimensionDictData();
-
-  nextTick(() => {
-    // 等待树组件加载完成
-  });
+  // 初始化加载数据
+  handleQuery();
 });
 </script>
 
@@ -753,21 +743,21 @@ onMounted(() => {
   max-height: calc(100vh - 140px);
   overflow-y: auto;
   overflow-x: hidden;
-
+  
   /* 自定义滚动条 */
   &::-webkit-scrollbar {
     width: 6px;
   }
-
+  
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
-
+  
   &::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
-
+    
     &:hover {
       background: #a8a8a8;
     }
@@ -995,14 +985,14 @@ onMounted(() => {
   .team-energy-container {
     flex-direction: column;
   }
-
+  
   .left-panel {
     width: 100% !important;
     margin-right: 0 !important;
     margin-bottom: 1rem;
     max-height: 400px;
   }
-
+  
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1012,15 +1002,15 @@ onMounted(() => {
   .query-header {
     padding: 1rem !important;
   }
-
+  
   .stats-cards {
     grid-template-columns: 1fr;
   }
-
+  
   .charts-area .grid {
     grid-template-columns: 1fr;
   }
-
+  
   .left-panel {
     max-height: 300px;
   }
