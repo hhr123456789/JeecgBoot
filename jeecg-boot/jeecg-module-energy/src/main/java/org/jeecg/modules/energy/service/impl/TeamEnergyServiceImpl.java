@@ -476,7 +476,11 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
                 // dateLabel = "08:00", 日维度暂不支持小时级别统计，返回日统计均分
                 // 由于日统计表是按天汇总的，小时级别数据需要从原始数据获取
                 // 这里简化处理：查询当天总量后均分到24小时
-                return BigDecimal.ZERO;
+                BigDecimal dayTotal = queryEnergyByDate(moduleIds, queryDate, "day");
+                if (dayTotal.compareTo(BigDecimal.ZERO) == 0) {
+                    return BigDecimal.ZERO;
+                }
+                return dayTotal.divide(new BigDecimal(24), 2, RoundingMode.HALF_UP);
             } else if ("month".equals(timeUnit)) {
                 // dateLabel = "01-15", queryDate = "2026-01"
                 String fullDate = queryDate + "-" + dateLabel.split("-")[1];

@@ -224,11 +224,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, reactive, onMounted, nextTick, watch } from 'vue';
 import dayjs, { Dayjs } from 'dayjs';
 import { Empty } from 'ant-design-vue';
 import {
-  SearchOutlined,
   ThunderboltOutlined,
   DollarOutlined,
   CloudOutlined,
@@ -538,21 +537,35 @@ function handleTabChange(key) {
 
 // 左侧树选择后触发
 function onDepartTreeSelect(data) {
-  if (data && data.orgCode) {
-    selectedOrgCode.value = data.orgCode;
-    selectedOrgName.value = data.title || data.orgName || '';
+  console.log('DimensionTree 选中节点原始数据:', data);
 
-    selectedNodesMap.value[activeTabKey.value] = {
-      orgCode: data.orgCode,
-      orgName: selectedOrgName.value,
-      data: data
-    };
+  // 兼容多种字段名
+  const orgCode = data.orgCode || data.id || data.key || data.value;
+  const orgName = data.orgName || data.title || data.label || data.name || data.depart_name;
 
-    loadTeamList(data.orgCode, currentDimensionType.value);
-
-    // 自动加载数据
-    handleQuery();
+  if (!orgCode) {
+    console.warn('树节点数据中没有找到有效的编码字段', data);
+    createMessage.warning('无法获取部门编码，请检查数据');
+    return;
   }
+
+  selectedOrgCode.value = orgCode;
+  selectedOrgName.value = orgName || '未知部门';
+
+  console.log('选中部门:', { orgCode, orgName });
+
+  // 保存当前维度的选中节点
+  selectedNodesMap.value[activeTabKey.value] = {
+    orgCode,
+    orgName: selectedOrgName.value,
+    data: data
+  };
+
+  // 加载班组列表
+  loadTeamList(orgCode, currentDimensionType.value);
+
+  // 自动查询
+  handleQuery();
 }
 
 // ==================== 数据加载函数 ====================
@@ -596,6 +609,7 @@ async function loadStatistics() {
     }
   } catch (error) {
     console.error('加载统计数据失败:', error);
+    createMessage.error('加载统计数据失败，请稍后重试');
   }
 }
 
@@ -635,6 +649,7 @@ async function loadTrendData() {
     }
   } catch (error) {
     console.error('加载趋势数据失败:', error);
+    createMessage.error('加载趋势数据失败，请稍后重试');
   }
 }
 
@@ -659,6 +674,7 @@ async function loadRankingData() {
     }
   } catch (error) {
     console.error('加载排名数据失败:', error);
+    createMessage.error('加载排名数据失败，请稍后重试');
   }
 }
 
@@ -687,6 +703,7 @@ async function loadTableData() {
     }
   } catch (error) {
     console.error('加载表格数据失败:', error);
+    createMessage.error('加载表格数据失败，请稍后重试');
   }
 }
 
@@ -730,6 +747,23 @@ function handleExport() {
   // TODO: 实现导出功能
   createMessage.info('导出功能开发中');
 }
+
+// ==================== 自动刷新 ====================
+// 监听关键参数变化，自动刷新数据
+watch([selectedTeamCode, trendMetric, energyType], () => {
+  if (selectedOrgCode.value) {
+    console.log('参数变化，自动刷新数据');
+    handleQuery();
+  }
+});
+
+// 监听时间维度和日期变化
+watch([timeUnit, selectedDate], () => {
+  if (selectedOrgCode.value) {
+    console.log('时间参数变化，自动刷新数据');
+    handleQuery();
+  }
+});
 
 // ==================== 生命周期 ====================
 onMounted(() => {

@@ -133,16 +133,32 @@ const initChart = () => {
   chartInstance.setOption(options);
 };
 
-// 监听数据变化
+// 监听数据变化和图表类型变化
 watch(
-  () => props.chartData,
-  () => {
+  [() => props.chartData, () => props.chartType],
+  ([newData, newType]) => {
     if (chartInstance) {
+      const chartType = newType || 'bar';
       chartInstance.setOption({
         xAxis: {
-          data: props.chartData.xAxis.data
+          data: newData.xAxis.data
         },
-        series: props.chartData.series
+        legend: {
+          data: newData.series.map(item => item.name),
+        },
+        series: newData.series.map(item => ({
+          ...item,
+          type: chartType,
+          barWidth: '20%',
+          barGap: '30%',
+          emphasis: {
+            focus: 'series',
+            itemStyle: {
+              shadowBlur: 10,
+              shadowColor: 'rgba(59, 130, 246, 0.3)'
+            }
+          }
+        })),
       });
     }
   },

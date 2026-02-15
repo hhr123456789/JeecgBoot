@@ -60,7 +60,14 @@ const getProgressClass = (rank: number) => {
 };
 
 // 计算进度条宽度
-const maxValue = computed(() => Math.max(...props.rankData.map(item => item.value)));
+const maxValue = computed(() => {
+  if (!props.rankData || props.rankData.length === 0) {
+    return 100;
+  }
+  const values = props.rankData.map(item => parseFloat(String(item.value)) || 0);
+  const max = Math.max(...values);
+  return max > 0 ? max : 100;
+});
 const getProgressWidth = (value: number) => {
   return `${(value / maxValue.value) * 100}%`;
 };
