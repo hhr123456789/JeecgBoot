@@ -2,20 +2,20 @@ package org.jeecg.modules.energy.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
-import org.jeecg.modules.energy.entity.TeamDimensionRelation;
-import org.jeecg.modules.energy.entity.TeamInfo;
-import org.jeecg.modules.energy.mapper.TeamDimensionRelationMapper;
-import org.jeecg.modules.energy.mapper.TeamInfoMapper;
-import org.jeecg.modules.energy.mapper.TbEpEquEnergyDaycountMapper;
-import org.jeecg.modules.energy.mapper.TbEpEquEnergyMonthcountMapper;
-import org.jeecg.modules.energy.mapper.TbEpEquEnergyYearcountMapper;
+import org.apache.commons.lang3.StringUtils;
+import org.jeecg.modules.energy.entity.*;
+import org.jeecg.modules.energy.mapper.*;
 import org.jeecg.modules.energy.service.ITeamEnergyService;
 import org.jeecg.modules.energy.vo.teamenergy.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +42,9 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Autowired
     private TbEpEquEnergyYearcountMapper yearcountMapper;
+
+    @Autowired
+    private TbEnergyRatioInfoMapper energyRatioInfoMapper;
 
     @Override
     public List<TeamInfoVO> getTeamListByDimension(String dimensionCode, Integer dimensionType) {
@@ -87,16 +90,42 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Override
     public TeamEnergyStatisticsVO getStatistics(TeamEnergyQueryRequest request) {
-        log.info("获取统计数据 - request: {}", request);
+        log.info("获取统计数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
 
+        // 1. 获取班组关联的仪表ID列表
+        List<String> moduleIds = getModuleIdsByTeamCode(request.getTeamCode(), request.getOrgCode());
+        if (moduleIds.isEmpty()) {
+            log.warn("未找到关联的仪表ID, teamCode={}, orgCode={}", request.getTeamCode(), request.getOrgCode());
+            return createEmptyStatistics(request.getEnergyType());
+        }
+        log.debug("关联的仪表ID列表: {}", moduleIds);
+
+        // 2. 解析日期范围
+        Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
+        if (dateRange == null) {
+            return createEmptyStatistics(request.getEnergyType());
+        }
+
+        // 3. 查询能耗数据（根据时间维度选择不同统计表）
+        BigDecimal totalConsumption = queryTotalEnergy(moduleIds, dateRange[0], dateRange[1], request.getTimeUnit());
+
+        // 4. 获取能源系数，计算费用、碳排放、折标煤
+        TbEnergyRatioInfo ratioInfo = getEnergyRatioInfo(request.getEnergyType());
+        BigDecimal pricePerUnit = ratioInfo != null && ratioInfo.getPricePerUnit() != null ? ratioInfo.getPricePerUnit() : new BigDecimal("0.80");
+        BigDecimal carbonFactor = ratioInfo != null && ratioInfo.getTpfxsValue() != null ? ratioInfo.getTpfxsValue() : new BigDecimal("0.997");
+        BigDecimal coalFactor = ratioInfo != null && ratioInfo.getZbmxsValue() != null ? ratioInfo.getZbmxsValue() : new BigDecimal("0.1229");
+
+        BigDecimal totalCost = totalConsumption.multiply(pricePerUnit);
+        BigDecimal carbonEmission = totalConsumption.multiply(carbonFactor);
+        BigDecimal standardCoal = totalConsumption.multiply(coalFactor);
+
+        // 5. 构建返回对象
         TeamEnergyStatisticsVO vo = new TeamEnergyStatisticsVO();
-
-        // TODO: 实现实际的统计逻辑，从数据库查询能耗数据
-        // 这里先返回模拟数据
-        vo.setTotalConsumption("162.00");
-        vo.setTotalCost("129.60");
-        vo.setCarbonEmission("161.51");
-        vo.setStandardCoal("19.92");
+        vo.setTotalConsumption(totalConsumption.setScale(2, RoundingMode.HALF_UP).toString());
+        vo.setTotalCost(totalCost.setScale(2, RoundingMode.HALF_UP).toString());
+        vo.setCarbonEmission(carbonEmission.setScale(2, RoundingMode.HALF_UP).toString());
+        vo.setStandardCoal(standardCoal.setScale(2, RoundingMode.HALF_UP).toString());
         vo.setEnergyUnit(getEnergyUnit(request.getEnergyType()));
 
         return vo;
@@ -104,116 +133,429 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Override
     public TeamEnergyTrendVO getTrendData(TeamEnergyQueryRequest request) {
-        log.info("获取趋势数据 - request: {}", request);
+        log.info("获取趋势数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
 
         TeamEnergyTrendVO vo = new TeamEnergyTrendVO();
 
-        // 根据时间维度生成X轴数据
-        List<String> xAxisData = generateXAxisData(request.getTimeUnit(), request.getQueryDate());
+        // 1. 解析日期范围并生成X轴数据
+        Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
+        if (dateRange == null) {
+            vo.setXAxisData(new ArrayList<>());
+            vo.setSeriesData(new ArrayList<>());
+            return vo;
+        }
+        List<String> xAxisData = generateXAxisData(request.getTimeUnit(), dateRange[0], dateRange[1]);
         vo.setXAxisData(xAxisData);
 
-        // TODO: 实现实际的趋势数据查询逻辑
-        // 这里先返回模拟数据
-        List<TeamEnergyTrendVO.SeriesData> seriesDataList = new ArrayList<>();
+        // 2. 查询班组列表
+        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode());
 
-        if ("all".equals(request.getTeamCode())) {
-            // 显示所有班组
-            seriesDataList.add(createSeriesData("A-1班", "bar", generateMockData(xAxisData.size()), "#4B7BE5"));
-            seriesDataList.add(createSeriesData("A-2班", "bar", generateMockData(xAxisData.size()), "#23C343"));
-            seriesDataList.add(createSeriesData("B-1班", "bar", generateMockData(xAxisData.size()), "#FF9F40"));
-        } else {
-            // 显示单个班组
-            seriesDataList.add(createSeriesData(request.getTeamCode(), "bar", generateMockData(xAxisData.size()), "#4B7BE5"));
+        // 3. 为每个班组查询趋势数据
+        List<TeamEnergyTrendVO.SeriesData> seriesList = new ArrayList<>();
+        for (TeamInfo team : teams) {
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            if (moduleIds.isEmpty()) {
+                continue;
+            }
+
+            List<Double> dataValues = new ArrayList<>();
+            for (String dateLabel : xAxisData) {
+                BigDecimal value = queryEnergyByDateLabel(moduleIds, dateLabel, request.getTimeUnit(), request.getQueryDate());
+                dataValues.add(value.setScale(2, RoundingMode.HALF_UP).doubleValue());
+            }
+
+            TeamEnergyTrendVO.SeriesData series = new TeamEnergyTrendVO.SeriesData();
+            series.setName(team.getTeamName());
+            series.setType("bar");
+            series.setData(dataValues);
+            series.setColor(getColorByIndex(seriesList.size()));
+            seriesList.add(series);
         }
 
-        vo.setSeriesData(seriesDataList);
-
+        vo.setSeriesData(seriesList);
         return vo;
     }
 
     @Override
     public List<TeamEnergyRankingVO> getRankingData(TeamEnergyQueryRequest request) {
-        log.info("获取排名数据 - request: {}", request);
+        log.info("获取排名数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
 
-        // TODO: 实现实际的排名数据查询逻辑
-        // 这里先返回模拟数据
-        List<TeamEnergyRankingVO> list = new ArrayList<>();
+        // 1. 解析日期范围
+        Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
+        if (dateRange == null) {
+            return new ArrayList<>();
+        }
 
-        TeamEnergyRankingVO rank1 = new TeamEnergyRankingVO();
-        rank1.setName("B-1班");
-        rank1.setValue(42.53);
-        rank1.setUnit(getEnergyUnit(request.getEnergyType()));
-        rank1.setRank(1);
-        list.add(rank1);
+        // 2. 查询所有班组（排名始终显示全部班组）
+        List<TeamInfo> teams = getTeamList("all", request.getOrgCode());
 
-        TeamEnergyRankingVO rank2 = new TeamEnergyRankingVO();
-        rank2.setName("A-1班");
-        rank2.setValue(41.65);
-        rank2.setUnit(getEnergyUnit(request.getEnergyType()));
-        rank2.setRank(2);
-        list.add(rank2);
+        // 3. 为每个班组计算能耗
+        List<TeamEnergyRankingVO> rankings = new ArrayList<>();
+        for (TeamInfo team : teams) {
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            if (moduleIds.isEmpty()) {
+                continue;
+            }
 
-        TeamEnergyRankingVO rank3 = new TeamEnergyRankingVO();
-        rank3.setName("A-2班");
-        rank3.setValue(40.15);
-        rank3.setUnit(getEnergyUnit(request.getEnergyType()));
-        rank3.setRank(3);
-        list.add(rank3);
+            BigDecimal totalEnergy = queryTotalEnergy(moduleIds, dateRange[0], dateRange[1], request.getTimeUnit());
 
-        return list;
+            TeamEnergyRankingVO vo = new TeamEnergyRankingVO();
+            vo.setName(team.getTeamName());
+            vo.setValue(totalEnergy.setScale(2, RoundingMode.HALF_UP).doubleValue());
+            vo.setUnit(getEnergyUnit(request.getEnergyType()));
+            rankings.add(vo);
+        }
+
+        // 4. 按能耗降序排序并设置排名
+        rankings.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        for (int i = 0; i < rankings.size(); i++) {
+            rankings.get(i).setRank(i + 1);
+        }
+
+        return rankings;
     }
 
     @Override
     public List<TeamEnergyTableVO> getTableData(TeamEnergyQueryRequest request) {
-        log.info("获取表格数据 - request: {}", request);
+        log.info("获取表格数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
 
-        // TODO: 实现实际的表格数据查询逻辑
-        // 这里先返回模拟数据
-        List<TeamEnergyTableVO> list = new ArrayList<>();
+        List<TeamEnergyTableVO> tableData = new ArrayList<>();
 
-        TeamEnergyTableVO row1 = new TeamEnergyTableVO();
-        row1.setTeamName("A-1班");
-        row1.setShiftType("早班");
-        row1.setStatTime("2026-01-15");
-        row1.setConsumption("84.00");
-        row1.setCost("67.20");
-        row1.setCarbon("83.75");
-        row1.setCoal("10.33");
-        row1.setPeak("20.00");
-        row1.setFlat("40.00");
-        row1.setValley("24.00");
-        list.add(row1);
+        // 1. 解析日期范围
+        Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
+        if (dateRange == null) {
+            return tableData;
+        }
 
-        TeamEnergyTableVO row2 = new TeamEnergyTableVO();
-        row2.setTeamName("A-2班");
-        row2.setShiftType("中班");
-        row2.setStatTime("2026-01-15");
-        row2.setConsumption("36.00");
-        row2.setCost("28.80");
-        row2.setCarbon("35.89");
-        row2.setCoal("4.43");
-        row2.setPeak("12.00");
-        row2.setFlat("18.00");
-        row2.setValley("6.00");
-        list.add(row2);
+        // 2. 获取能源系数
+        TbEnergyRatioInfo ratioInfo = getEnergyRatioInfo(request.getEnergyType());
+        BigDecimal pricePerUnit = ratioInfo != null && ratioInfo.getPricePerUnit() != null ? ratioInfo.getPricePerUnit() : new BigDecimal("0.80");
+        BigDecimal carbonFactor = ratioInfo != null && ratioInfo.getTpfxsValue() != null ? ratioInfo.getTpfxsValue() : new BigDecimal("0.997");
+        BigDecimal coalFactor = ratioInfo != null && ratioInfo.getZbmxsValue() != null ? ratioInfo.getZbmxsValue() : new BigDecimal("0.1229");
 
-        TeamEnergyTableVO row3 = new TeamEnergyTableVO();
-        row3.setTeamName("B-1班");
-        row3.setShiftType("晚班");
-        row3.setStatTime("2026-01-15");
-        row3.setConsumption("42.00");
-        row3.setCost("33.60");
-        row3.setCarbon("41.87");
-        row3.setCoal("5.16");
-        row3.setPeak("14.00");
-        row3.setFlat("21.00");
-        row3.setValley("7.00");
-        list.add(row3);
+        // 3. 查询班组列表
+        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode());
 
-        return list;
+        // 4. 为每个班组查询明细数据
+        for (TeamInfo team : teams) {
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            if (moduleIds.isEmpty()) {
+                continue;
+            }
+
+            // 查询日统计数据
+            LambdaQueryWrapper<TbEpEquEnergyDaycount> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(TbEpEquEnergyDaycount::getModuleId, moduleIds);
+            wrapper.between(TbEpEquEnergyDaycount::getDt, dateRange[0], dateRange[1]);
+            List<TbEpEquEnergyDaycount> dataList = daycountMapper.selectList(wrapper);
+
+            // 按日期分组汇总
+            Map<String, List<TbEpEquEnergyDaycount>> groupedData = dataList.stream()
+                    .collect(Collectors.groupingBy(d -> new SimpleDateFormat("yyyy-MM-dd").format(d.getDt())));
+
+            for (Map.Entry<String, List<TbEpEquEnergyDaycount>> entry : groupedData.entrySet()) {
+                List<TbEpEquEnergyDaycount> dayData = entry.getValue();
+                BigDecimal consumption = sumBigDecimal(dayData, TbEpEquEnergyDaycount::getEnergyCount);
+
+                TeamEnergyTableVO vo = new TeamEnergyTableVO();
+                vo.setTeamName(team.getTeamName());
+                vo.setShiftType(team.getShiftType() != null ? team.getShiftType() : "-");
+                vo.setStatTime(entry.getKey());
+                vo.setConsumption(consumption.setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setCost(consumption.multiply(pricePerUnit).setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setCarbon(consumption.multiply(carbonFactor).setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setCoal(consumption.multiply(coalFactor).setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setPeak(sumBigDecimal(dayData, TbEpEquEnergyDaycount::getPeakCount).setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setFlat(sumBigDecimal(dayData, TbEpEquEnergyDaycount::getLevelCount).setScale(2, RoundingMode.HALF_UP).toString());
+                vo.setValley(sumBigDecimal(dayData, TbEpEquEnergyDaycount::getValleyCount).setScale(2, RoundingMode.HALF_UP).toString());
+                tableData.add(vo);
+            }
+        }
+
+        // 5. 按时间排序
+        tableData.sort(Comparator.comparing(TeamEnergyTableVO::getStatTime));
+        return tableData;
     }
 
     // ==================== 辅助方法 ====================
+
+    /**
+     * 获取班组关联的仪表ID列表
+     */
+    private List<String> getModuleIdsByTeamCode(String teamCode, String orgCode) {
+        LambdaQueryWrapper<TeamDimensionRelation> wrapper = new LambdaQueryWrapper<>();
+        if (!"all".equals(teamCode)) {
+            wrapper.eq(TeamDimensionRelation::getTeamCode, teamCode);
+        }
+        if (StringUtils.isNotBlank(orgCode)) {
+            wrapper.eq(TeamDimensionRelation::getDimensionCode, orgCode);
+        }
+        wrapper.eq(TeamDimensionRelation::getStatus, 1);
+
+        List<TeamDimensionRelation> relations = teamDimensionRelationMapper.selectList(wrapper);
+        return relations.stream()
+                .map(TeamDimensionRelation::getModuleIds)
+                .filter(StringUtils::isNotBlank)
+                .flatMap(ids -> Arrays.stream(ids.split(",")))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取班组列表
+     */
+    private List<TeamInfo> getTeamList(String teamCode, String orgCode) {
+        if (!"all".equals(teamCode)) {
+            LambdaQueryWrapper<TeamInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TeamInfo::getTeamCode, teamCode)
+                   .eq(TeamInfo::getStatus, 1);
+            return teamInfoMapper.selectList(wrapper);
+        }
+
+        // teamCode=all: 通过维度关联表查找该orgCode下的所有班组
+        LambdaQueryWrapper<TeamDimensionRelation> relWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(orgCode)) {
+            relWrapper.eq(TeamDimensionRelation::getDimensionCode, orgCode);
+        }
+        relWrapper.eq(TeamDimensionRelation::getStatus, 1);
+        List<TeamDimensionRelation> relations = teamDimensionRelationMapper.selectList(relWrapper);
+
+        List<String> teamCodes = relations.stream()
+                .map(TeamDimensionRelation::getTeamCode)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (teamCodes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        LambdaQueryWrapper<TeamInfo> teamWrapper = new LambdaQueryWrapper<>();
+        teamWrapper.in(TeamInfo::getTeamCode, teamCodes)
+                   .eq(TeamInfo::getStatus, 1)
+                   .orderByAsc(TeamInfo::getSortOrder);
+        return teamInfoMapper.selectList(teamWrapper);
+    }
+
+    /**
+     * 解析日期范围: 根据 timeUnit 和 queryDate 返回 [startDate, endDate]
+     */
+    private Date[] parseDateRange(String timeUnit, String queryDate) {
+        try {
+            Calendar cal = Calendar.getInstance();
+            if ("day".equals(timeUnit)) {
+                // queryDate = "yyyy-MM-dd", 范围就是这一天
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                Date date = sdf.parse(queryDate);
+                cal.setTime(date);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                Date start = cal.getTime();
+                cal.set(Calendar.HOUR_OF_DAY, 23);
+                cal.set(Calendar.MINUTE, 59);
+                cal.set(Calendar.SECOND, 59);
+                return new Date[]{start, cal.getTime()};
+            } else if ("month".equals(timeUnit)) {
+                // queryDate = "yyyy-MM", 范围是整个月
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+                Date date = sdf.parse(queryDate);
+                cal.setTime(date);
+                cal.set(Calendar.DAY_OF_MONTH, 1);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                Date start = cal.getTime();
+                cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+                cal.set(Calendar.HOUR_OF_DAY, 23);
+                cal.set(Calendar.MINUTE, 59);
+                cal.set(Calendar.SECOND, 59);
+                return new Date[]{start, cal.getTime()};
+            } else if ("year".equals(timeUnit)) {
+                // queryDate = "yyyy", 范围是整年
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy");
+                Date date = sdf.parse(queryDate);
+                cal.setTime(date);
+                cal.set(Calendar.MONTH, Calendar.JANUARY);
+                cal.set(Calendar.DAY_OF_MONTH, 1);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                Date start = cal.getTime();
+                cal.set(Calendar.MONTH, Calendar.DECEMBER);
+                cal.set(Calendar.DAY_OF_MONTH, 31);
+                cal.set(Calendar.HOUR_OF_DAY, 23);
+                cal.set(Calendar.MINUTE, 59);
+                cal.set(Calendar.SECOND, 59);
+                return new Date[]{start, cal.getTime()};
+            }
+        } catch (ParseException e) {
+            log.error("日期解析失败: timeUnit={}, queryDate={}", timeUnit, queryDate, e);
+        }
+        return null;
+    }
+
+    /**
+     * 生成X轴日期数据
+     */
+    private List<String> generateXAxisData(String timeUnit, Date startDate, Date endDate) {
+        List<String> xAxisData = new ArrayList<>();
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(startDate);
+
+        if ("day".equals(timeUnit)) {
+            // 按天查询时，X轴显示24小时
+            for (int i = 0; i < 24; i++) {
+                xAxisData.add(String.format("%02d:00", i));
+            }
+        } else if ("month".equals(timeUnit)) {
+            // 按月查询时，X轴显示每一天
+            SimpleDateFormat sdf = new SimpleDateFormat("MM-dd");
+            while (!cal.getTime().after(endDate)) {
+                xAxisData.add(sdf.format(cal.getTime()));
+                cal.add(Calendar.DAY_OF_MONTH, 1);
+            }
+        } else if ("year".equals(timeUnit)) {
+            // 按年查询时，X轴显示12个月
+            for (int i = 1; i <= 12; i++) {
+                xAxisData.add(i + "月");
+            }
+        }
+        return xAxisData;
+    }
+
+    /**
+     * 查询指定仪表在时间范围内的总能耗
+     */
+    private BigDecimal queryTotalEnergy(List<String> moduleIds, Date startDate, Date endDate, String timeUnit) {
+        if (moduleIds.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        if ("day".equals(timeUnit)) {
+            LambdaQueryWrapper<TbEpEquEnergyDaycount> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(TbEpEquEnergyDaycount::getModuleId, moduleIds);
+            wrapper.between(TbEpEquEnergyDaycount::getDt, startDate, endDate);
+            List<TbEpEquEnergyDaycount> list = daycountMapper.selectList(wrapper);
+            return sumBigDecimal(list, TbEpEquEnergyDaycount::getEnergyCount);
+        } else if ("month".equals(timeUnit)) {
+            LambdaQueryWrapper<TbEpEquEnergyMonthcount> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(TbEpEquEnergyMonthcount::getModuleId, moduleIds);
+            wrapper.between(TbEpEquEnergyMonthcount::getDt, startDate, endDate);
+            List<TbEpEquEnergyMonthcount> list = monthcountMapper.selectList(wrapper);
+            return list.stream()
+                    .map(TbEpEquEnergyMonthcount::getEnergyCount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } else if ("year".equals(timeUnit)) {
+            LambdaQueryWrapper<TbEpEquEnergyYearcount> wrapper = new LambdaQueryWrapper<>();
+            wrapper.in(TbEpEquEnergyYearcount::getModuleId, moduleIds);
+            wrapper.between(TbEpEquEnergyYearcount::getDt, startDate, endDate);
+            List<TbEpEquEnergyYearcount> list = yearcountMapper.selectList(wrapper);
+            return list.stream()
+                    .map(TbEpEquEnergyYearcount::getEnergyCount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * 根据X轴标签查询对应日期的能耗（用于趋势图）
+     */
+    private BigDecimal queryEnergyByDateLabel(List<String> moduleIds, String dateLabel, String timeUnit, String queryDate) {
+        try {
+            if ("day".equals(timeUnit)) {
+                // dateLabel = "08:00", 日维度暂不支持小时级别统计，返回日统计均分
+                // 由于日统计表是按天汇总的，小时级别数据需要从原始数据获取
+                // 这里简化处理：查询当天总量后均分到24小时
+                return BigDecimal.ZERO;
+            } else if ("month".equals(timeUnit)) {
+                // dateLabel = "01-15", queryDate = "2026-01"
+                String fullDate = queryDate + "-" + dateLabel.split("-")[1];
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                Date date = sdf.parse(fullDate);
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(date);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                Date start = cal.getTime();
+                cal.set(Calendar.HOUR_OF_DAY, 23);
+                cal.set(Calendar.MINUTE, 59);
+                cal.set(Calendar.SECOND, 59);
+                return queryTotalEnergy(moduleIds, start, cal.getTime(), "day");
+            } else if ("year".equals(timeUnit)) {
+                // dateLabel = "1月", queryDate = "2026"
+                String monthStr = dateLabel.replace("月", "");
+                String yearMonth = queryDate + "-" + String.format("%02d", Integer.parseInt(monthStr));
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+                Date date = sdf.parse(yearMonth);
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(date);
+                cal.set(Calendar.DAY_OF_MONTH, 1);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                Date start = cal.getTime();
+                cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+                cal.set(Calendar.HOUR_OF_DAY, 23);
+                cal.set(Calendar.MINUTE, 59);
+                cal.set(Calendar.SECOND, 59);
+                return queryTotalEnergy(moduleIds, start, cal.getTime(), "month");
+            }
+        } catch (ParseException e) {
+            log.error("趋势数据日期解析失败: dateLabel={}, timeUnit={}, queryDate={}", dateLabel, timeUnit, queryDate, e);
+        }
+        return BigDecimal.ZERO;
+    }
+
+    /**
+     * 获取能源系数配置
+     */
+    private TbEnergyRatioInfo getEnergyRatioInfo(String energyType) {
+        if (StringUtils.isBlank(energyType) || "all".equals(energyType)) {
+            energyType = "1"; // 默认电力
+        }
+        try {
+            LambdaQueryWrapper<TbEnergyRatioInfo> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TbEnergyRatioInfo::getIsenergyType, Integer.parseInt(energyType));
+            return energyRatioInfoMapper.selectOne(wrapper);
+        } catch (Exception e) {
+            log.warn("获取能源系数失败, energyType={}", energyType, e);
+            return null;
+        }
+    }
+
+    /**
+     * 创建空的统计数据
+     */
+    private TeamEnergyStatisticsVO createEmptyStatistics(String energyType) {
+        TeamEnergyStatisticsVO vo = new TeamEnergyStatisticsVO();
+        vo.setTotalConsumption("0.00");
+        vo.setTotalCost("0.00");
+        vo.setCarbonEmission("0.00");
+        vo.setStandardCoal("0.00");
+        vo.setEnergyUnit(getEnergyUnit(energyType));
+        return vo;
+    }
+
+    /**
+     * 汇总 BigDecimal 字段
+     */
+    private BigDecimal sumBigDecimal(List<TbEpEquEnergyDaycount> dataList, Function<TbEpEquEnergyDaycount, BigDecimal> getter) {
+        return dataList.stream()
+                .map(getter)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 
     /**
      * 根据能源类型获取单位
@@ -237,52 +579,10 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
     }
 
     /**
-     * 生成X轴数据
+     * 根据索引获取颜色（用于趋势图系列）
      */
-    private List<String> generateXAxisData(String timeUnit, String queryDate) {
-        List<String> xAxisData = new ArrayList<>();
-
-        if ("day".equals(timeUnit)) {
-            // 按小时统计
-            for (int i = 0; i < 24; i++) {
-                xAxisData.add(String.format("%02d:00", i));
-            }
-        } else if ("month".equals(timeUnit)) {
-            // 按日统计
-            for (int i = 1; i <= 30; i++) {
-                xAxisData.add(i + "日");
-            }
-        } else if ("year".equals(timeUnit)) {
-            // 按月统计
-            for (int i = 1; i <= 12; i++) {
-                xAxisData.add(i + "月");
-            }
-        }
-
-        return xAxisData;
-    }
-
-    /**
-     * 创建系列数据
-     */
-    private TeamEnergyTrendVO.SeriesData createSeriesData(String name, String type, List<Double> data, String color) {
-        TeamEnergyTrendVO.SeriesData seriesData = new TeamEnergyTrendVO.SeriesData();
-        seriesData.setName(name);
-        seriesData.setType(type);
-        seriesData.setData(data);
-        seriesData.setColor(color);
-        return seriesData;
-    }
-
-    /**
-     * 生成模拟数据
-     */
-    private List<Double> generateMockData(int size) {
-        List<Double> data = new ArrayList<>();
-        Random random = new Random();
-        for (int i = 0; i < size; i++) {
-            data.add(random.nextDouble() * 100);
-        }
-        return data;
+    private String getColorByIndex(int index) {
+        String[] colors = {"#4B7BE5", "#23C343", "#FF9F40", "#F56C6C", "#909399", "#E6A23C"};
+        return colors[index % colors.length];
     }
 }
