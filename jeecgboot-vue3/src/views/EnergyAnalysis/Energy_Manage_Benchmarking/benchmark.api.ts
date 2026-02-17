@@ -31,7 +31,7 @@ export const getBenchmarkStatistics = (params: {
   endTime?: string;
   energyType?: string;
 }) => {
-  return defHttp.get({ url: Api.GetStatistics, params });
+  return defHttp.get({ url: Api.GetStatistics, params }, { isTransformResponse: false });
 };
 
 /**

@@ -129,7 +129,7 @@ const loadDimensionDict = async () => {
 // 树节点选择
 const handleDepartTreeSelect = (data: any) => {
   const code = data.orgCode || data.id || data.key || data.value;
-  const name = data.orgName || data.title || data.label || '';
+  const name = data.departName || data.orgName || data.title || data.label || '';
   selectedNodesMap.value[activeTabKey.value] = data;
   selectedTargetCode.value = code;
   selectedTargetName.value = name;
