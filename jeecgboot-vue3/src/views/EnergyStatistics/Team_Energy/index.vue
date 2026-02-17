@@ -511,28 +511,38 @@ function loadDimensionDictData() {
 
 // 处理标签页切换
 function handleTabChange(key) {
+  console.log('Tab 切换:', key);
   activeTabKey.value = key;
 
   const selectedDimension = dimensionList.value.find(item => item.key === key);
   if (selectedDimension) {
     currentDimensionType.value = selectedDimension.nowtype;
+    console.log('当前维度类型:', currentDimensionType.value);
   }
 
   const savedNode = selectedNodesMap.value[key];
-  if (savedNode) {
+  if (savedNode && savedNode.orgCode) {
+    console.log('恢复已保存的节点:', savedNode);
     selectedOrgCode.value = savedNode.orgCode;
     selectedOrgName.value = savedNode.orgName;
     loadTeamList(savedNode.orgCode, currentDimensionType.value);
     // 切换标签页后自动加载数据
     handleQuery();
-  }
+  } else {
+    // 没有保存的节点，清空当前选择，等待树组件选择默认节点
+    console.log('没有保存的节点，等待树组件选择默认节点');
+    selectedOrgCode.value = '';
+    selectedOrgName.value = '';
 
-  nextTick(() => {
-    const currentTreeRef = treeRefs.value[key];
-    if (currentTreeRef && !savedNode) {
-      // 树组件会自动选择默认节点并触发select事件
-    }
-  });
+    // 对于 forceRender 的 Tab，需要手动触发树组件重新加载
+    nextTick(() => {
+      const currentTreeRef = treeRefs.value[key];
+      if (currentTreeRef && typeof currentTreeRef.loadDepartTreeData === 'function') {
+        // 调用树组件的重新加载方法
+        currentTreeRef.loadDepartTreeData();
+      }
+    });
+  }
 }
 
 // 左侧树选择后触发
@@ -541,7 +551,20 @@ function onDepartTreeSelect(data) {
 
   // 兼容多种字段名
   const orgCode = data.orgCode || data.id || data.key || data.value;
-  const orgName = data.orgName || data.title || data.label || data.name || data.depart_name;
+
+  // 确保 orgName 是字符串，避免循环引用问题
+  let orgName = '';
+  if (typeof data.orgName === 'string') {
+    orgName = data.orgName;
+  } else if (typeof data.title === 'string') {
+    orgName = data.title;
+  } else if (typeof data.label === 'string') {
+    orgName = data.label;
+  } else if (typeof data.name === 'string') {
+    orgName = data.name;
+  } else if (typeof data.depart_name === 'string') {
+    orgName = data.depart_name;
+  }
 
   if (!orgCode) {
     console.warn('树节点数据中没有找到有效的编码字段', data);
@@ -552,13 +575,12 @@ function onDepartTreeSelect(data) {
   selectedOrgCode.value = orgCode;
   selectedOrgName.value = orgName || '未知部门';
 
-  console.log('选中部门:', { orgCode, orgName });
+  console.log('选中部门:', { orgCode, orgName: selectedOrgName.value });
 
-  // 保存当前维度的选中节点
+  // 保存当前维度的选中节点（只保存必要的字段，避免循环引用）
   selectedNodesMap.value[activeTabKey.value] = {
     orgCode,
-    orgName: selectedOrgName.value,
-    data: data
+    orgName: selectedOrgName.value
   };
 
   // 加载班组列表

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.process.TbProductionLineMapper">
+
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.energy.entity.process.TbProductionLine">
+        <id column="id" property="id"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="line_code" property="lineCode"/>
+        <result column="line_name" property="lineName"/>
+        <result column="line_type" property="lineType"/>
+        <result column="line_level" property="lineLevel"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="module_ids" property="moduleIds"/>
+        <result column="process_type" property="processType"/>
+        <result column="status" property="status"/>
+        <result column="description" property="description"/>
+        <result column="sys_org_code" property="sysOrgCode"/>
+        <result column="create_by" property="createBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectAllEnabled" resultMap="BaseResultMap">
+        SELECT * FROM tb_production_line
+        WHERE status = 1
+        ORDER BY sort_order ASC, create_time ASC
+    </select>
+
+    <select id="selectByParentId" resultMap="BaseResultMap">
+        SELECT * FROM tb_production_line
+        WHERE status = 1
+        <choose>
+            <when test="parentId != null and parentId != ''">
+                AND parent_id = #{parentId}
+            </when>
+            <otherwise>
+                AND (parent_id IS NULL OR parent_id = '')
+            </otherwise>
+        </choose>
+        ORDER BY sort_order ASC
+    </select>
+
+    <select id="selectByLineCode" resultMap="BaseResultMap">
+        SELECT * FROM tb_production_line
+        WHERE line_code = #{lineCode}
+        AND status = 1
+        LIMIT 1
+    </select>
+
+</mapper>

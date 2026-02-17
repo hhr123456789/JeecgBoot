@@ -54,17 +54,22 @@ public class TeamEnergyController {
     @ApiOperation(value = "获取班组能源统计数据", notes = "获取班组能源统计数据")
     @GetMapping("/getStatistics")
     public Result<TeamEnergyStatisticsVO> getStatistics(TeamEnergyQueryRequest request) {
+        log.info("========== Controller: 接收统计数据请求 ==========");
+        log.info("请求参数: {}", request);
         Result<TeamEnergyStatisticsVO> result = new Result<>();
         try {
             TeamEnergyStatisticsVO statistics = teamEnergyService.getStatistics(request);
+            log.info("Service返回数据: {}", statistics);
             result.setResult(statistics);
             result.setSuccess(true);
             result.setMessage("查询成功");
+            log.info("Controller返回结果: success={}, result={}", result.isSuccess(), result.getResult());
         } catch (Exception e) {
             log.error("获取统计数据失败", e);
             result.setSuccess(false);
             result.setMessage("查询失败: " + e.getMessage());
         }
+        log.info("========== Controller: 统计数据请求处理完成 ==========");
         return result;
     }
 

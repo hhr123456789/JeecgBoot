@@ -76,6 +76,32 @@
 	</appender>
 	<!-- 每天生成一个html格式的日志结束 -->
 
+	<!-- 班组能源统计专用日志 -->
+	<appender name="TEAM_ENERGY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${LOG_HOME}/team-energy-sql.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<FileNamePattern>${LOG_HOME}/team-energy-sql-%d{yyyy-MM-dd}.%i.log</FileNamePattern>
+			<MaxHistory>7</MaxHistory>
+			<maxFileSize>10MB</maxFileSize>
+		</rollingPolicy>
+		<encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+			<charset>UTF-8</charset>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50}:%L - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- 班组能源统计服务日志 -->
+	<logger name="org.jeecg.modules.energy.service.impl.TeamEnergyServiceImpl" level="INFO" additivity="false">
+		<appender-ref ref="TEAM_ENERGY_FILE" />
+		<appender-ref ref="STDOUT" />
+	</logger>
+
+	<!-- 班组能源统计控制器日志 -->
+	<logger name="org.jeecg.modules.energy.controller.TeamEnergyController" level="INFO" additivity="false">
+		<appender-ref ref="TEAM_ENERGY_FILE" />
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<!--myibatis log configure -->
 	<logger name="com.apache.ibatis" level="TRACE" />
 	<logger name="java.sql.Connection" level="DEBUG" />

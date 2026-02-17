@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.jeecg.modules.energy.mapper.process.TbProductionLineEnergyMapper">
+
+    <resultMap id="BaseResultMap" type="org.jeecg.modules.energy.entity.process.TbProductionLineEnergy">
+        <id column="id" property="id"/>
+        <result column="line_id" property="lineId"/>
+        <result column="energy_type" property="energyType"/>
+        <result column="module_ids" property="moduleIds"/>
+        <result column="status" property="status"/>
+        <result column="create_by" property="createBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByLineIdAndEnergyType" resultMap="BaseResultMap">
+        SELECT * FROM tb_production_line_energy
+        WHERE line_id = #{lineId}
+        AND energy_type = #{energyType}
+        AND status = 1
+        LIMIT 1
+    </select>
+
+    <select id="selectByLineId" resultMap="BaseResultMap">
+        SELECT * FROM tb_production_line_energy
+        WHERE line_id = #{lineId}
+        AND status = 1
+    </select>
+
+</mapper>

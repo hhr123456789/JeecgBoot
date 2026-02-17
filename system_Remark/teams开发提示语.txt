@@ -1,0 +1,323 @@
+ 更新后的 Agent Teams 开发提示词
+
+  # 能源管理系统 - 班组用能统计功能修复任务
+
+  ## 项目背景
+
+  我正在开发一个基于 JeecgBoot 3.7.2 的能源管理系统（EMS），采用 Spring Boot 2.7.18 + Vue3 + InfluxDB 1.8 + MySQL 架构。
+
+  **当前问题**：班组用能统计功能已有代码，但数据无法正常显示，需要诊断并修复。
+
+  ## 系统信息
+
+  ### 环境配置
+  - **数据库**: 127.0.0.1:3306, 数据库名: emsproject_jeecg
+    - 用户名: root
+    - 密码: Abc123456@
+  - **InfluxDB**: localhost:8086, 数据库前缀: EMS_
+  - **后端服务**: http://127.0.0.1:8080/jeecg-boot
+  - **前端服务**: http://127.0.0.1:3100
+  - **测试账号**: xdadmin / xd@123456
+
+  ### 项目结构
+  JeecgBoot/
+  ├── jeecg-boot/jeecg-module-energy/     # 能源管理模块（后端）
+  │   ├── controller/                      # 控制器
+  │   ├── service/                         # 业务逻辑
+  │   ├── mapper/                          # 数据访问
+  │   ├── entity/                          # 实体类
+  │   └── job/                             # 定时任务（InfluxDB同步）
+  ├── jeecgboot-vue3/src/views/EnergyStatistics/  # 前端页面
+  └── system_Remark/                       # 开发文档
+      ├── 能碳管理平台能管部份开发说明_extracted.txt  # 完整开发文档
+      ├── InfluxDBSyncJob（这里可以了解influxDB的结构）.md
+      └── 数据库结构与测试数据含jeecgboot本身的结构与数据.sql
+
+  ## 业务逻辑说明
+
+  ### 班组用能统计的数据流
+
+  InfluxDB (实时点位数据)
+      ↓ (InfluxDBSyncJob 每5分钟同步)
+  MySQL 实时表 (tb_equ_ele_data, tb_equ_energy_data)
+      ↓ (InfluxDBSyncJob 实时更新统计)
+  MySQL 统计表 (tb_ep_equ_energy_daycount/monthcount/yearcount)
+      ↓ (班组统计服务)
+  班组用能统计 (按班组+时间维度汇总)
+
+  ### 核心数据表
+
+  1. **tb_team_info** - 班组基础信息
+     - team_code: 班组编码（唯一）
+     - team_name: 班组名称
+     - shift_type: 班次类型（早班/中班/晚班/夜班）
+     - org_code: 所属组织
+
+  2. **tb_team_dimension_relation** - 班组维度关联（核心）
+     - team_code: 班组编码
+     - dimension_code: 维度编码（部门编码，如A01B03）
+     - dimension_type: 维度类型（1:按部门用电, 2:按线路用电, 3:天然气, 4:压缩空气, 5:企业用水）
+     - energy_type: 能源类型（1:电, 2:水, 5:压缩空气, 8:天然气）
+     - module_ids: 关联的仪表ID列表（逗号分隔）
+
+  3. **tb_team_shift_schedule** - 班组排班
+     - team_code: 班组编码
+     - shift_date: 排班日期
+     - shift_type: 班次类型
+     - start_time: 开始时间
+     - end_time: 结束时间
+     - work_hours: 工作时长
+
+  4. **tb_module** - 仪表主数据
+     - module_id: 仪表编号（统计表关联键）
+     - module_name: 仪表名称
+     - energy_type: 能源类型
+     - sys_org_code: 所属部门（关联sys_depart.id）
+
+  5. **tb_ep_equ_energy_daycount** - 日能耗统计
+     - module_id: 仪表编号
+     - dt: 统计日期
+     - energy_count: 能耗值 (end_count - strat_count)
+     - strat_count: 开始值
+     - end_count: 结束值
+     - energy_price: 能源单价
+     - total_count: 总费用
+     - zbm_count: 折标煤值
+     - tpf_count: 碳排放值
+
+  ### 统计逻辑
+
+  班组用能统计需要：
+  1. 根据 `tb_team_dimension_relation.module_ids` 找到班组关联的所有仪表
+  2. 根据 `tb_team_shift_schedule` 确定班组的工作时间段
+  3. 从 `tb_ep_equ_energy_daycount` 查询这些仪表在指定时间段的能耗数据
+  4. 按班组汇总：能耗值、费用、折标煤、碳排放等
+
+  ## Agent Team 组织结构
+
+  请创建以下 Agent Team：
+
+  ### 1. Team Lead (您 - 用户)
+  - 负责整体协调和决策
+  - 审核所有方案和代码
+  - 批准敏感操作
+
+  ### 2. Database Analyst (数据库分析师)
+  **角色**: Explore agent
+  **职责**:
+  - 检查数据库表结构和数据完整性
+  - 验证班组、仪表、统计数据是否存在
+  - 检查 InfluxDB 同步任务是否正常运行
+  - 分析数据关联关系是否正确
+  - 生成数据诊断报告
+
+  ### 3. Backend Analyst (后端分析师)
+  **角色**: Explore agent
+  **职责**:
+  - 分析后端代码结构
+  - 检查 Controller、Service、Mapper 实现
+  - 验证 SQL 查询逻辑
+  - 检查业务逻辑是否正确
+  - 生成后端问题报告
+
+  ### 4. Frontend Analyst (前端分析师)
+  **角色**: Explore agent
+  **职责**:
+  - 分析前端代码结构
+  - 检查 API 调用和数据处理
+  - 验证界面渲染逻辑
+  - 检查错误处理
+  - 生成前端问题报告
+
+  ### 5. Backend Engineer (后端工程师)
+  **角色**: general-purpose agent
+  **职责**:
+  - 根据分析报告修复后端问题
+  - 实现或修复 API 接口
+  - 优化 SQL 查询
+  - 编写单元测试
+
+  ### 6. Frontend Engineer (前端工程师)
+  **角色**: general-purpose agent
+  **职责**:
+  - 根据分析报告修复前端问题
+  - 修复数据展示逻辑
+  - 优化用户界面
+  - 处理异常情况
+
+  ### 7. QA Engineer (测试工程师)
+  **角色**: general-purpose agent
+  **职责**:
+  - 使用浏览器自动化测试
+  - 验证数据正确性
+  - 执行端到端测试
+  - 生成测试报告
+
+  ## 工作流程
+
+  ### 阶段 1: 全面诊断（3个 Analyst 并行工作）
+
+  **Database Analyst 任务**:
+  1. 连接数据库，检查以下内容：
+     - `tb_team_info` 是否有班组数据
+     - `tb_team_dimension_relation` 是否正确关联仪表
+     - `tb_team_shift_schedule` 是否有排班数据
+     - `tb_module` 仪表数据是否完整
+     - `tb_ep_equ_energy_daycount` 是否有统计数据
+     - 检查数据关联关系（team_code, module_id, dimension_code）
+  2. 检查 InfluxDB 同步任务日志
+  3. 生成数据诊断报告，标注问题
+
+  **Backend Analyst 任务**:
+  1. 搜索班组用能统计相关的后端代码
+  2. 检查 Controller 接口定义
+  3. 检查 Service 业务逻辑实现
+  4. 检查 Mapper SQL 查询
+  5. 验证数据查询和汇总逻辑
+  6. 生成后端问题报告
+
+  **Frontend Analyst 任务**:
+  1. 搜索班组用能统计的前端页面
+  2. 检查 API 调用代码
+  3. 检查数据处理和渲染逻辑
+  4. 检查错误处理和提示
+  5. 生成前端问题报告
+
+  **输出**: 3份诊断报告提交给 Team Lead 审核
+
+  ### 阶段 2: 方案设计（Team Lead + Analysts）
+
+  1. Team Lead 审核 3份诊断报告
+  2. 综合分析，确定问题根源
+  3. 制定修复方案：
+     - 需要修改的文件列表
+     - 修改内容概要
+     - 风险评估
+  4. **等待 Team Lead 批准**
+
+  ### 阶段 3: 后端修复（Backend Engineer）
+
+  根据方案修复后端问题：
+  1. 修复 Service 业务逻辑
+  2. 修复 Mapper SQL 查询
+  3. 修复 Controller 接口
+  4. 添加日志和异常处理
+  5. 提交代码到 git 分支: `feature/fix-team-energy-statistics`
+
+  ### 阶段 4: 前端修复（Frontend Engineer）
+
+  根据方案修复前端问题：
+  1. 修复 API 调用逻辑
+  2. 修复数据处理和展示
+  3. 优化用户界面
+  4. 添加错误提示
+  5. 提交代码到 git 分支: `feature/fix-team-energy-statistics`
+
+  ### 阶段 5: 集成测试（QA Engineer）
+
+  1. 确保后端和前端服务正在运行
+  2. 使用浏览器自动化访问: http://127.0.0.1:3100
+  3. 登录系统（xdadmin / xd@123456）
+  4. 导航到"班组用能统计"页面
+  5. 测试各种查询条件：
+     - 选择不同班组
+     - 选择不同时间范围
+     - 验证数据显示是否正确
+  6. 截图保存测试结果
+  7. 生成测试报告
+
+  ### 阶段 6: 问题修复循环
+
+  - 如果测试发现问题，QA 报告给相应工程师
+  - 工程师修复后重新测试
+  - 重复直到所有测试通过
+
+  ### 阶段 7: 代码审查和提交
+
+  1. Team Lead 审查所有代码变更
+  2. 确认无误后合并到主分支
+  3. 创建 git commit（需要 Team Lead 批准）
+  4. 更新开发文档
+
+  ## 技术约束
+
+  ### 后端开发规范
+  - 使用 Lombok 注解（@Data, @Slf4j）
+  - RESTful API 设计
+  - MyBatis-Plus 进行数据库操作
+  - 添加详细日志记录
+  - 完善异常处理
+
+  ### 前端开发规范
+  - 必须使用 Composition API
+  - 使用 `const` 定义方法
+  - 事件处理器以 "handle" 开头
+  - 优先使用 Tailwind CSS
+  - 添加 TypeScript 类型定义
+
+  ### Git 工作流
+  - 分支名称: `feature/fix-team-energy-statistics`
+  - 提交信息格式: `[班组统计] 简短描述`
+  - 敏感操作需要 Team Lead 批准
+
+  ### 数据库操作
+  - SELECT 查询可以自动执行
+  - INSERT/UPDATE 需要记录日志
+  - DELETE/DROP/TRUNCATE 必须经过 Team Lead 批准
+
+  ## 重要提醒
+
+  1. **先诊断后修复**: 必须先完成全面诊断，确定问题根源后再修复
+  2. **数据完整性检查**: 重点检查班组、仪表、排班、统计数据是否完整
+  3. **方案先行**: 每个阶段开始前，先输出方案等待审批
+  4. **敏感操作**: 删除、数据库结构变更需要等待批准
+  5. **测试驱动**: 修改后必须通过测试验证
+  6. **文档同步**: 重要变更要更新文档
+
+  ## 成功标准
+
+  - [ ] 诊断报告完成，问题根源明确
+  - [ ] 修复方案经过审批
+  - [ ] 后端代码修复完成
+  - [ ] 前端代码修复完成
+  - [ ] 班组用能统计页面能正确显示数据
+  - [ ] 数据与数据库实际数据一致
+  - [ ] 所有测试通过
+  - [ ] 代码已提交到 git
+  - [ ] 文档已更新
+
+  ## 开始执行
+
+  请按照以下步骤开始：
+
+  1. **创建 Agent Team**
+     团队名称: "team-energy-statistics-fix"
+     描述: "修复班组用能统计功能"
+
+  2. **创建任务列表**
+  - 为每个阶段创建任务
+  - 设置任务依赖关系
+
+  3. **启动阶段 1**
+  - 同时启动 3个 Analyst agents
+  - Database Analyst 检查数据
+  - Backend Analyst 检查后端代码
+  - Frontend Analyst 检查前端代码
+
+  4. **等待诊断报告**
+  - 3个 Analyst 完成后提交报告
+  - Team Lead 审核并决定下一步
+
+  现在开始执行！
+
+  ---
+  总结
+
+  我已经根据您的开发文档更新了方案和提示词，主要改进：
+
+  1. ✅ 增加了数据库分析师角色 - 专门检查数据完整性
+  2. ✅ 明确了业务逻辑 - 详细说明了班组统计的数据流和计算逻辑
+  3. ✅ 包含了具体的表结构 - 列出了所有相关表和字段
+  4. ✅ 添加了系统信息 - 数据库连接、测试账号等
+  5. ✅ 强调先诊断后修复 - 3个分析师并行诊断，找出问题根源
+  6. ✅ 更详细的工作流程 - 每个阶段的具体任务

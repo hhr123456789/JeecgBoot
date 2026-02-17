@@ -90,22 +90,29 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Override
     public TeamEnergyStatisticsVO getStatistics(TeamEnergyQueryRequest request) {
-        log.info("获取统计数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
-                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
+        log.info("========================================");
+        log.info("开始获取统计数据");
+        log.info("请求参数: teamCode={}, orgCode={}, timeUnit={}, queryDate={}, energyType={}, dimensionType={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(),
+                request.getQueryDate(), request.getEnergyType(), request.getDimensionType());
 
         // 1. 获取班组关联的仪表ID列表
-        List<String> moduleIds = getModuleIdsByTeamCode(request.getTeamCode(), request.getOrgCode());
+        List<String> moduleIds = getModuleIdsByTeamCode(request.getTeamCode(), request.getOrgCode(), request.getDimensionType());
         if (moduleIds.isEmpty()) {
-            log.warn("未找到关联的仪表ID, teamCode={}, orgCode={}", request.getTeamCode(), request.getOrgCode());
+            log.warn("未找到关联的仪表ID, teamCode={}, orgCode={}, dimensionType={}", request.getTeamCode(), request.getOrgCode(), request.getDimensionType());
+            log.info("========================================");
             return createEmptyStatistics(request.getEnergyType());
         }
-        log.debug("关联的仪表ID列表: {}", moduleIds);
 
         // 2. 解析日期范围
         Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
         if (dateRange == null) {
+            log.error("日期范围解析失败");
+            log.info("========================================");
             return createEmptyStatistics(request.getEnergyType());
         }
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        log.info("解析后的日期范围: {} 到 {}", sdf.format(dateRange[0]), sdf.format(dateRange[1]));
 
         // 3. 查询能耗数据（根据时间维度选择不同统计表）
         BigDecimal totalConsumption = queryTotalEnergy(moduleIds, dateRange[0], dateRange[1], request.getTimeUnit());
@@ -116,9 +123,14 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         BigDecimal carbonFactor = ratioInfo != null && ratioInfo.getTpfxsValue() != null ? ratioInfo.getTpfxsValue() : new BigDecimal("0.997");
         BigDecimal coalFactor = ratioInfo != null && ratioInfo.getZbmxsValue() != null ? ratioInfo.getZbmxsValue() : new BigDecimal("0.1229");
 
+        log.info("能源系数: pricePerUnit={}, carbonFactor={}, coalFactor={}", pricePerUnit, carbonFactor, coalFactor);
+
         BigDecimal totalCost = totalConsumption.multiply(pricePerUnit);
         BigDecimal carbonEmission = totalConsumption.multiply(carbonFactor);
         BigDecimal standardCoal = totalConsumption.multiply(coalFactor);
+
+        log.info("计算结果: totalConsumption={}, totalCost={}, carbonEmission={}, standardCoal={}",
+                totalConsumption, totalCost, carbonEmission, standardCoal);
 
         // 5. 构建返回对象
         TeamEnergyStatisticsVO vo = new TeamEnergyStatisticsVO();
@@ -128,13 +140,17 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         vo.setStandardCoal(standardCoal.setScale(2, RoundingMode.HALF_UP).toString());
         vo.setEnergyUnit(getEnergyUnit(request.getEnergyType()));
 
+        log.info("返回数据: totalConsumption={}, totalCost={}, carbonEmission={}, standardCoal={}, energyUnit={}",
+                vo.getTotalConsumption(), vo.getTotalCost(), vo.getCarbonEmission(), vo.getStandardCoal(), vo.getEnergyUnit());
+        log.info("统计数据查询完成");
+        log.info("========================================");
         return vo;
     }
 
     @Override
     public TeamEnergyTrendVO getTrendData(TeamEnergyQueryRequest request) {
-        log.info("获取趋势数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
-                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
+        log.info("获取趋势数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}, dimensionType={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate(), request.getDimensionType());
 
         TeamEnergyTrendVO vo = new TeamEnergyTrendVO();
 
@@ -149,12 +165,12 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         vo.setXAxisData(xAxisData);
 
         // 2. 查询班组列表
-        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode());
+        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode(), request.getDimensionType());
 
         // 3. 为每个班组查询趋势数据
         List<TeamEnergyTrendVO.SeriesData> seriesList = new ArrayList<>();
         for (TeamInfo team : teams) {
-            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode(), request.getDimensionType());
             if (moduleIds.isEmpty()) {
                 continue;
             }
@@ -179,8 +195,8 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Override
     public List<TeamEnergyRankingVO> getRankingData(TeamEnergyQueryRequest request) {
-        log.info("获取排名数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
-                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
+        log.info("获取排名数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}, dimensionType={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate(), request.getDimensionType());
 
         // 1. 解析日期范围
         Date[] dateRange = parseDateRange(request.getTimeUnit(), request.getQueryDate());
@@ -189,12 +205,12 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         }
 
         // 2. 查询所有班组（排名始终显示全部班组）
-        List<TeamInfo> teams = getTeamList("all", request.getOrgCode());
+        List<TeamInfo> teams = getTeamList("all", request.getOrgCode(), request.getDimensionType());
 
         // 3. 为每个班组计算能耗
         List<TeamEnergyRankingVO> rankings = new ArrayList<>();
         for (TeamInfo team : teams) {
-            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode(), request.getDimensionType());
             if (moduleIds.isEmpty()) {
                 continue;
             }
@@ -219,8 +235,8 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
 
     @Override
     public List<TeamEnergyTableVO> getTableData(TeamEnergyQueryRequest request) {
-        log.info("获取表格数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}",
-                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate());
+        log.info("获取表格数据 - teamCode={}, orgCode={}, timeUnit={}, queryDate={}, dimensionType={}",
+                request.getTeamCode(), request.getOrgCode(), request.getTimeUnit(), request.getQueryDate(), request.getDimensionType());
 
         List<TeamEnergyTableVO> tableData = new ArrayList<>();
 
@@ -237,20 +253,32 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         BigDecimal coalFactor = ratioInfo != null && ratioInfo.getZbmxsValue() != null ? ratioInfo.getZbmxsValue() : new BigDecimal("0.1229");
 
         // 3. 查询班组列表
-        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode());
+        List<TeamInfo> teams = getTeamList(request.getTeamCode(), request.getOrgCode(), request.getDimensionType());
 
         // 4. 为每个班组查询明细数据
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         for (TeamInfo team : teams) {
-            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode());
+            log.info("========================================");
+            log.info("查询班组表格数据: {}", team.getTeamName());
+            List<String> moduleIds = getModuleIdsByTeamCode(team.getTeamCode(), request.getOrgCode(), request.getDimensionType());
             if (moduleIds.isEmpty()) {
+                log.warn("班组 {} 没有关联的仪表ID", team.getTeamName());
                 continue;
             }
 
             // 查询日统计数据
+            String moduleIdsStr = moduleIds.stream().map(id -> "'" + id + "'").collect(Collectors.joining(","));
+            String sql = String.format("SELECT * FROM tb_ep_equ_energy_daycount WHERE module_id IN (%s) AND dt BETWEEN '%s' AND '%s'",
+                    moduleIdsStr, sdf.format(dateRange[0]), sdf.format(dateRange[1]));
+            log.info("执行SQL: {}", sql);
+
             LambdaQueryWrapper<TbEpEquEnergyDaycount> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(TbEpEquEnergyDaycount::getModuleId, moduleIds);
             wrapper.between(TbEpEquEnergyDaycount::getDt, dateRange[0], dateRange[1]);
+
             List<TbEpEquEnergyDaycount> dataList = daycountMapper.selectList(wrapper);
+            log.info("查询结果: 找到 {} 条日统计记录", dataList.size());
+            log.info("========================================");
 
             // 按日期分组汇总
             Map<String, List<TbEpEquEnergyDaycount>> groupedData = dataList.stream()
@@ -285,7 +313,11 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
     /**
      * 获取班组关联的仪表ID列表
      */
-    private List<String> getModuleIdsByTeamCode(String teamCode, String orgCode) {
+    private List<String> getModuleIdsByTeamCode(String teamCode, String orgCode, Integer dimensionType) {
+        log.info("========================================");
+        log.info("查询仪表ID列表");
+        log.info("输入参数: teamCode={}, orgCode={}, dimensionType={}", teamCode, orgCode, dimensionType);
+
         LambdaQueryWrapper<TeamDimensionRelation> wrapper = new LambdaQueryWrapper<>();
         if (!"all".equals(teamCode)) {
             wrapper.eq(TeamDimensionRelation::getTeamCode, teamCode);
@@ -293,10 +325,35 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         if (StringUtils.isNotBlank(orgCode)) {
             wrapper.eq(TeamDimensionRelation::getDimensionCode, orgCode);
         }
+        if (dimensionType != null) {
+            wrapper.eq(TeamDimensionRelation::getDimensionType, dimensionType);
+        }
         wrapper.eq(TeamDimensionRelation::getStatus, 1);
 
+        // 构建SQL日志
+        StringBuilder sqlLog = new StringBuilder("SELECT * FROM tb_team_dimension_relation WHERE ");
+        if (!"all".equals(teamCode)) {
+            sqlLog.append("team_code = '").append(teamCode).append("' AND ");
+        }
+        if (StringUtils.isNotBlank(orgCode)) {
+            sqlLog.append("dimension_code = '").append(orgCode).append("' AND ");
+        }
+        if (dimensionType != null) {
+            sqlLog.append("dimension_type = ").append(dimensionType).append(" AND ");
+        }
+        sqlLog.append("status = 1");
+        log.info("执行SQL: {}", sqlLog);
+
         List<TeamDimensionRelation> relations = teamDimensionRelationMapper.selectList(wrapper);
-        return relations.stream()
+        log.info("查询结果: 找到 {} 条班组维度关联记录", relations.size());
+
+        if (!relations.isEmpty()) {
+            log.info("关联记录详情:");
+            relations.forEach(r -> log.info("  teamCode={}, dimensionCode={}, moduleIds={}",
+                    r.getTeamCode(), r.getDimensionCode(), r.getModuleIds()));
+        }
+
+        List<String> moduleIds = relations.stream()
                 .map(TeamDimensionRelation::getModuleIds)
                 .filter(StringUtils::isNotBlank)
                 .flatMap(ids -> Arrays.stream(ids.split(",")))
@@ -304,12 +361,16 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
+
+        log.info("解析后的仪表ID列表 (共{}个): {}", moduleIds.size(), moduleIds);
+        log.info("========================================");
+        return moduleIds;
     }
 
     /**
      * 获取班组列表
      */
-    private List<TeamInfo> getTeamList(String teamCode, String orgCode) {
+    private List<TeamInfo> getTeamList(String teamCode, String orgCode, Integer dimensionType) {
         if (!"all".equals(teamCode)) {
             LambdaQueryWrapper<TeamInfo> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(TeamInfo::getTeamCode, teamCode)
@@ -321,6 +382,9 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
         LambdaQueryWrapper<TeamDimensionRelation> relWrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotBlank(orgCode)) {
             relWrapper.eq(TeamDimensionRelation::getDimensionCode, orgCode);
+        }
+        if (dimensionType != null) {
+            relWrapper.eq(TeamDimensionRelation::getDimensionType, dimensionType);
         }
         relWrapper.eq(TeamDimensionRelation::getStatus, 1);
         List<TeamDimensionRelation> relations = teamDimensionRelationMapper.selectList(relWrapper);
@@ -435,35 +499,102 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
      * 查询指定仪表在时间范围内的总能耗
      */
     private BigDecimal queryTotalEnergy(List<String> moduleIds, Date startDate, Date endDate, String timeUnit) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        log.info("========================================");
+        log.info("查询总能耗");
+        log.info("仪表ID列表: {}", moduleIds);
+        log.info("时间范围: {} 到 {}", sdf.format(startDate), sdf.format(endDate));
+        log.info("时间维度: {}", timeUnit);
+
         if (moduleIds.isEmpty()) {
+            log.warn("仪表ID列表为空，返回0");
+            log.info("========================================");
             return BigDecimal.ZERO;
         }
 
+        String moduleIdsStr = moduleIds.stream().map(id -> "'" + id + "'").collect(Collectors.joining(","));
+
         if ("day".equals(timeUnit)) {
+            log.info("使用日统计表: tb_ep_equ_energy_daycount");
+            String sql = String.format("SELECT * FROM tb_ep_equ_energy_daycount WHERE module_id IN (%s) AND dt BETWEEN '%s' AND '%s'",
+                    moduleIdsStr, sdf.format(startDate), sdf.format(endDate));
+            log.info("执行SQL: {}", sql);
+
             LambdaQueryWrapper<TbEpEquEnergyDaycount> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(TbEpEquEnergyDaycount::getModuleId, moduleIds);
             wrapper.between(TbEpEquEnergyDaycount::getDt, startDate, endDate);
+
             List<TbEpEquEnergyDaycount> list = daycountMapper.selectList(wrapper);
-            return sumBigDecimal(list, TbEpEquEnergyDaycount::getEnergyCount);
+            log.info("查询结果: 找到 {} 条日统计记录", list.size());
+
+            if (!list.isEmpty()) {
+                log.info("记录详情:");
+                SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd");
+                list.forEach(d -> log.info("  moduleId={}, dt={}, energyCount={}",
+                        d.getModuleId(), dateSdf.format(d.getDt()), d.getEnergyCount()));
+            }
+
+            BigDecimal total = sumBigDecimal(list, TbEpEquEnergyDaycount::getEnergyCount);
+            log.info("总能耗: {}", total);
+            log.info("========================================");
+            return total;
         } else if ("month".equals(timeUnit)) {
+            log.info("使用月统计表: tb_ep_equ_energy_monthcount");
+            String sql = String.format("SELECT * FROM tb_ep_equ_energy_monthcount WHERE module_id IN (%s) AND dt BETWEEN '%s' AND '%s'",
+                    moduleIdsStr, sdf.format(startDate), sdf.format(endDate));
+            log.info("执行SQL: {}", sql);
+
             LambdaQueryWrapper<TbEpEquEnergyMonthcount> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(TbEpEquEnergyMonthcount::getModuleId, moduleIds);
             wrapper.between(TbEpEquEnergyMonthcount::getDt, startDate, endDate);
+
             List<TbEpEquEnergyMonthcount> list = monthcountMapper.selectList(wrapper);
-            return list.stream()
+            log.info("查询结果: 找到 {} 条月统计记录", list.size());
+
+            if (!list.isEmpty()) {
+                log.info("记录详情:");
+                SimpleDateFormat monthSdf = new SimpleDateFormat("yyyy-MM");
+                list.forEach(d -> log.info("  moduleId={}, dt={}, energyCount={}",
+                        d.getModuleId(), monthSdf.format(d.getDt()), d.getEnergyCount()));
+            }
+
+            BigDecimal total = list.stream()
                     .map(TbEpEquEnergyMonthcount::getEnergyCount)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            log.info("总能耗: {}", total);
+            log.info("========================================");
+            return total;
         } else if ("year".equals(timeUnit)) {
+            log.info("使用年统计表: tb_ep_equ_energy_yearcount");
+            String sql = String.format("SELECT * FROM tb_ep_equ_energy_yearcount WHERE module_id IN (%s) AND dt BETWEEN '%s' AND '%s'",
+                    moduleIdsStr, sdf.format(startDate), sdf.format(endDate));
+            log.info("执行SQL: {}", sql);
+
             LambdaQueryWrapper<TbEpEquEnergyYearcount> wrapper = new LambdaQueryWrapper<>();
             wrapper.in(TbEpEquEnergyYearcount::getModuleId, moduleIds);
             wrapper.between(TbEpEquEnergyYearcount::getDt, startDate, endDate);
+
             List<TbEpEquEnergyYearcount> list = yearcountMapper.selectList(wrapper);
-            return list.stream()
+            log.info("查询结果: 找到 {} 条年统计记录", list.size());
+
+            if (!list.isEmpty()) {
+                log.info("记录详情:");
+                SimpleDateFormat yearSdf = new SimpleDateFormat("yyyy");
+                list.forEach(d -> log.info("  moduleId={}, dt={}, energyCount={}",
+                        d.getModuleId(), yearSdf.format(d.getDt()), d.getEnergyCount()));
+            }
+
+            BigDecimal total = list.stream()
                     .map(TbEpEquEnergyYearcount::getEnergyCount)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            log.info("总能耗: {}", total);
+            log.info("========================================");
+            return total;
         }
+        log.warn("未知的时间维度: {}", timeUnit);
+        log.info("========================================");
         return BigDecimal.ZERO;
     }
 
@@ -476,7 +607,9 @@ public class TeamEnergyServiceImpl implements ITeamEnergyService {
                 // dateLabel = "08:00", 日维度暂不支持小时级别统计，返回日统计均分
                 // 由于日统计表是按天汇总的，小时级别数据需要从原始数据获取
                 // 这里简化处理：查询当天总量后均分到24小时
-                BigDecimal dayTotal = queryEnergyByDate(moduleIds, queryDate, "day");
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                Date date = sdf.parse(queryDate);
+                BigDecimal dayTotal = queryTotalEnergy(moduleIds, date, date, "day");
                 if (dayTotal.compareTo(BigDecimal.ZERO) == 0) {
                     return BigDecimal.ZERO;
                 }

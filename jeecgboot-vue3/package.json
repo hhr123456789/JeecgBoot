@@ -18,7 +18,12 @@
     "gen:icon": "esno ./build/generate/icon/index.ts",
     "batch:prettier": "prettier --write  \"src/**/*.{js,json,tsx,css,less,scss,vue,html,md}\"",
     "upgrade:log": "conventional-changelog -p angular -i CHANGELOG.md -s",
-    "husky:install": "husky install"
+    "husky:install": "husky install",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:product": "playwright test product-energy",
+    "test:install": "playwright install"
   },
   "dependencies": {
     "@jeecg/online": "3.7.1-RC",

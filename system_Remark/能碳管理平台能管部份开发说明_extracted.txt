@@ -1,0 +1,1266 @@
+总页数: 44
+================================================================================
+
+
+--- 第 1 页 ---
+
+能碳管理平台能管部分开发说明
+能碳管理平台是其于jeecg-boot开发的，JeecgBoot是一款企业级低代码平台集成了AI应用平台功能，旨在帮助开发者快
+速实现低代码开发和构建。前后端分离架构AntDesign4、Vue3，SpringBoot，SpringCloudAlibaba，Mybatis-plus，
+Shiro/SpringAuthorizationServer
+详细的安装与相关说明如下
+后端文档：http://help.jeecg.com/java/
+前端文档：http://help.jeecg.com/ui/
+能碳平台系统地址
+http://127.0.0.1:3100
+xdadmin
+xd@123456
+前端目录
+
+
+================================================================================
+
+--- 第 2 页 ---
+
+前端开发的代码都在这个views目录下
+后端目录
+
+================================================================================
+
+--- 第 3 页 ---
+
+能源系统的后端代码都在这文件夹里
+需要开发部份（现在还是vue3的静态页面）：
+1、企业总览（需要开发，这个可以最后再处理）
+2、班组用能统计(正在开发，现在出不了数，需要重点检查与测试)
+
+================================================================================
+
+--- 第 4 页 ---
+
+4、班次用能统计（左边维度列表需要和其它已做好功能统一）
+5、产品单耗分析（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+6、工序能耗分析（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+
+================================================================================
+
+--- 第 5 页 ---
+
+7、企业报表
+8、告警统计（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+9、告警处理（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+
+================================================================================
+
+--- 第 6 页 ---
+
+10、告警模板设置（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+11、告警规则设置（数据表需要设计，左边维度列表需要和其它已做好功能统一）
+数据库（能管部分，现在已设计并使用的数据表），数据库的地址用户密码：127.0.0.1:3306 username:root
+password:Abc123456@
+备注，本系统是通过influxDB1.8来获得实时数据的。
+
+================================================================================
+
+--- 第 7 页 ---
+
+一、数据表总览
+1.1业务表
+序号 表名 说明 类别
+1 realtable 设备实时数据表（OPC/采集点位） 数据采集
+2 tb_collector 采集器/网关管理表 基础配置
+3 tb_module 仪表/设备主数据表 基础配置
+4 tb_energy_ratio_info 能源比例信息配置表 基础配置
+5 tb_energy_dimension_config 维度定义配置表 基础配置
+6 tb_equ_ele_data 仪表电气实时/记录数据表 数据采集
+7 tb_equ_energy_data 仪表能源实时采集表（非电类） 数据采集
+8 tb_ep_equ_energy_daycount 仪表日能耗统计表 能耗统计
+9 tb_ep_equ_energy_monthcount 仪表月能耗统计表 能耗统计
+10 tb_ep_equ_energy_yearcount 仪表年能耗统计表 能耗统计
+11 tb_energy_classification_summary企业分类分区统计汇总表 能耗统计
+12 tb_energy_classification_detail 企业部门能源统计明细表 能耗统计
+13 tb_energy_budget 企业部门能源预算表 预算管理
+14 tb_team_info 班组基础信息表 班组管理
+15 tb_energy_team 能耗班组表 班组管理
+16 tb_energy_team_rel 班组维度关联表 班组管理
+17 tb_team_dimension_relation 班组维度关联表（扩展） 班组管理
+18 tb_team_shift_schedule 班组排班表 班组管理
+19 tb_callpolice_parameter_info 报警联系人配置表 报警管理
+1.2系统表
+序号 表名 说明 类别
+20 sys_depart 组织机构/部门维度表组织管理
+21 sys_user 用户表 用户管理
+22 sys_role 角色表 权限管理
+
+================================================================================
+
+--- 第 8 页 ---
+
+序号 表名 说明 类别
+23 sys_user_role 用户角色关联表 权限管理
+24 sys_user_depart 用户部门关联表 组织管理
+25 sys_user_position 用户职位关联表 组织管理
+26 sys_role_permission 角色权限关联表 权限管理
+27 sys_role_index 角色首页配置表 权限管理
+28 sys_depart_permission 部门权限表 权限管理
+29 sys_depart_role 部门角色表 权限管理
+30sys_depart_role_permissio
+n部门角色权限表 权限管理
+31 sys_depart_role_user 部门角色用户表 权限管理
+32 sys_category 分类字典树表 系统配置
+33 sys_check_rule 校验规则表 系统配置
+二、表间关联关系
+2.1业务核心关联
+关联路径 左表.字段 → 右表.字段 说明
+采集器→
+仪表tb_collector.gateway_code → tb_module.gateway_code采集器下挂
+仪表
+仪表→部
+门tb_module.sys_org_code → sys_depart.id仪表归属部
+门
+仪表→能
+源类型tb_module.energy_type →tb_energy_ratio_info.isenergy_typ
+e能源系数配
+置
+日统计→
+仪表daycount.module_id → tb_module.module_id日统计关联
+仪表
+月统计→
+仪表monthcount.module_id → tb_module.module_id月统计关联
+仪表
+年统计→
+仪表yearcount.module_id → tb_module.module_id年统计关联
+仪表
+电气数据
+→仪表tb_equ_ele_data.Module_ID → tb_module.module_id实时电气数
+据
+
+================================================================================
+
+--- 第 9 页 ---
+
+关联路径 左表.字段 → 右表.字段 说明
+能源数据
+→仪表tb_equ_energy_data.module_id → tb_module.module_id实时能源数
+据
+汇总→部
+门summary.org_code → sys_depart.org_code汇总归属部
+门
+明细→汇
+总detail.summary_id → summary.id明细关联汇
+总
+明细→仪
+表detail.module_id → tb_module.module_id明细关联仪
+表
+预算→部
+门budget.org_code → sys_depart.org_code预算归属部
+门
+班组维度
+→班组tb_team_dimension_relation.t
+eam_code→ tb_team_info.team_code班组维度关
+联
+排班→班
+组tb_team_shift_schedule.team_
+code→ tb_team_info.team_code排班关联班
+组
+2.2系统权限关联
+关联路径 左表.字段 → 右表.字段 说明
+用户→角色 sys_user_role.user_id → sys_user.id 用户角色关联
+用户→角色 sys_user_role.role_id → sys_role.id 用户角色关联
+用户→部门 sys_user_depart.user_id → sys_user.id 用户部门关联
+用户→部门 sys_user_depart.dep_id → sys_depart.id 用户部门关联
+角色→权限 sys_role_permission.role_id → sys_role.id 角色权限关联
+部门→角色 sys_depart_role.depart_id → sys_depart.id 部门角色
+部门角色→用户 sys_depart_role_user.drole_id →sys_depart_role.i
+d部门角色用户
+部门角色→权限sys_depart_role_permission.role_i
+d→sys_depart_role.i
+d部门角色权限
+三、各表字段详细说明
+3.1realtable（设备实时数据表）
+
+================================================================================
+
+--- 第 10 页 ---
+
+表说明：存储OPC/采集系统的实时点位数据，包括设备名称、标签名、标签值、报警阈值等。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id int(10)unsigned 否 自增 主键
+2 devName varchar(50) 是 NULL设备名称
+3 devTag varchar(128) 是 NULL设备标签
+4 tagname varchar(128) 是 NULL标签名称
+5 tagtype varchar(20) 是 NULL标签类型
+6descriptio
+nvarchar(128) 是 NULL描述
+7 time datetime 是 NULL采集时间
+8 tagvalue varchar(128) 是 NULL标签值
+9 unit varchar(16) 是 NULL单位
+10 digcount int(11) 是 NULL小数位数
+11 status int(11) 是 NULL状态
+12 nodeid int(11) 是 NULL节点ID
+13 rangemin float 是 NULL量程下限
+14 rangemax float 是 NULL量程上限
+15 alarm int(11) 是 NULL报警状态
+16 hi float 是 NULL高报警值
+17 hihi float 是 NULL高高报警值
+18 lo float 是 NULL低报警值
+19 lolo float 是 NULL低低报警值
+20 alarmtype int(11) 是 NULL报警类型
+21 rwmode int(11) 是 NULL读写模式
+22 register varchar(255) 是 NULL寄存器地址
+索引：主键id
+
+================================================================================
+
+--- 第 11 页 ---
+
+3.2tb_collector（采集器/网关管理表）
+表说明：管理现场采集器/网关设备信息，包括通信协议、通道、启用状态等。一个采集器下可挂多个仪表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 collector_name varchar(50) 是 NULL采集器名称
+3 collector_address varchar(50) 是 NULL采集器地址（采集后台用）
+4 collector_code varchar(32) 是 NULL采集器代码（采集后台用）
+5 gateway_id varchar(50) 是 NULL网关编号
+6 building_id int(11) 是 NULL位置编码/通道
+7 gateway_code varchar(50) 是 NULL网关+通道（关联tb_module）
+8collector_protocol_uppe
+rvarchar(50) 是 NULL上传协议
+9collector_protocol_lowe
+rvarchar(50) 是 NULL下行协议
+10 is_action varchar(50) 是 NULL是否启用
+11 create_by varchar(50) 是 NULL创建人
+12 create_time datetime 是 NULL创建日期
+13 update_by varchar(50) 是 NULL更新人
+14 update_time datetime 是 NULL更新日期
+15 sys_org_code varchar(64) 是 NULL所属部门
+索引：主键id
+3.3tb_module（仪表/设备主数据表）
+表说明：存储现场所有仪表/设备的基础信息，包括通信参数、倍率、能源类型、额定功率、所属组织维度等。是整个系统的核
+心基础表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键（UUID）
+
+================================================================================
+
+--- 第 12 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+2enterprise_i
+dint(10) 是 NULL所属企业
+3 gateway_codevarchar(50) 否 — 采集器名称/网关编码
+4 meter_id varchar(50) 否 — 仪表id（网关侧地址）
+5 module_name varchar(50) 否 — 仪表名称
+6 module_id varchar(50) 否 — 仪表编号（统计表关联键）
+7 datasource int(10) 是 NULL来源方式
+8 module_type int(11) 否 — 仪表类型
+9 level int(11) 是 NULL仪表等级
+10 isaction varchar(50) 否 — 是否启用（Y/N）
+11 standby1 varchar(255) 是 NULL备用字段1
+12 standby2 varchar(255) 是 NULL备用字段2
+13 standby3 varchar(255) 是 NULL备用字段3
+14 create_by varchar(50) 是 NULL创建人
+15 create_time datetime 是 NULL创建日期
+16 update_by varchar(50) 是 NULL更新人
+17 update_time datetime 是 NULL更新日期
+18 sys_org_codevarchar(2000) 是 NULL维度（关联sys_depart.id）
+19 pt int(10) 是 NULL电压倍率（PT）
+20 accuracy varchar(50) 是 NULL计量精度
+21 device_type varchar(50) 是 NULL仪表型号
+22 ct int(10) 是 NULL电流倍率（CT）
+23 remoteip varchar(50) 是 NULL远程IP
+24 protocol varchar(50) 是 NULL通讯协议
+25 remotecom int(10) 是 NULL数据端口号
+
+================================================================================
+
+--- 第 13 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+26 localcom int(10) 是 NULL本地端口
+27 energy_type int(10) 是 NULL能源类型（关联tb_energy_ratio_info）
+28 rated_power double(10,2) 是 NULL额定功率
+索引：主键id
+3.4tb_energy_ratio_info（能源比例信息配置表）
+表说明：配置不同能源类型的计量单位、折标煤系数、碳排放系数、单价等。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 isenergy_typeint(10) 是 NULL能源类型编码
+3 energy_unit varchar(50) 是 NULL能源计量单位（如kWh、m³）
+4 zbmxs_value decimal(18,8) 是 NULL折标煤系数
+5 tpfxs_value decimal(18,8) 是 NULL碳排放系数
+6 isremark varchar(500) 是 NULL备注信息
+7 standby1 text 是 NULL备用字段1
+8 standby2 text 是 NULL备用字段2
+9 standby3 text 是 NULL备用字段3
+10 energy_name varchar(32) 是 NULL能源名称
+11price_per_uni
+tdecimal(10,2) 是 NULL单价
+索引：主键id
+3.5tb_energy_dimension_config（维度定义配置表）
+表说明：定义系统中使用的各种统计维度编码与名称。
+序号 字段名 数据类型 可否为空默认值 说明
+
+================================================================================
+
+--- 第 14 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2dimension_cod
+evarchar(50) 否 — 维度编码（1/2/3）
+3dimension_nam
+evarchar(100) 否 — 维度名称
+4 sort_order int(11) 是 0 排序
+5 is_enable tinyint(1) 是 1 是否启用
+索引：主键id
+3.6tb_equ_ele_data（仪表电气实时/记录数据表）
+表说明：存储仪表采集的电气数据，包括三相电压、三相电流、有功/无功/视在功率、功率因数、频率、正向有功/无功电能、尖
+峰平谷电能、需量等。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id int(11) 否 自增 主键
+2 Module_ID varchar(50) 是 NULL仪表编号
+3 Equ_Electric_DT datetime 是 NULL采集时间
+三相电压
+4 UA decimal(10,2) 是 NULLA相电压
+5 UB decimal(10,2) 是 NULLB相电压
+6 UC decimal(10,2) 是 NULLC相电压
+三相电流
+7 IA decimal(10,2) 是 NULLA相电流
+8 IB decimal(10,2) 是 NULLB相电流
+9 IC decimal(10,2) 是 NULLC相电流
+谐波
+10 uaw decimal(10,2) 是 NULLA相电压谐波
+
+================================================================================
+
+--- 第 15 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+11 ubw decimal(10,2) 是 NULLB相电压谐波
+12 ucw decimal(10,2) 是 NULLC相电压谐波
+13 iaw decimal(10,2) 是 NULLA相电流谐波
+14 ibw decimal(10,2) 是 NULLB相电流谐波
+15 icw decimal(10,2) 是 NULLC相电流谐波
+总功率
+16 pp decimal(10,2) 是 NULL总有功功率
+17 qq decimal(10,2) 是 NULL总无功功率
+18 ss decimal(10,2) 是 NULL总视在功率
+19 PFS decimal(10,2) 是 NULL总功率因数
+20 HZ decimal(10,2) 是 NULL频率
+21 ff decimal(10,2) 是 NULL备用（f）
+分相功率
+22 Pa decimal(10,2) 是 NULLA相有功功率
+23 Pb decimal(10,2) 是 NULLB相有功功率
+24 Pc decimal(10,2) 是 NULLC相有功功率
+25 Qa decimal(10,2) 是 NULLA相无功功率
+26 Qb decimal(10,2) 是 NULLB相无功功率
+27 Qc decimal(10,2) 是 NULLC相无功功率
+28 Sa decimal(10,2) 是 NULLA相视在功率
+29 Sb decimal(10,2) 是 NULLB相视在功率
+30 Sc decimal(10,2) 是 NULLC相视在功率
+31 PFa decimal(10,2) 是 NULLA相功率因数
+32 PFb decimal(10,2) 是 NULLB相功率因数
+33 PFc decimal(10,2) 是 NULLC相功率因数
+
+================================================================================
+
+--- 第 16 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+电能量
+34 KWH decimal(18,2) 是 NULL正向有功总电能
+35 KVARH decimal(18,2) 是 NULL正向无功总电能
+不平衡度
+36 uu_unbl decimal(10,2) 是 NULL电压不平衡度
+37 ii_unbl decimal(10,2) 是 NULL电流不平衡度
+尖峰平谷电
+能
+38 CuspValue decimal(18,2) 是 NULL尖时正向有功总电能
+39 PeakValue decimal(18,2) 是 NULL峰时正向有功总电能
+40 LevelValue decimal(18,2) 是 NULL平时正向有功总电能
+41 ValleyValue decimal(18,2) 是 NULL谷时正向有功总电能
+运行状态
+42 isrun_state int(10) 是 NULL运行状态
+43 town_run_hour decimal(18,2) 是 NULL满载运行时长
+44economize_run_hou
+rdecimal(18,2) 是 NULL节能运行时长
+45 stop_run_hour decimal(18,2) 是 NULL停机时长
+备用字段
+46 Standby1 text 是 NULL备用字段1
+47 Standby2 text 是 NULL备用字段2
+48 Standby3 text 是 NULL备用字段3
+需量数据
+49 need decimal(18,4) 是 NULL当前需量
+50 needtm datetime 是 NULL当前需量时间
+51 need1~need12 decimal(18,4) 是 NULL需量值1~12
+
+================================================================================
+
+--- 第 17 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+52 needtm1~needtm12 datetime 是 NULL需量发生时间1~12
+53 prevkwh decimal(18,2) 是 NULL上次电能量值
+索引：主键id
+3.7tb_equ_energy_data（仪表能源实时采集表）
+表说明：存储非电类仪表（如水表、气表等）的实时采集数据，包括温度、压力、瞬时流量、累计值。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id int(11) 否 自增 主键
+2 module_id varchar(50) 否 — 仪表编号
+3 equ_energy_dt datetime 否 — 采集时间
+4 energy_temperature double 是 NULL温度
+5 energy_pressure double 是 NULL压力
+6 energy_winkvalue decimal(18,3) 是 NULL瞬时流量
+7energy_accumulatevalu
+edecimal(18,2) 是 NULL累计值
+8 standby1 varchar(255) 是 NULL备用字段1
+9 standby2 varchar(255) 是 NULL备用字段2
+10 standby3 varchar(255) 是 NULL备用字段3
+索引：主键id
+3.8tb_ep_equ_energy_daycount（仪表日能耗统计表）
+表说明：按"仪表编号+日期"汇总每天的能耗值、费用、尖峰平谷分时数据、折标煤、碳排放、最大功率等。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id int(11) 否 自增 主键
+2 module_id varchar(50) 否 — 仪表编号
+
+================================================================================
+
+--- 第 18 页 ---
+
+序号 字段名 数据类型 可否为空 默认值 说明
+3 dt datetime 否 — 统计日期
+总量组
+4 energy_count decimal(18,2) 是 NULL 能耗值
+5 strat_count decimal(18,2) 是 NULL 开始值（表计起始读数）
+6 end_count decimal(18,2) 是 NULL 结束值（表计结束读数）
+7 energy_price decimal(18,4) 是 0.0000 能源单价
+8 total_count decimal(18,2) 是 0.00 能源总费用
+尖时组
+9 cusp_count decimal(18,2) 是 0.00 尖能耗值
+10 cusp_price decimal(18,4) 是 0.0000 尖能源单价
+11 cusp_total decimal(18,2) 是 0.00 尖时总费用
+12 start_cusp_count decimal(18,2) 是 0.00 尖开始值
+13 end_cusp_count decimal(18,2) 是 0.00 尖结束值
+峰时组
+14 peak_count decimal(18,2) 是 0.00 峰能耗值
+15 peak_price decimal(18,4) 是 0.0000 峰能源单价
+16 peak_total decimal(18,2) 是 0.00 峰时总费用
+17 start_peak_count decimal(18,2) 是 0.00 峰开始值
+18 end_peak_count decimal(18,2) 是 0.00 峰结束值
+平时组
+19 level_count decimal(18,2) 是 0.00 平能耗值
+20 level_price decimal(18,4) 是 0.0000 平能源单价
+21 level_total decimal(18,2) 是 0.00 平时总费用
+22 start_level_countdecimal(18,2) 是 0.00 平开始值
+23 end_level_count decimal(18,2) 是 0.00 平结束值
+
+================================================================================
+
+--- 第 19 页 ---
+
+序号 字段名 数据类型 可否为空 默认值 说明
+谷时组
+24 Valley_count decimal(18,2) 是 0.00 谷能耗值
+25 Valley_price decimal(18,4) 是 0.0000 谷能源单价
+26 Valley_total decimal(18,2) 是 0.00 谷时总费用
+27start_valley_coun
+tdecimal(18,2) 是 0.00 谷开始值
+28 end_valley_count decimal(18,2) 是 0.00 谷结束值
+折标煤/碳排
+组
+29 zbmxs_value decimal(18,8) 是 0.00000000折标煤系数
+30 zbm_count decimal(18,2) 是 0.00 折标值
+31 tpfxs_value decimal(18,8) 是 0.00000000碳排放系数
+32 tpf_count decimal(18,2) 是 0.00 碳排放值
+最大功率组
+33 maxp decimal(18,2) 是 0.00 最大功率
+34 maDT datetime 是 NULL 最大功率发生时间
+备用字段
+35 standby1 varchar(255) 是 NULL 备用字段1
+36 standby2 varchar(255) 是 NULL 备用字段2
+37 standby3 varchar(255) 是 NULL 备用字段3
+索引：主键id
+计算公式参考：
+计算项 公式
+能耗值 energy_count=end_count-strat_count
+总费用 total_count=energy_count×energy_price
+尖时费用 cusp_total=cusp_count×cusp_price
+
+================================================================================
+
+--- 第 20 页 ---
+
+计算项 公式
+峰时费用 peak_total=peak_count×peak_price
+平时费用 level_total=level_count×level_price
+谷时费用 Valley_total=Valley_count×Valley_price
+折标煤值 zbm_count=energy_count×zbmxs_value
+碳排放值 tpf_count=energy_count×tpfxs_value
+分时合计校验 cusp_count+peak_count+level_count+Valley_count≈energy_count
+3.9tb_ep_equ_energy_monthcount（仪表月能耗统计表）
+表说明：按"仪表编号+月份"汇总每月能耗。字段结构与日统计表完全一致，语义为月度汇总。
+对比项 日统计表 月统计表
+统计粒度 天 月
+dt建议格式 2025-07-0300:00:00 2025-07-0100:00:00
+数据来源 实时采集汇总 日统计表汇总
+字段清单与3.8完全相同，此处不再重复列出。
+3.10tb_ep_equ_energy_yearcount（仪表年能耗统计表）
+表说明：按"仪表编号+年份"汇总每年能耗。字段结构与日统计表完全一致，语义为年度汇总。
+对比项 日统计表 月统计表 年统计表
+统计粒度 天 月 年
+dt建议格式 2025-07-03 2025-07-01 2025-01-01
+数据来源 实时采集汇总 日统计汇总 月统计汇总
+建议唯一约束 (module_id,dt) (module_id,dt) (module_id,dt)
+字段清单与3.8完全相同，此处不再重复列出。
+3.11tb_energy_classification_summary（企业分类分区统计汇总表）
+
+================================================================================
+
+--- 第 21 页 ---
+
+表说明：按部门维度+能源类型+时间维度（day/month/year）汇总的能耗统计数据，支持多级部门层级汇总。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(36) 否 — 主键ID
+2 org_code varchar(64) 否 — 部门编码（关联sys_depart.org_code）
+3 org_name varchar(100) 是 NULL 部门名称
+4 parent_org_code varchar(64) 是 NULL 父级部门编码
+5 energy_type int(10) 否 — 能源类型（1:电能2:水能3:燃气）
+6 energy_type_name varchar(50) 是 NULL 能源类型名称
+7 stat_date date 否 — 统计日期
+8 stat_month varchar(7) 是 NULL 统计月份（YYYY-MM）
+9 stat_year varchar(4) 是 NULL 统计年份（YYYY）
+10 time_dimension varchar(10) 否 — 时间维度（day/month/year）
+11 total_consumptiondecimal(18,2) 是 0.00 总消耗量
+12 total_cost decimal(18,2) 是 0.00 总费用
+13 carbon_emission decimal(18,2) 是 0.00 碳排放量
+14 standard_coal decimal(18,2) 是 0.00 标准煤当量
+15 peak_consumption decimal(18,2) 是 0.00 峰时段消耗
+16 peak_cost decimal(18,2) 是 0.00 峰时段费用
+17 flat_consumption decimal(18,2) 是 0.00 平时段消耗
+18 flat_cost decimal(18,2) 是 0.00 平时段费用
+19valley_consumptio
+ndecimal(18,2) 是 0.00 谷时段消耗
+20 valley_cost decimal(18,2) 是 0.00 谷时段费用
+21 meter_count int(10) 是 0 仪表数量
+22 create_time datetime 是 CURRENT_TIMESTAMP创建时间
+23 update_time datetime 是 ONUPDATE 更新时间
+索引：
+
+================================================================================
+
+--- 第 22 页 ---
+
+索引名 类型 字段
+PRIMARY 主键 id
+idx_org_code 普通 org_code
+idx_energy_type 普通 energy_type
+idx_stat_date 普通 stat_date
+idx_time_dimension普通 time_dimension
+idx_parent_org_cod
+e普通parent_org_cod
+e
+3.12tb_energy_classification_detail（企业部门能源统计明细表）
+表说明：汇总表的明细数据，记录每个部门下每个仪表在某一天的能耗消耗量、费用、碳排放、标准煤当量。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(36) 否 — 主键ID
+2 summary_id varchar(36) 否 — 汇总表ID（关联summary.id）
+3 org_code varchar(64) 否 — 部门编码
+4 module_id varchar(50) 否 — 仪表编号
+5 module_name varchar(100) 是 NULL 仪表名称
+6 energy_type int(10) 否 — 能源类型
+7 stat_date date 否 — 统计日期
+8 consumption decimal(18,2) 是 0.00 消耗量
+9 cost decimal(18,2) 是 0.00 费用
+10carbon_emissio
+ndecimal(18,2) 是 0.00 碳排放量
+11 standard_coal decimal(18,2) 是 0.00 标准煤当量
+12 create_time datetime 是 CURRENT_TIMESTAMP创建时间
+索引：
+索引名 类型 字段
+
+================================================================================
+
+--- 第 23 页 ---
+
+索引名 类型 字段
+PRIMARY 主键 id
+idx_summary_i
+d普通summary_i
+d
+idx_org_code 普通 org_code
+idx_module_id普通 module_id
+idx_stat_date普通 stat_date
+3.13tb_energy_budget（企业部门能源预算表）
+表说明：管理各部门按年度/月度、能源类型设定的能源预算，包含预算值、实际消耗值、完成率等。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(36) 否 — 主键ID
+2 org_code varchar(64) 否 — 部门编码
+3 energy_type int(10) 否 — 能源类型
+4 budget_year varchar(4) 否 — 预算年度（YYYY）
+5 budget_month varchar(7) 是 NULL 预算月度（YYYY-MM）
+6budget_consumptio
+ndecimal(18,2) 是 0.00 预算消耗量
+7 budget_cost decimal(18,2) 是 0.00 预算费用
+8actual_consumptio
+ndecimal(18,2) 是 0.00 实际消耗量
+9 actual_cost decimal(18,2) 是 0.00 实际费用
+10 completion_rate decimal(5,2) 是 0.00 完成率（%）
+11 create_by varchar(50) 是 NULL 创建人
+12 create_time datetime 是 CURRENT_TIMESTAMP创建时间
+13 update_by varchar(50) 是 NULL 更新人
+14 update_time datetime 是 ONUPDATE 更新时间
+
+================================================================================
+
+--- 第 24 页 ---
+
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_org_code 普通 org_code
+idx_energy_typ
+e普通energy_typ
+e
+idx_budget_yea
+r普通budget_yea
+r
+计算公式：completion_rate=(actual_consumption/budget_consumption)×100
+3.14tb_team_info（班组基础信息表）
+表说明：管理班组的基础信息，包括班组编码、名称、班次类型、所属组织、班组长、人数等。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(32) 否 — 主键ID
+2 team_code varchar(50) 否 — 班组编码（唯一）
+3 team_name varchar(100) 否 — 班组名称
+4 shift_type varchar(20) 是 NULL 班次类型（早班/中班/晚班/夜班）
+5 org_code varchar(64) 是 NULL 所属组织编码
+6 org_name varchar(200) 是 NULL 所属组织名称
+7 team_leadervarchar(50) 是 NULL 班组长
+8team_member
+sint(11) 是 0 班组人数
+9 status tinyint(4) 是 1 状态（0-停用，1-启用）
+10 sort_order int(11) 是 0 排序号
+11 descriptionvarchar(500) 是 NULL 描述
+12 create_by varchar(50) 是 NULL 创建人
+13 create_timedatetime 是 CURRENT_TIMESTAMP创建时间
+
+================================================================================
+
+--- 第 25 页 ---
+
+序号 字段名 数据类型 可否为空 默认值 说明
+14 update_by varchar(50) 是 NULL 更新人
+15 update_timedatetime 是 ONUPDATE 更新时间
+16 standby1 varchar(200) 是 NULL 备用字段1
+17 standby2 varchar(200) 是 NULL 备用字段2
+18 standby3 varchar(200) 是 NULL 备用字段3
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uk_team_code 唯一 team_code
+idx_org_code 普通 org_code
+idx_status 普通 status
+idx_team_org_statu
+s普通 (org_code,status)
+3.15tb_energy_team（能耗班组表）
+表说明：能耗统计中的班组信息（简化版），支持按班次类型区分。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 team_code varchar(50) 否 — 班组编码（唯一）
+3 team_name varchar(100) 否 — 班组名称
+4 shift_typevarchar(50) 是 NULL班次类型（早班/中班/晚班）
+5 create_by varchar(50) 是 NULL创建人
+6create_tim
+edatetime 是 NULL创建时间
+7 update_by varchar(50) 是 NULL更新人
+8 update_timdatetime 是 NULL更新时间
+
+================================================================================
+
+--- 第 26 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+e
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uk_team_cod
+e唯一team_cod
+e
+注意：tb_team_info与tb_energy_team功能相似，tb_team_info字段更完整（含班组长、人数、组织等），
+开发时需确认使用哪张表为主。
+3.16tb_energy_team_rel（班组维度关联表-简化版）
+表说明：建立班组与维度节点之间的关联关系。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 team_id varchar(36) 否 — 班组ID（关联tb_energy_team.id）
+3dimension_cod
+evarchar(100) 否 — 维度节点编码（如部门ID:A01）
+4dimension_typ
+evarchar(50) 否 — 维度类型（1:组织架构2:时间维度3:设备类型）
+5 create_by varchar(50) 是 NULL创建人
+6 create_time datetime 是 NULL创建时间
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_team_id普通 team_id
+idx_dim_cod
+e普通dimension_cod
+e
+3.17tb_team_dimension_relation（班组维度关联表-扩展版）
+
+================================================================================
+
+--- 第 27 页 ---
+
+表说明：建立班组与维度（部门用电/线路用电/天然气/压缩空气/企业用水等）之间的关联关系，支持一个班组关联多个维度和
+多个仪表。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(32) 否 — 主键ID
+2 team_code varchar(50) 否 — 班组编码
+3dimension_cod
+evarchar(64) 否 — 维度编码（如A01B03）
+4dimension_typ
+eint(11) 否 — 维度类型（见枚举）
+5 energy_type int(11) 是 NULL 能源类型（见枚举）
+6 module_ids text 是 NULL 关联的仪表ID列表（逗号分隔）
+7 status tinyint(4) 是 1 状态（0-停用，1-启用）
+8 create_by varchar(50) 是 NULL 创建人
+9 create_time datetime 是 CURRENT_TIMESTAMP创建时间
+10 update_by varchar(50) 是 NULL 更新人
+11 update_time datetime 是 ONUPDATE 更新时间
+12 standby1 varchar(200) 是 NULL 备用字段1
+13 standby2 varchar(200) 是 NULL 备用字段2
+14 standby3 varchar(200) 是 NULL 备用字段3
+枚举值说明：
+字段 值 含义
+dimension_typ
+e1按部门用电
+dimension_typ
+e2按线路用电
+dimension_typ
+e3天然气
+dimension_typ
+e4压缩空气
+
+================================================================================
+
+--- 第 28 页 ---
+
+字段 值 含义
+dimension_typ
+e5企业用水
+energy_type 1电
+energy_type 2水
+energy_type 5压缩空气
+energy_type 8天然气
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uk_team_dimension 唯一 (team_code,dimension_code,dimension_type)
+idx_dimension_code 普通 dimension_code
+idx_dimension_type 普通 dimension_type
+idx_team_code 普通 team_code
+idx_team_dimension_type_statu
+s普通 (dimension_type,status)
+3.18tb_team_shift_schedule（班组排班表）
+表说明：管理班组的排班计划，记录每个班组每天的班次、起止时间、工作时长等。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(32) 否 — 主键ID
+2 team_code varchar(50) 否 — 班组编码
+3 shift_datedate 否 — 排班日期
+4 shift_typevarchar(20) 否 — 班次类型（早班/中班/晚班/夜班）
+5 start_timetime 否 — 开始时间
+6 end_time time 否 — 结束时间
+7 work_hoursdecimal(5,2) 是 NULL 工作时长（小时）
+
+================================================================================
+
+--- 第 29 页 ---
+
+序号 字段名 数据类型 可否为空 默认值 说明
+8 status tinyint(4) 是 1 状态（0-取消，1-正常）
+9 remark varchar(500) 是 NULL 备注
+10 create_by varchar(50) 是 NULL 创建人
+11create_tim
+edatetime 是 CURRENT_TIMESTAMP创建时间
+12 update_by varchar(50) 是 NULL 更新人
+13update_tim
+edatetime 是 ONUPDATE 更新时间
+14 standby1 varchar(200) 是 NULL 备用字段1
+15 standby2 varchar(200) 是 NULL 备用字段2
+16 standby3 varchar(200) 是 NULL 备用字段3
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uk_team_shift_dat
+e唯一 (team_code,shift_date)
+idx_shift_date 普通 shift_date
+idx_team_code 普通 team_code
+3.19tb_callpolice_parameter_info（报警联系人配置表）
+表说明：配置各部门的报警联系人信息，包括姓名、邮箱、电话等。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 enterprise_id int(11) 否 — 所属企业
+3 sys_org_code varchar(64) 否 — 部门编码
+4 callpolice_parameter_namevarchar(50) 否 — 报警联系人姓名
+
+================================================================================
+
+--- 第 30 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+5callpolice_parameter_emai
+lvarchar(50) 否 — 邮箱
+6 callpolice_parameter_tel varchar(50) 否 — 电话
+7 isstate int(11) 否 — 状态
+8 standby1 varchar(255) 是 NULL备用字段1
+9 standby2 varchar(255) 是 NULL备用字段2
+10 standby3 varchar(255) 是 NULL备用字段3
+11 create_by varchar(50) 是 NULL创建人
+12 create_time datetime 是 NULL创建日期
+13 update_by varchar(50) 是 NULL更新人
+14 update_time datetime 是 NULL更新日期
+索引：主键id
+四、系统表字段详细说明
+4.1sys_depart（组织机构/部门维度表）
+表说明：组织机构维度树，支持公司→部门→岗位多级层级，用于仪表归属、统计报表按维度汇总。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 parent_id varchar(32) 是 NULL父机构ID（根节点为空）
+3 depart_name varchar(100) 否 — 机构/部门名称
+4 depart_name_en varchar(500) 是 NULL英文名
+5depart_name_abb
+rvarchar(500) 是 NULL缩写
+6 depart_order int(11) 是 0 排序
+
+================================================================================
+
+--- 第 31 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+7 description varchar(500) 是 NULL描述
+8 org_category varchar(10) 否 ‘1’ 机构类别：1公司，2组织机构，3岗位
+9 org_type varchar(10) 是 NULL机构类型：1一级部门，2子部门
+10 org_code varchar(64) 否 — 机构编码（唯一）
+11 mobile varchar(32) 是 NULL手机号
+12 fax varchar(32) 是 NULL传真
+13 address varchar(100) 是 NULL地址
+14 memo varchar(500) 是 NULL备注
+15 status varchar(1) 是 NULL状态：1启用，0不启用
+16 del_flag varchar(1) 是 NULL删除状态：0正常，1已删除
+17 qywx_identifiervarchar(100) 是 NULL对接企业微信的ID
+18 ding_identifiervarchar(100) 是 NULL对接钉钉部门的ID
+19 create_by varchar(32) 是 NULL创建人
+20 create_time datetime 是 NULL创建日期
+21 update_by varchar(32) 是 NULL更新人
+22 update_time datetime 是 NULL更新日期
+23 tenant_id int(10) 是 0 租户ID
+24 iz_leaf tinyint(1) 是 0 是否叶子节点：1是0否
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uniq_depart_org_cod
+e唯一 org_code
+idx_sd_parent_id 普通 parent_id
+idx_sd_depart_order普通depart_orde
+r
+
+================================================================================
+
+--- 第 32 页 ---
+
+4.2sys_user（用户表）
+表说明：系统用户信息表，存储登录账号、密码、个人信息、状态等。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键id
+2 username varchar(100) 是 NULL登录账号（唯一）
+3 realname varchar(100) 是 NULL真实姓名
+4 password varchar(255) 是 NULL密码
+5 salt varchar(45) 是 NULLmd5密码盐
+6 avatar varchar(255) 是 NULL头像
+7 birthday date 是 NULL生日
+8 sex tinyint(1) 是 NULL性别（0-未知，1-男，2-女）
+9 email varchar(45) 是 NULL电子邮件（唯一）
+10 phone varchar(45) 是 NULL电话（唯一）
+11 org_code varchar(64) 是 NULL登录会话的机构编码
+12 status tinyint(1) 是 NULL状态（1-正常，2-冻结）
+13 del_flag tinyint(1) 是 NULL删除状态（0-正常，1-已删除）
+14 third_id varchar(100) 是 NULL第三方登录的唯一标识
+15 third_type varchar(100) 是 NULL第三方类型
+16 activiti_sync tinyint(1) 是 NULL同步工作流引擎（1-同步，0-不同步）
+17 work_no varchar(100) 是 NULL工号（唯一）
+18 telephone varchar(45) 是 NULL座机号
+19 create_by varchar(32) 是 NULL创建人
+20 create_time datetime 是 NULL创建时间
+21 update_by varchar(32) 是 NULL更新人
+22 update_time datetime 是 NULL更新时间
+23 user_identity tinyint(1) 是 NULL身份（1普通成员，2上级）
+
+================================================================================
+
+--- 第 33 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+24 depart_ids varchar(1000) 是 NULL负责部门
+25 client_id varchar(64) 是 NULL设备ID
+26login_tenant_i
+dint(11) 是 NULL上次登录选择租户ID
+27 bpm_status varchar(2) 是 NULL流程入职离职状态
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uniq_sys_user_work_no唯一 work_no
+uniq_sys_user_usernam
+e唯一 username
+uniq_sys_user_phone 唯一 phone
+uniq_sys_user_email 唯一 email
+idx_su_status 普通 status
+idx_su_del_flag 普通 del_flag
+idx_su_del_username 普通 (username,del_flag)
+4.3sys_role（角色表）
+表说明：系统角色定义表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键id
+2 role_name varchar(200) 是 NULL角色名称
+3 role_code varchar(100) 否 — 角色编码（唯一）
+4descriptio
+nvarchar(255) 是 NULL描述
+5 create_by varchar(32) 是 NULL创建人
+
+================================================================================
+
+--- 第 34 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+6create_tim
+edatetime 是 NULL创建时间
+7 update_by varchar(32) 是 NULL更新人
+8update_tim
+edatetime 是 NULL更新时间
+9 tenant_id int(10) 是 0 租户ID
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uniq_sys_role_role_cod
+e唯一role_cod
+e
+idx_sysrole_tenant_id 普通tenant_i
+d
+4.4sys_user_role（用户角色关联表）
+表说明：用户与角色的多对多关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键id
+2 user_id varchar(32) 是 NULL用户id（关联sys_user.id）
+3 role_id varchar(32) 是 NULL角色id（关联sys_role.id）
+4tenant_i
+dint(10) 是 0 租户ID
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_sur_user_id 普通 user_id
+idx_sur_role_id 普通 role_id
+
+================================================================================
+
+--- 第 35 页 ---
+
+索引名 类型 字段
+idx_sur_user_role_i
+d普通 (user_id,role_id)
+4.5sys_user_depart（用户部门关联表）
+表说明：用户与部门的多对多关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 ID varchar(32) 否 — 主键id
+2user_i
+dvarchar(32) 是 NULL用户id（关联sys_user.id）
+3 dep_idvarchar(32) 是 NULL部门id（关联sys_depart.id）
+索引：
+索引名 类型 字段
+PRIMARY 主键 ID
+idx_sud_user_dep_i
+d唯一 (user_id,dep_id)
+idx_sud_user_id 普通 user_id
+idx_sud_dep_id 普通 dep_id
+4.6sys_user_position（用户职位关联表）
+表说明：用户与职位的多对多关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 user_id varchar(32) 是 NULL用户id
+3position_i
+dvarchar(32) 是 NULL职位id
+4 create_by varchar(50) 是 NULL创建人
+
+================================================================================
+
+--- 第 36 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+5create_tim
+edatetime 是 NULL创建时间
+6 update_by varchar(50) 是 NULL修改人
+7update_tim
+edatetime 是 NULL修改时间
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_sup_user_id 普通 user_id
+idx_sup_position_id 普通 position_id
+idx_sup_user_position_i
+d普通 (user_id,position_id)
+4.7sys_role_permission（角色权限关联表）
+表说明：角色与菜单/权限的多对多关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 role_id varchar(32) 是 NULL角色id
+3permission_i
+dvarchar(32) 是 NULL权限id
+4data_rule_id
+svarchar(1000) 是 NULL数据权限ids
+5 operate_datedatetime 是 NULL操作时间
+6 operate_ip varchar(100) 是 NULL操作ip
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+
+================================================================================
+
+--- 第 37 页 ---
+
+索引名 类型 字段
+idx_srp_role_per_id 普通 (role_id,permission_id)
+idx_srp_role_id 普通 role_id
+idx_srp_permission_i
+d普通 permission_id
+4.8sys_role_index（角色首页配置表）
+表说明：配置不同角色登录后的首页路由和组件。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 role_code varchar(50) 是 NULL角色编码
+3 url varchar(100) 是 NULL路由地址
+4 component varchar(255) 是 NULL组件
+5 is_route tinyint(1) 是 1 是否路由菜单（0:不是1:是）
+6 priority int(11) 是 0 优先级
+7 status varchar(2) 是 ‘0’ 状态（0:无效1:有效）
+8 create_by varchar(50) 是 NULL创建人
+9 create_timedatetime 是 NULL创建日期
+10 update_by varchar(50) 是 NULL更新人
+11 update_timedatetime 是 NULL更新日期
+12sys_org_cod
+evarchar(64) 是 NULL所属部门
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_sri_role_cod
+e普通role_cod
+e
+
+================================================================================
+
+--- 第 38 页 ---
+
+索引名 类型 字段
+idx_sri_status 普通 status
+idx_sri_priority普通 priority
+4.9sys_depart_permission（部门权限表）
+表说明：部门与权限的关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 depart_id varchar(32) 是 NULL部门id
+3permission_i
+dvarchar(32) 是 NULL权限id
+4data_rule_id
+svarchar(1000) 是 NULL数据规则id
+索引：主键id
+4.10sys_depart_role（部门角色表）
+表说明：定义部门级别的角色。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 depart_id varchar(32) 是 NULL部门id
+3 role_name varchar(200) 是 NULL部门角色名称
+4 role_code varchar(100) 是 NULL部门角色编码
+5descriptio
+nvarchar(255) 是 NULL描述
+6 create_by varchar(32) 是 NULL创建人
+7create_tim
+edatetime 是 NULL创建时间
+
+================================================================================
+
+--- 第 39 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+8 update_by varchar(32) 是 NULL更新人
+9update_tim
+edatetime 是 NULL更新时间
+索引：主键id
+4.11sys_depart_role_permission（部门角色权限表）
+表说明：部门角色与权限的关联表。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键
+2 depart_id varchar(32) 是 NULL部门id
+3 role_id varchar(32) 是 NULL角色id（关联sys_depart_role.id）
+4permission_i
+dvarchar(32) 是 NULL权限id
+5data_rule_id
+svarchar(1000) 是 NULL数据权限ids
+6 operate_datedatetime 是 NULL操作时间
+7 operate_ip varchar(20) 是 NULL操作ip
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_sdrp_role_per_i
+d普通 (role_id,permission_id)
+idx_sdrp_role_id 普通 role_id
+idx_sdrp_per_id 普通 permission_id
+4.12sys_depart_role_user（部门角色用户表）
+表说明：部门角色与用户的关联表。
+
+================================================================================
+
+--- 第 40 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键id
+2 user_idvarchar(32) 是 NULL用户id
+3drole_i
+dvarchar(32) 是 NULL部门角色id（关联sys_depart_role.id）
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+idx_sdr_user_i
+d普通 user_id
+idx_sdr_role_i
+d普通drole_i
+d
+4.13sys_category（分类字典树表）
+表说明：通用分类字典树，支持父子层级，用于系统中各种分类管理。
+序号 字段名 数据类型 可否为空 默认值 说明
+1 id varchar(36) 否 — 主键
+2 pid varchar(36) 是 NULL 父级节点
+3 name varchar(100) 是 NULL 类型名称
+4 code varchar(100) 是 NULL 类型编码（唯一）
+5 create_by varchar(50) 是 NULL 创建人
+6 create_time datetime 是 NULL 创建日期
+7 update_by varchar(50) 是 NULL 更新人
+8 update_time datetime 是 NULL 更新日期
+9 sys_org_code varchar(64) 是 NULL 所属部门
+10 has_child varchar(3) 是 NULL 是否有子节点
+11 tenant_id int(10) 是 0 租户ID
+索引：
+索引名 类型 字段
+
+================================================================================
+
+--- 第 41 页 ---
+
+索引名 类型 字段
+PRIMARY 主键 id
+index_scg_cod
+e唯一cod
+e
+4.14sys_check_rule（校验规则表）
+表说明：存储系统中使用的校验规则定义，以JSON格式存储规则内容。
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(32) 否 — 主键id
+2 rule_name varchar(100) 是 NULL规则名称
+3 rule_code varchar(100) 是 NULL规则Code（唯一）
+4 rule_json varchar(1024) 是 NULL规则JSON
+5rule_descriptio
+nvarchar(200) 是 NULL规则描述
+6 update_by varchar(32) 是 NULL更新人
+7 update_time datetime 是 NULL更新时间
+8 create_by varchar(32) 是 NULL创建人
+9 create_time datetime 是 NULL创建时间
+索引：
+索引名 类型 字段
+PRIMARY 主键 id
+uk_scr_rule_cod
+e唯一rule_cod
+e
+4.15test_enhance_select（测试增强选择表）
+表说明：测试用表，存储省市区联动选择数据。
+序号 字段名 数据类型 可否为空默认值 说明
+
+================================================================================
+
+--- 第 42 页 ---
+
+序号 字段名 数据类型 可否为空默认值 说明
+1 id varchar(36) 否 — 主键
+2 province varchar(100) 是 NULL省份
+3 city varchar(100) 是 NULL市
+4 area varchar(100) 是 NULL区
+5create_tim
+edatetime 是 NULL创建日期
+6 create_by varchar(50) 是 NULL创建人
+索引：主键id
+五、全局枚举值字典
+5.1能源类型（energy_type）
+编码 名称 计量单位 使用场景
+1 电能 kWh 全系统通用
+2 水能 m³ 全系统通用
+3 燃气 m³ 汇总表
+5 压缩空气m³ 班组维度关联
+8 天然气 m³ 班组维度关联
+5.2维度类型（dimension_type）
+编码 含义 使用表
+1 按部门用电tb_team_dimension_relation
+2 按线路用电tb_team_dimension_relation
+3 天然气 tb_team_dimension_relation
+4 压缩空气 tb_team_dimension_relation
+5 企业用水 tb_team_dimension_relation
+
+================================================================================
+
+--- 第 43 页 ---
+
+5.3机构类别（org_category）
+值 含义
+1公司
+2组织机构
+3岗位
+5.4时间维度（time_dimension）
+值 含义
+day 日统计
+month月统计
+year 年统计
+5.5通用状态值
+字段 值 含义 使用表
+isaction Y启用 tb_module
+isaction N停用 tb_module
+status(用户) 1正常 sys_user
+status(用户) 2冻结 sys_user
+status(部门) 1启用 sys_depart
+status(部门) 0不启用 sys_depart
+status(班组) 0停用 tb_team_info/tb_team_dimension_relation
+status(班组) 1启用 tb_team_info/tb_team_dimension_relation
+status(排班) 0取消 tb_team_shift_schedule
+status(排班) 1正常 tb_team_shift_schedule
+del_flag 0正常 sys_user/sys_depart
+del_flag 1已删除 sys_user/sys_depart
+
+================================================================================
+
+--- 第 44 页 ---
+
+字段 值 含义 使用表
+sex 0默认未知 sys_user
+sex 1男 sys_user
+sex 2女 sys_user
+user_identit
+y1普通成员 sys_user
+user_identit
+y2上级 sys_user
+org_type 1一级部门 sys_depart
+org_type 2子部门 sys_depart
+is_route 0不是路由菜单sys_role_index
+is_route 1是路由菜单 sys_role_index
+5.6班次类型（shift_type）
+值 含义 使用表
+早班 早班 tb_team_info/tb_energy_team/tb_team_shift_schedule
+中班 中班 tb_team_info/tb_energy_team/tb_team_shift_schedule
+晚班 晚班 tb_team_info/tb_energy_team/tb_team_shift_schedule
+夜班 夜班 tb_team_info/tb_team_shift_schedule
+
+================================================================================

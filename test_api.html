@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试班组能源统计API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .result {
+            margin-top: 15px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>班组能源统计API测试</h1>
+
+    <div class="section">
+        <h2>1. 测试获取班组列表</h2>
+        <button onclick="testGetTeamList()">测试获取班组列表</button>
+        <div id="teamListResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. 测试获取统计数据</h2>
+        <button onclick="testGetStatistics()">测试获取统计数据</button>
+        <div id="statisticsResult" class="result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. 测试获取趋势数据</h2>
+        <button onclick="testGetTrendData()">测试获取趋势数据</button>
+        <div id="trendResult" class="result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8080/jeecg-boot';
+
+        async function testGetTeamList() {
+            const resultDiv = document.getElementById('teamListResult');
+            resultDiv.innerHTML = '<p>请求中...</p>';
+
+            try {
+                const url = `${BASE_URL}/energy/teamEnergy/getTeamList?dimensionCode=A02A02A01&dimensionType=1`;
+                console.log('请求URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                console.log('班组列表响应:', data);
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✓ 请求成功</p>
+                        <p>找到 ${data.result ? data.result.length : 0} 个班组</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">✗ 请求失败: ${data.message}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultDiv.innerHTML = `<p class="error">✗ 请求异常: ${error.message}</p>`;
+            }
+        }
+
+        async function testGetStatistics() {
+            const resultDiv = document.getElementById('statisticsResult');
+            resultDiv.innerHTML = '<p>请求中...</p>';
+
+            try {
+                const params = new URLSearchParams({
+                    orgCode: 'A02A02A01',
+                    teamCode: 'all',
+                    timeUnit: 'day',
+                    queryDate: '2026-02-16',
+                    energyType: 'all',
+                    dimensionType: '1'
+                });
+
+                const url = `${BASE_URL}/energy/teamEnergy/getStatistics?${params}`;
+                console.log('请求URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                console.log('统计数据响应:', data);
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✓ 请求成功</p>
+                        <h3>统计数据:</h3>
+                        <ul>
+                            <li>总能耗: ${data.result.totalConsumption} ${data.result.energyUnit}</li>
+                            <li>总费用: ${data.result.totalCost} 元</li>
+                            <li>碳排放: ${data.result.carbonEmission} kg</li>
+                            <li>标准煤: ${data.result.standardCoal} tce</li>
+                        </ul>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">✗ 请求失败: ${data.message}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultDiv.innerHTML = `<p class="error">✗ 请求异常: ${error.message}</p>`;
+            }
+        }
+
+        async function testGetTrendData() {
+            const resultDiv = document.getElementById('trendResult');
+            resultDiv.innerHTML = '<p>请求中...</p>';
+
+            try {
+                const params = new URLSearchParams({
+                    orgCode: 'A02A02A01',
+                    teamCode: 'all',
+                    timeUnit: 'day',
+                    queryDate: '2026-02-16',
+                    energyType: 'all',
+                    dimensionType: '1',
+                    metricType: 'consumption'
+                });
+
+                const url = `${BASE_URL}/energy/teamEnergy/getTrendData?${params}`;
+                console.log('请求URL:', url);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                console.log('趋势数据响应:', data);
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✓ 请求成功</p>
+                        <p>X轴数据点: ${data.result.xAxisData ? data.result.xAxisData.length : 0} 个</p>
+                        <p>系列数据: ${data.result.seriesData ? data.result.seriesData.length : 0} 个</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">✗ 请求失败: ${data.message}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                resultDiv.innerHTML = `<p class="error">✗ 请求异常: ${error.message}</p>`;
+            }
+        }
+
+        // 页面加载完成后自动测试
+        window.onload = function() {
+            console.log('页面加载完成，可以点击按钮测试API');
+        };
+    </script>
+</body>
+</html>

@@ -31,7 +31,14 @@
             size="small"
             class="w-32"
           />
-          <a-button type="primary" size="small">查询</a-button>
+          <a-select
+            v-model:value="selectedEnergyType"
+            :options="energyTypeOptions"
+            size="small"
+            class="w-24"
+            placeholder="能源类型"
+          />
+          <a-button type="primary" size="small" :loading="loading" @click="handleQuery">查询</a-button>
         </div>
       </div>
 
@@ -103,51 +110,49 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import type { TreeDataItem } from 'ant-design-vue/es/tree/Tree';
 import type { TableColumnsType } from 'ant-design-vue';
 import dayjs, { Dayjs } from 'dayjs';
+import { message } from 'ant-design-vue';
 import ProcessPie from './components/ProcessPie.vue';
 import ProcessLine from './components/ProcessLine.vue';
+import {
+  getProductionLineTree,
+  getProcessEnergyStatistics,
+  getProcessEnergyPieData,
+  getProcessEnergyTrendData,
+  getProcessEnergyTableData,
+} from './process-energy.api';
+
+// 加载状态
+const loading = ref(false);
 
 // 搜索文本
 const searchText = ref('');
 
 // 树形菜单展开和选中状态
-const expandedKeys = ref<string[]>(['1']);
-const selectedKeys = ref<string[]>(['1-1']);
+const expandedKeys = ref<string[]>([]);
+const selectedKeys = ref<string[]>([]);
+
+// 当前选中的生产线ID
+const selectedLineId = ref<string>('');
 
 // 树形菜单数据
-const treeData = ref<TreeDataItem[]>([
-  {
-    title: '熔炼生产线',
-    key: '1',
-    children: [
-      {
-        title: 'JK熔炼生产线',
-        key: '1-1',
-      },
-      {
-        title: 'MN熔炼生产线',
-        key: '1-2',
-      }
-    ]
-  },
-  {
-    title: '挤压生产线',
-    key: '2',
-    children: [
-      {
-        title: '2800T生产线',
-        key: '2-1',
-      }
-    ]
-  }
-]);
+const treeData = ref<TreeDataItem[]>([]);
 
 // 时间单位选择
 const timeUnit = ref('month');
 const selectedDate = ref<Dayjs>(dayjs());
+
+// 能源类型选项
+const energyTypeOptions = ref([
+  { label: '电', value: 'electricity' },
+  { label: '水', value: 'water' },
+  { label: '气', value: 'gas' },
+  { label: '蒸汽', value: 'steam' },
+]);
+const selectedEnergyType = ref('electricity');
 
 // 统计数据
 interface StatisticsData {
@@ -157,12 +162,12 @@ interface StatisticsData {
   unitConsumption: number;        // 单位产品能耗
 }
 
-// 静态统计数据
+// 统计数据
 const statisticsData = ref<StatisticsData>({
-  totalConsumption: 8668433.80,
-  productionConsumption: 5424683.40,
-  auxiliaryConsumption: 3243750.40,
-  unitConsumption: 0.85
+  totalConsumption: 0,
+  productionConsumption: 0,
+  auxiliaryConsumption: 0,
+  unitConsumption: 0
 });
 
 // 饼图数据
@@ -172,12 +177,7 @@ const pieChartData = ref({
       name: '过程能耗分布',
       type: 'pie' as const,
       radius: ['50%', '70%'],
-      data: [
-        { value: 3424683.40, name: '主工艺过程' },
-        { value: 2067865.00, name: '辅助工艺过程' },
-        { value: 1961614.60, name: '公用工程系统' },
-        { value: 1214444.80, name: '附属生产系统' }
-      ]
+      data: [] as { value: number; name: string }[]
     }
   ]
 });
@@ -186,30 +186,9 @@ const pieChartData = ref({
 const lineChartData = ref({
   xAxis: {
     type: 'category' as const,
-    data: ['1月', '2月', '3月', '4月', '5月', '6月']
+    data: [] as string[]
   },
-  series: [
-    {
-      name: '主工艺过程',
-      type: 'line' as const,
-      data: [320, 332, 301, 334, 390, 330]
-    },
-    {
-      name: '辅助工艺过程',
-      type: 'line' as const,
-      data: [220, 182, 191, 234, 290, 330]
-    },
-    {
-      name: '公用工程系统',
-      type: 'line' as const,
-      data: [150, 232, 201, 154, 190, 330]
-    },
-    {
-      name: '附属生产系统',
-      type: 'line' as const,
-      data: [98, 77, 101, 99, 140, 120]
-    }
-  ]
+  series: [] as { name: string; type: 'line'; data: number[] }[]
 });
 
 // 表格列定义
@@ -252,32 +231,151 @@ const columns: TableColumnsType = [
 ];
 
 // 表格数据
-const tableData = ref([
-  {
-    key: '1',
-    time: '2024-01',
-    mainProcess: 3424683.40,
-    auxiliaryProcess: 2067865.00,
-    utilitySystem: 1961614.60,
-    subsidiarySystem: 1214444.80,
-    total: 8668433.80
-  },
-  {
-    key: '2',
-    time: '2024-02',
-    mainProcess: 3324683.40,
-    auxiliaryProcess: 1967865.00,
-    utilitySystem: 1861614.60,
-    subsidiarySystem: 1114444.80,
-    total: 8268433.80
+const tableData = ref<any[]>([]);
+
+// 获取查询参数
+const getQueryParams = () => {
+  let dateStr = '';
+  if (timeUnit.value === 'year') {
+    dateStr = selectedDate.value.format('YYYY');
+  } else if (timeUnit.value === 'month') {
+    dateStr = selectedDate.value.format('YYYY-MM');
+  } else {
+    dateStr = selectedDate.value.format('YYYY-MM-DD');
   }
-]);
+  return {
+    lineId: selectedLineId.value,
+    timeUnit: timeUnit.value,
+    date: dateStr,
+    energyType: selectedEnergyType.value,
+  };
+};
+
+// 加载生产线树数据
+const loadTreeData = async () => {
+  try {
+    const res = await getProductionLineTree();
+    if (res.success && res.result) {
+      treeData.value = res.result;
+      // 默认选中第一个叶子节点
+      if (res.result.length > 0) {
+        const firstNode = res.result[0];
+        expandedKeys.value = [firstNode.key];
+        if (firstNode.children && firstNode.children.length > 0) {
+          selectedKeys.value = [firstNode.children[0].key];
+          selectedLineId.value = firstNode.children[0].key;
+        } else {
+          selectedKeys.value = [firstNode.key];
+          selectedLineId.value = firstNode.key;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载生产线数据失败:', error);
+  }
+};
+
+// 加载统计数据
+const loadStatistics = async () => {
+  try {
+    const params = getQueryParams();
+    const res = await getProcessEnergyStatistics(params);
+    if (res.success && res.result) {
+      statisticsData.value = res.result;
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error);
+  }
+};
+
+// 加载饼图数据
+const loadPieData = async () => {
+  try {
+    const params = getQueryParams();
+    const res = await getProcessEnergyPieData(params);
+    if (res.success && res.result) {
+      pieChartData.value = {
+        series: [
+          {
+            name: '过程能耗分布',
+            type: 'pie' as const,
+            radius: ['50%', '70%'],
+            data: res.result
+          }
+        ]
+      };
+    }
+  } catch (error) {
+    console.error('加载饼图数据失败:', error);
+  }
+};
+
+// 加载趋势数据
+const loadTrendData = async () => {
+  try {
+    const params = getQueryParams();
+    const res = await getProcessEnergyTrendData(params);
+    if (res.success && res.result) {
+      lineChartData.value = {
+        xAxis: {
+          type: 'category' as const,
+          data: res.result.xAxisData || []
+        },
+        series: res.result.series || []
+      };
+    }
+  } catch (error) {
+    console.error('加载趋势数据失败:', error);
+  }
+};
+
+// 加载表格数据
+const loadTableData = async () => {
+  try {
+    const params = getQueryParams();
+    const res = await getProcessEnergyTableData(params);
+    if (res.success && res.result) {
+      tableData.value = res.result;
+    }
+  } catch (error) {
+    console.error('加载表格数据失败:', error);
+  }
+};
+
+// 查询数据
+const handleQuery = async () => {
+  if (!selectedLineId.value) {
+    message.warning('请先选择生产线');
+    return;
+  }
+  loading.value = true;
+  try {
+    await Promise.all([
+      loadStatistics(),
+      loadPieData(),
+      loadTrendData(),
+      loadTableData(),
+    ]);
+  } finally {
+    loading.value = false;
+  }
+};
 
 // 处理树节点选择
-const handleSelect = (selectedKeys: string[], info: any) => {
-  console.log('selected', selectedKeys, info);
-  // TODO: 根据选中节点更新数据
+const handleSelect = (keys: string[], info: any) => {
+  if (keys.length > 0) {
+    selectedLineId.value = keys[0];
+    handleQuery();
+  }
 };
+
+// 页面初始化
+onMounted(async () => {
+  await loadTreeData();
+  if (selectedLineId.value) {
+    handleQuery();
+  }
+});
 </script>
 
 <style scoped>

@@ -26,7 +26,7 @@
   </template>
   
   <script lang="ts" setup>
-    import { inject, nextTick, ref, onMounted, defineExpose, h } from 'vue';
+    import { inject, nextTick, ref, onMounted, defineExpose, h, watch } from 'vue';
     import { useMessage } from '/@/hooks/web/useMessage';
     import { BasicTree } from '/@/components/Tree';
     import { queryMydimensionTreeList, searchByKeywords } from '../depart.user.api';
@@ -95,7 +95,23 @@
     onMounted(() => {
       loadDepartTreeData();
     });
-  
+
+    // 监听 nowtype 变化，重新加载树数据
+    watch(
+      () => props_type.nowtype,
+      (newVal, oldVal) => {
+        console.log('DimensionTree nowtype 变化:', oldVal, '->', newVal);
+        if (newVal !== oldVal) {
+          // 清空之前的选中状态
+          selectedKeys.value = [];
+          selectedNodeData.value = null;
+          expandedKeys.value = [];
+          // 重新加载树数据
+          loadDepartTreeData();
+        }
+      }
+    );
+
     //console.log('hhr2='+props_type.nowtype);
     
   

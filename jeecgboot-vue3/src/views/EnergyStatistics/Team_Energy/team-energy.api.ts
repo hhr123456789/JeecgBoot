@@ -12,33 +12,33 @@ enum Api {
  * 根据维度获取班组列表
  */
 export const getTeamListByDimension = (params: { dimensionCode: string; dimensionType: number }) => {
-  return defHttp.get({ url: Api.GetTeamList, params });
+  return defHttp.get({ url: Api.GetTeamList, params }, { isTransformResponse: false });
 };
 
 /**
  * 获取班组能源统计数据
  */
 export const getTeamEnergyStatistics = (params: any) => {
-  return defHttp.get({ url: Api.GetStatistics, params });
+  return defHttp.get({ url: Api.GetStatistics, params }, { isTransformResponse: false });
 };
 
 /**
  * 获取班组能源趋势图数据
  */
 export const getTeamEnergyTrendData = (params: any) => {
-  return defHttp.get({ url: Api.GetTrendData, params });
+  return defHttp.get({ url: Api.GetTrendData, params }, { isTransformResponse: false });
 };
 
 /**
  * 获取班组能源排名数据
  */
 export const getTeamEnergyRankingData = (params: any) => {
-  return defHttp.get({ url: Api.GetRankingData, params });
+  return defHttp.get({ url: Api.GetRankingData, params }, { isTransformResponse: false });
 };
 
 /**
  * 获取班组能源明细表数据
  */
 export const getTeamEnergyTableData = (params: any) => {
-  return defHttp.get({ url: Api.GetTableData, params });
+  return defHttp.get({ url: Api.GetTableData, params }, { isTransformResponse: false });
 };
