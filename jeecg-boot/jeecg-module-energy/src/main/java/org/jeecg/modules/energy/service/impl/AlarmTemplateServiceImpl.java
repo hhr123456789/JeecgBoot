@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.*;
 
 /**
@@ -27,6 +29,11 @@ import java.util.*;
 @Slf4j
 @Service
 public class AlarmTemplateServiceImpl extends ServiceImpl<AlarmTemplateMapper, AlarmTemplate> implements IAlarmTemplateService {
+
+    private static final Set<String> ALARM_TYPES = new HashSet<>(Arrays.asList("device", "energy"));
+    private static final Set<String> ENERGY_TYPES = new HashSet<>(Arrays.asList("1", "2", "8", "5"));
+    private static final Set<String> DEVICE_TYPES = new HashSet<>(Arrays.asList("GFMT", "CEC", "ACOP", "WMCT", "METE", "ELEV"));
+    private static final Set<String> LEVEL_TYPES = new HashSet<>(Arrays.asList("high", "medium", "low"));
 
     @Autowired
     private AlarmTemplateMapper alarmTemplateMapper;
@@ -67,6 +74,8 @@ public class AlarmTemplateServiceImpl extends ServiceImpl<AlarmTemplateMapper, A
 
     @Override
     public void saveTemplate(AlarmTemplate template) {
+        validateTemplate(template);
+        normalizeTemplate(template);
         LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
         template.setCreateBy(loginUser != null ? loginUser.getUsername() : "system");
         template.setCreateTime(new Date());
@@ -80,10 +89,58 @@ public class AlarmTemplateServiceImpl extends ServiceImpl<AlarmTemplateMapper, A
 
     @Override
     public void updateTemplate(AlarmTemplate template) {
+        if (!StringUtils.hasText(template.getId())) {
+            throw new RuntimeException("模板ID不能为空");
+        }
+        validateTemplate(template);
+        normalizeTemplate(template);
         LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
         template.setUpdateBy(loginUser != null ? loginUser.getUsername() : "system");
         template.setUpdateTime(new Date());
         this.updateById(template);
+    }
+
+    private void validateTemplate(AlarmTemplate template) {
+        if (template == null) {
+            throw new RuntimeException("模板参数不能为空");
+        }
+        if (!StringUtils.hasText(template.getName())) {
+            throw new RuntimeException("模板名称不能为空");
+        }
+        if (!StringUtils.hasText(template.getType()) || !ALARM_TYPES.contains(template.getType())) {
+            throw new RuntimeException("模板类型不合法");
+        }
+        if (!StringUtils.hasText(template.getEnergyType()) || !ENERGY_TYPES.contains(template.getEnergyType())) {
+            throw new RuntimeException("能源类型不合法");
+        }
+        if (!StringUtils.hasText(template.getConditions())) {
+            throw new RuntimeException("告警条件不能为空");
+        }
+        if (StringUtils.hasText(template.getLevel()) && !LEVEL_TYPES.contains(template.getLevel())) {
+            throw new RuntimeException("告警等级不合法");
+        }
+
+        if ("device".equals(template.getType())) {
+            if (!StringUtils.hasText(template.getDeviceType()) || !DEVICE_TYPES.contains(template.getDeviceType())) {
+                throw new RuntimeException("设备告警模板必须选择设备类型");
+            }
+        }
+    }
+
+    private void normalizeTemplate(AlarmTemplate template) {
+        if (!StringUtils.hasText(template.getLevel())) {
+            template.setLevel("medium");
+        }
+        if (template.getSilencePeriod() == null || template.getSilencePeriod() < 0) {
+            template.setSilencePeriod(60);
+        }
+
+        if ("energy".equals(template.getType())) {
+            template.setDeviceType(null);
+            template.setTargetScope("device");
+        } else {
+            template.setTargetScope(null);
+        }
     }
 
     @Override

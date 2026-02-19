@@ -37,11 +37,13 @@ public class AlarmRuleController {
             @ApiParam("能源类型") @RequestParam(required = false) String energyType,
             @ApiParam("状态") @RequestParam(required = false) Integer status,
             @ApiParam("部门ID") @RequestParam(required = false) String deptId,
+            @ApiParam("监控节点ID") @RequestParam(required = false) String targetNodeId,
+            @ApiParam("维度类型") @RequestParam(required = false) Integer dimensionType,
             @ApiParam("页码") @RequestParam(defaultValue = "1") Integer pageNo,
             @ApiParam("每页数量") @RequestParam(defaultValue = "10") Integer pageSize) {
         try {
             IPage<AlarmRule> page = alarmRuleService.queryPageList(
-                    name, ruleType, energyType, status, deptId, pageNo, pageSize);
+                    name, ruleType, energyType, status, deptId, targetNodeId, dimensionType, pageNo, pageSize);
             return Result.OK(page);
         } catch (Exception e) {
             log.error("查询规则列表失败", e);

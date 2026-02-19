@@ -696,6 +696,7 @@ const handleAddEnergyTemplate = () => {
   modalTitle.value = '新增用电告警模板';
   resetForm();
   formState.type = 'energy';
+  formState.targetScope = 'device';
   modalVisible.value = true;
 };
 
@@ -772,10 +773,17 @@ const handleModalSubmit = async () => {
       return;
     }
 
+    if (formState.type === 'device' && !formState.deviceType) {
+      message.error('Please select device type for device template');
+      return;
+    }
+
     try {
       // 构建提交数据
       const submitData = {
         ...formState,
+        deviceType: formState.type === 'energy' ? '' : formState.deviceType,
+        targetScope: formState.type === 'energy' ? 'device' : formState.targetScope,
         conditions: JSON.stringify(formState.conditions),
         notifyMethods: JSON.stringify(formState.notifyMethods),
       };
@@ -853,6 +861,13 @@ const handleTypeChange = () => {
     duration: 5,
     checkInterval: 10,
   }];
+
+  if (formState.type === 'energy') {
+    formState.deviceType = '';
+    formState.targetScope = 'device';
+  } else {
+    formState.targetScope = '';
+  }
 };
 
 // 能源类型改变

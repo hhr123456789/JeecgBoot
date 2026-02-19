@@ -38,7 +38,11 @@ CREATE TABLE `tb_alarm_rule` (
   `rule_type` varchar(20) NOT NULL COMMENT '告警类型：device-设备告警,energy-能源告警',
   `energy_type` varchar(10) NOT NULL COMMENT '能源类型：1-电,2-水,8-天然气,5-压缩空气',
   `target_type` varchar(50) DEFAULT NULL COMMENT '监控对象类型（设备告警用）',
-  `target_scope` varchar(50) DEFAULT NULL COMMENT '监控范围（能源告警用）',
+  `target_scope` varchar(50) DEFAULT NULL COMMENT '监控范围：selected-仅选中节点,children-包含子节点,custom-自定义选择,device-具体设备',
+  `target_node_id` varchar(64) DEFAULT NULL COMMENT '监控节点ID（维度树选中的节点）',
+  `target_node_name` varchar(100) DEFAULT NULL COMMENT '监控节点名称',
+  `target_node_ids` text DEFAULT NULL COMMENT '自定义选择的节点ID列表JSON',
+  `dimension_type` int(11) DEFAULT NULL COMMENT '维度类型：1-按部门,2-按线路,3-天然气,4-压缩空气,5-企业用水',
   `conditions` text NOT NULL COMMENT '告警条件配置JSON数组',
   `level` varchar(20) NOT NULL DEFAULT 'medium' COMMENT '告警级别：high/medium/low',
   `notify_methods` varchar(200) DEFAULT NULL COMMENT '通知方式JSON数组',
@@ -57,5 +61,7 @@ CREATE TABLE `tb_alarm_rule` (
   KEY `idx_energy_type` (`energy_type`),
   KEY `idx_template_id` (`template_id`),
   KEY `idx_status` (`status`),
-  KEY `idx_dept_id` (`dept_id`)
+  KEY `idx_dept_id` (`dept_id`),
+  KEY `idx_target_node_id` (`target_node_id`),
+  KEY `idx_dimension_type` (`dimension_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='告警规则表';

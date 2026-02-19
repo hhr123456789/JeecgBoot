@@ -31,13 +31,17 @@ public interface AlarmRuleMapper extends BaseMapper<AlarmRule> {
             "<if test='energyType != null and energyType != \"\" and energyType != \"all\"'> AND r.energy_type = #{energyType} </if>" +
             "<if test='status != null'> AND r.status = #{status} </if>" +
             "<if test='deptId != null and deptId != \"\"'> AND r.dept_id = #{deptId} </if>" +
+            "<if test='targetNodeId != null and targetNodeId != \"\"'> AND r.target_node_id = #{targetNodeId} </if>" +
+            "<if test='dimensionType != null'> AND r.dimension_type = #{dimensionType} </if>" +
             "ORDER BY r.update_time DESC" +
             "</script>")
     List<AlarmRule> selectRuleListWithTemplate(@Param("name") String name,
                                                 @Param("ruleType") String ruleType,
                                                 @Param("energyType") String energyType,
                                                 @Param("status") Integer status,
-                                                @Param("deptId") String deptId);
+                                                @Param("deptId") String deptId,
+                                                @Param("targetNodeId") String targetNodeId,
+                                                @Param("dimensionType") Integer dimensionType);
 
     /**
      * 根据模板ID查询使用该模板的规则

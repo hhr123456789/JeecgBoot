@@ -49,8 +49,24 @@ public class AlarmRule implements Serializable {
     private String targetType;
 
     @TableField("target_scope")
-    @ApiModelProperty(value = "监控范围（能源告警用）")
+    @ApiModelProperty(value = "监控范围：selected-仅选中节点,children-包含子节点,custom-自定义选择")
     private String targetScope;
+
+    @TableField("target_node_id")
+    @ApiModelProperty(value = "监控节点ID（维度树选中的节点）")
+    private String targetNodeId;
+
+    @TableField("target_node_name")
+    @ApiModelProperty(value = "监控节点名称")
+    private String targetNodeName;
+
+    @TableField("target_node_ids")
+    @ApiModelProperty(value = "自定义选择的节点ID列表JSON")
+    private String targetNodeIds;
+
+    @TableField("dimension_type")
+    @ApiModelProperty(value = "维度类型：1-按部门,2-按线路,3-天然气,4-压缩空气,5-企业用水")
+    private Integer dimensionType;
 
     @ApiModelProperty(value = "告警条件配置JSON数组")
     private String conditions;

@@ -1,28 +1,17 @@
 <template>
   <div class="flex h-full">
-    <!-- 左侧部门树 -->
-    <div class="w-64 bg-white p-4 border-r">
-      <div class="mb-4">
-        <a-input-search
-          v-model:value="searchText"
-          placeholder="搜索部门"
-          @search="onSearch"
-          class="mb-2"
-        />
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-gray-600">部门列表</span>
-          <a-button type="link" @click="expandAll">
-            {{ isExpanded ? '收起' : '展开' }}
-          </a-button>
-        </div>
-      </div>
-      <a-tree
-        v-model:expandedKeys="expandedKeys"
-        v-model:selectedKeys="selectedKeys"
-        :tree-data="treeData"
-        :fieldNames="{ title: 'name', key: 'id' }"
-        @select="onSelect"
-      />
+    <!-- 左侧维度树 - 参考班组用能 -->
+    <div class="left-panel bg-white p-4 border-r" style="width: 320px; flex-shrink: 0;">
+      <a-tabs v-model:activeKey="activeTabKey" @change="handleTabChange" size="small">
+        <a-tab-pane v-for="item in dimensionList" :key="item.key" :tab="item.title" :forceRender="false">
+          <DimensionTree
+            @select="onDimensionTreeSelect"
+            :nowtype="item.nowtype"
+            :select-level="2"
+            style="margin-top: -10px;"
+          />
+        </a-tab-pane>
+      </a-tabs>
     </div>
 
     <!-- 右侧内容区 -->
@@ -176,13 +165,13 @@
           </a-select>
         </a-form-item>
 
-        <a-form-item 
-          label="监控对象类型" 
+        <a-form-item
+          label="监控对象类型"
           name="targetType"
           v-if="formState.ruleType === 'device'"
         >
-          <a-select 
-            v-model:value="formState.targetType" 
+          <a-select
+            v-model:value="formState.targetType"
             placeholder="请选择监控对象类型"
           >
             <a-select-option value="GFMT">仪表类/GFMT</a-select-option>
@@ -194,20 +183,46 @@
           </a-select>
         </a-form-item>
 
-        <a-form-item 
-          label="监控对象范围" 
-          name="targetScope"
-          v-if="formState.ruleType === 'energy'"
-        >
-          <a-select 
-            v-model:value="formState.targetScope" 
-            placeholder="请选择监控对象范围"
-          >
-            <a-select-option value="department">按部门</a-select-option>
-            <a-select-option value="line">按线路</a-select-option>
-            <a-select-option value="workshop">按车间</a-select-option>
-            <a-select-option value="device">按设备</a-select-option>
-          </a-select>
+        <!-- 监控对象 - 从左侧维度树选择或手动选择 -->
+        <a-form-item label="监控对象" name="targetNodes">
+          <div class="target-nodes-area">
+            <div v-if="selectedDimensionNode" class="selected-dimension mb-2">
+              <span class="text-gray-500 text-xs">当前维度：</span>
+              <a-tag color="blue">{{ currentDimensionName }}</a-tag>
+              <span class="text-gray-500 text-xs ml-2">选中节点：</span>
+              <a-tag color="green">{{ formState.targetNodeName || '未选择' }}</a-tag>
+            </div>
+            <div v-else class="text-gray-400 text-xs mb-2">
+              请在左侧维度树中选择监控对象
+            </div>
+
+            <!-- 监控范围选择 -->
+            <a-radio-group v-if="formState.ruleType === 'device'" v-model:value="formState.targetScope" class="mb-2">
+              <a-radio value="selected">仅选中节点</a-radio>
+              <a-radio value="children">包含子节点</a-radio>
+              <a-radio value="custom">自定义选择</a-radio>
+            </a-radio-group>
+            <div v-else class="mb-2">
+              <a-tag color="blue">具体设备（必选）</a-tag>
+            </div>
+
+            <!-- 自定义选择时显示树选择器 -->
+            <a-tree-select
+              v-if="formState.ruleType === 'device' && formState.targetScope === 'custom'"
+              v-model:value="formState.targetNodeIds"
+              :tree-data="targetTreeData"
+              :field-names="{ label: 'title', value: 'key', children: 'children' }"
+              tree-checkable
+              :show-checked-strategy="SHOW_PARENT"
+              placeholder="请选择具体的监控节点"
+              style="width: 100%"
+              :max-tag-count="3"
+              allow-clear
+            />
+          </div>
+          <div class="text-gray-400 text-xs mt-1">
+            设备告警：监控具体设备；能源告警：监控选中维度节点的能源消耗
+          </div>
         </a-form-item>
 
         <a-divider orientation="left">告警条件配置（可添加多个条件，满足任一即告警）</a-divider>
@@ -487,12 +502,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, watch, nextTick } from 'vue';
 import type { TableColumnsType } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
 import { useRoute } from 'vue-router';
+import { TreeSelect } from 'ant-design-vue';
 import dayjs from 'dayjs';
+import DimensionTree from '../../Energy_Depart/components/DimensionTree.vue';
+import { defHttp } from '/@/utils/http/axios';
 import {
   getRuleList,
   addRule,
@@ -503,6 +521,7 @@ import {
   getTemplateOptions
 } from '/@/api/energy/alarm';
 
+const SHOW_PARENT = TreeSelect.SHOW_PARENT;
 const route = useRoute();
 
 // 类型定义
@@ -528,7 +547,11 @@ interface RuleRecord {
   ruleType: 'device' | 'energy';  // 告警类型
   energyType: string;              // 能源类型：1-电,2-水,8-天然气,5-压缩空气
   targetType?: string;             // 设备类型（设备告警用）
-  targetScope?: string;            // 监控范围（能源告警用）
+  targetScope?: string;            // 监控范围
+  targetNodeId?: string;           // 监控节点ID
+  targetNodeName?: string;         // 监控节点名称
+  targetNodeIds?: string[] | string; // 自定义选择的节点ID列表
+  dimensionType?: number;          // 维度类型
   conditions: RuleCondition[];     // 告警条件数组
   level: 'high' | 'medium' | 'low';
   notifyMethods: string[];         // 通知方式
@@ -543,11 +566,16 @@ interface RuleRecord {
 }
 
 interface FormState {
+  id?: string;
   name: string;
   ruleType: 'device' | 'energy';
   energyType: string;
   targetType?: string;
-  targetScope?: string;
+  targetScope: string;
+  targetNodeIds: string[];         // 选中的节点ID列表
+  targetNodeId?: string;           // 主监控节点ID
+  targetNodeName?: string;         // 主监控节点名称
+  dimensionType?: number;          // 维度类型
   conditions: RuleCondition[];
   level: 'high' | 'medium' | 'low';
   notifyMethods: string[];
@@ -555,32 +583,129 @@ interface FormState {
   silencePeriod: number;
   remark: string;
   status: boolean;
-  templateId?: string; // 关联的模板ID
+  templateId?: string;
 }
 
-// 部门树相关
-const searchText = ref('');
-const isExpanded = ref(false);
-const expandedKeys = ref<string[]>([]);
-const selectedKeys = ref<string[]>([]);
-const treeData = ref<TreeNode[]>([
-  {
-    id: '1',
-    name: '生产部',
-    children: [
-      { id: '1-1', name: '一号车间' },
-      { id: '1-2', name: '二号车间' },
-    ],
-  },
-  {
-    id: '2',
-    name: '设备部',
-    children: [
-      { id: '2-1', name: '设备维护组' },
-      { id: '2-2', name: '设备管理组' },
-    ],
-  },
-]);
+// ==================== 维度树相关 ====================
+const activeTabKey = ref('info1');
+const currentDimensionType = ref(1);
+const dimensionList = ref<any[]>([]);
+const selectedDimensionNode = ref<any>(null);
+const targetTreeData = ref<any[]>([]);
+
+// 当前维度名称
+const currentDimensionName = ref('按部门（用电）');
+
+// 辅助函数：获取节点名称（兼容多种数据格式）
+const getNodeName = (node: any): string => {
+  if (!node) return '';
+  if (typeof node.title === 'string') return node.title;
+  if (typeof node.name === 'string') return node.name;
+  if (typeof node.orgName === 'string') return node.orgName;
+  if (typeof node.label === 'string') return node.label;
+  // 处理 VNode 对象的情况
+  if (node.title && typeof node.title === 'object') {
+    return node.title.props?.title || node.title.children || '';
+  }
+  return '';
+};
+
+// 辅助函数：获取节点ID（兼容多种数据格式）
+const getNodeId = (node: any): string => {
+  if (!node) return '';
+  return node.orgCode || node.id || node.key || node.value || '';
+};
+
+// 获取维度字典数据
+const loadDimensionDictData = () => {
+  defHttp.get({
+    url: '/sys/dict/getDictItems/dimensionCode'
+  })
+  .then((res) => {
+    if (res && Array.isArray(res)) {
+      dimensionList.value = res.map((item, index) => ({
+        key: `info${index + 1}`,
+        title: item.text,
+        nowtype: Number(index + 1),
+        value: Number(index + 1)
+      }));
+      if (dimensionList.value.length > 0) {
+        activeTabKey.value = dimensionList.value[0].key;
+        currentDimensionType.value = dimensionList.value[0].nowtype;
+        currentDimensionName.value = dimensionList.value[0].title;
+      }
+    } else {
+      // 默认维度列表
+      dimensionList.value = [
+        { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+        { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+        { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+        { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+        { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
+      ];
+    }
+  })
+  .catch(() => {
+    dimensionList.value = [
+      { key: 'info1', title: '按部门（用电）', nowtype: 1, value: 1 },
+      { key: 'info2', title: '按线路（用电）', nowtype: 2, value: 2 },
+      { key: 'info3', title: '天然气', nowtype: 3, value: 3 },
+      { key: 'info4', title: '压缩空气', nowtype: 4, value: 4 },
+      { key: 'info5', title: '企业用水', nowtype: 5, value: 5 }
+    ];
+  });
+};
+
+// 处理标签页切换
+const handleTabChange = (key: string) => {
+  activeTabKey.value = key;
+  const selectedDimension = dimensionList.value.find(item => item.key === key);
+  if (selectedDimension) {
+    currentDimensionType.value = selectedDimension.nowtype;
+    currentDimensionName.value = selectedDimension.title;
+
+    // 根据维度类型自动设置能源类型
+    if (selectedDimension.nowtype === 3) {
+      formState.energyType = '8'; // 天然气
+    } else if (selectedDimension.nowtype === 4) {
+      formState.energyType = '5'; // 压缩空气
+    } else if (selectedDimension.nowtype === 5) {
+      formState.energyType = '2'; // 水
+    } else {
+      formState.energyType = '1'; // 电
+    }
+  }
+  // 清空选中节点
+  selectedDimensionNode.value = null;
+};
+
+// 维度树选择事件
+const onDimensionTreeSelect = (data: any) => {
+  console.log('维度树选中节点:', data);
+  selectedDimensionNode.value = data;
+
+  // 使用辅助函数获取节点信息
+  const nodeId = getNodeId(data);
+  const nodeName = getNodeName(data);
+
+  // 更新表单中的监控对象信息（用于新增规则时）
+  formState.targetNodeId = nodeId;
+  formState.targetNodeName = nodeName;
+  formState.dimensionType = currentDimensionType.value;
+
+  // 构建树选择器数据（用于自定义选择）
+  if (data.children && data.children.length > 0) {
+    targetTreeData.value = [data];
+  } else {
+    targetTreeData.value = [];
+  }
+
+  // 注意：不自动按节点筛选规则列表，因为现有数据可能没有设置 target_node_id
+  // 用户可以通过查询按钮手动筛选
+};
+
+// 选中的部门ID（用于筛选）
+const selectedDeptId = ref('');
 
 // 搜索相关
 const ruleName = ref('');
@@ -693,7 +818,11 @@ const formState = reactive<FormState>({
   ruleType: 'device',
   energyType: '1',
   targetType: '',
-  targetScope: '',
+  targetScope: 'selected',
+  targetNodeIds: [],
+  targetNodeId: '',
+  targetNodeName: '',
+  dimensionType: 1,
   conditions: [
     {
       metric: '',
@@ -722,19 +851,6 @@ const formRules = {
 };
 
 // 方法定义
-const onSearch = (value: string) => {
-  console.log('search:', value);
-};
-
-const expandAll = () => {
-  isExpanded.value = !isExpanded.value;
-  expandedKeys.value = isExpanded.value ? treeData.value.map(node => node.id) : [];
-};
-
-const onSelect = (selectedKeys: string[]) => {
-  console.log('selected:', selectedKeys);
-};
-
 const handleSearch = () => {
   pagination.current = 1;
   loadRuleList();
@@ -756,6 +872,9 @@ const loadRuleList = async () => {
       name: ruleName.value || undefined,
       ruleType: ruleType.value !== 'all' ? ruleType.value : undefined,
       energyType: energyType.value !== 'all' ? energyType.value : undefined,
+      // 暂不按维度节点筛选，因为现有数据可能没有设置 target_node_id
+      // targetNodeId: selectedDeptId.value || undefined,
+      // dimensionType: selectedDeptId.value ? currentDimensionType.value : undefined,
       pageNo: pagination.current,
       pageSize: pagination.pageSize,
     };
@@ -883,6 +1002,10 @@ const handleTableChange = (pag: any) => {
 };
 
 const handleAddRule = () => {
+  if (!selectedDimensionNode.value) {
+    message.warning('请先在左侧维度树中选择监控对象');
+    return;
+  }
   modalTitle.value = '新增告警规则';
   resetForm();
   modalVisible.value = true;
@@ -922,12 +1045,20 @@ const handleTemplateSelect = () => {
 // 应用模板到表单
 const applyTemplate = (template: any) => {
   resetForm();
+
+  const node = selectedDimensionNode.value;
+  const isEnergyTemplate = template.type === 'energy';
+
   Object.assign(formState, {
     name: '', // 规则名称需要用户自己填写
     ruleType: template.type,
     energyType: template.energyType,
-    targetType: template.deviceType || '',
-    targetScope: template.targetScope || '',
+    targetType: isEnergyTemplate ? '' : (template.deviceType || ''),
+    targetScope: isEnergyTemplate ? 'device' : (template.targetScope || 'selected'),
+    targetNodeIds: [],
+    targetNodeId: getNodeId(node),
+    targetNodeName: getNodeName(node),
+    dimensionType: currentDimensionType.value,
     conditions: JSON.parse(JSON.stringify(template.conditions)),
     level: template.level,
     notifyMethods: [...template.notifyMethods],
@@ -945,8 +1076,23 @@ const handleView = (record: RuleRecord) => {
 
 const handleEdit = (record: RuleRecord) => {
   modalTitle.value = '编辑规则';
+  // 解析 targetNodeIds
+  let targetNodeIds: string[] = [];
+  try {
+    if (typeof record.targetNodeIds === 'string') {
+      targetNodeIds = JSON.parse(record.targetNodeIds);
+    } else if (Array.isArray(record.targetNodeIds)) {
+      targetNodeIds = record.targetNodeIds;
+    }
+  } catch (e) {
+    targetNodeIds = [];
+  }
+
   Object.assign(formState, {
     ...record,
+    targetScope: record.ruleType === 'energy' ? 'device' : (record.targetScope || 'selected'),
+    targetType: record.ruleType === 'energy' ? '' : record.targetType,
+    targetNodeIds,
     conditions: JSON.parse(JSON.stringify(record.conditions)) // 深拷贝
   });
   modalVisible.value = true;
@@ -999,10 +1145,39 @@ const handleModalSubmit = async () => {
       return;
     }
 
+    // 验证监控对象
+    const resolvedTargetNodeId = formState.targetNodeId || selectedDimensionNode.value?.orgCode || selectedDimensionNode.value?.id;
+    const resolvedTargetNodeName = formState.targetNodeName || selectedDimensionNode.value?.title || selectedDimensionNode.value?.name;
+
+    if (!resolvedTargetNodeId) {
+      message.error('请选择监控对象');
+      return;
+    }
+
+    if (formState.ruleType === 'device' && !formState.targetType) {
+      message.error('设备告警必须选择设备类型');
+      return;
+    }
+
+    if (formState.ruleType === 'energy') {
+      const hasChildren = Array.isArray(selectedDimensionNode.value?.children) && selectedDimensionNode.value.children.length > 0;
+      const selectedIsDevice = selectedDimensionNode.value?.nodeType === 'device' || !hasChildren;
+      if (selectedDimensionNode.value && !selectedIsDevice) {
+        message.error('能源告警必须选择具体设备节点');
+        return;
+      }
+    }
+
     try {
       // 构建提交数据
       const submitData = {
         ...formState,
+        targetType: formState.ruleType === 'energy' ? '' : formState.targetType,
+        targetScope: formState.ruleType === 'energy' ? 'device' : formState.targetScope,
+        targetNodeId: resolvedTargetNodeId,
+        targetNodeName: resolvedTargetNodeName,
+        dimensionType: formState.dimensionType || currentDimensionType.value,
+        targetNodeIds: JSON.stringify(formState.targetNodeIds || []),
         conditions: JSON.stringify(formState.conditions),
         notifyMethods: JSON.stringify(formState.notifyMethods),
         notifyUsers: JSON.stringify(formState.notifyUsers),
@@ -1031,12 +1206,19 @@ const handleModalCancel = () => {
 };
 
 const resetForm = () => {
+  const node = selectedDimensionNode.value;
+
   Object.assign(formState, {
+    id: undefined,
     name: '',
     ruleType: 'device',
     energyType: '1',
     targetType: '',
-    targetScope: '',
+    targetScope: 'selected',
+    targetNodeIds: [],
+    targetNodeId: getNodeId(node),
+    targetNodeName: getNodeName(node),
+    dimensionType: currentDimensionType.value,
     conditions: [
       {
         metric: '',
@@ -1085,6 +1267,14 @@ const handleRuleTypeChange = () => {
     duration: 5,
     checkInterval: 10,
   }];
+
+  if (formState.ruleType === 'energy') {
+    formState.targetType = '';
+    formState.targetScope = 'device';
+    formState.targetNodeIds = [];
+  } else {
+    formState.targetScope = 'selected';
+  }
 };
 
 // 能源类型改变
@@ -1191,6 +1381,8 @@ const getLevelText = (level: string) => {
 
 // 生命周期钩子
 onMounted(() => {
+  // 加载维度字典数据
+  loadDimensionDictData();
   // 加载规则列表
   loadRuleList();
   // 加载模板选项
@@ -1227,6 +1419,47 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 左侧维度树面板 */
+.left-panel {
+  min-height: calc(100vh - 120px);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.left-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.left-panel::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.left-panel::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 监控对象选择区域 */
+.target-nodes-area {
+  background: #fafafa;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e8e8e8;
+}
+
+.selected-dimension {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .condition-config-area {
   max-height: 400px;
   overflow-y: auto;
@@ -1248,5 +1481,14 @@ onMounted(() => {
   margin: 16px 0;
   font-weight: 500;
   color: #1890ff;
+}
+
+:deep(.ant-tabs-nav) {
+  margin-bottom: 8px;
+}
+
+:deep(.ant-tabs-tab) {
+  padding: 8px 12px;
+  font-size: 13px;
 }
 </style>

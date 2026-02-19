@@ -17,7 +17,8 @@ public interface IAlarmRuleService extends IService<AlarmRule> {
      * 分页查询规则列表
      */
     IPage<AlarmRule> queryPageList(String name, String ruleType, String energyType,
-                                    Integer status, String deptId, Integer pageNo, Integer pageSize);
+                                    Integer status, String deptId, String targetNodeId,
+                                    Integer dimensionType, Integer pageNo, Integer pageSize);
 
     /**
      * 保存规则
