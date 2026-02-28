@@ -106,17 +106,23 @@ public class ProductEnergyServiceImpl implements IProductEnergyService {
             Map<String, List<TbProductEnergyConsumption>> groupedByProduct = list.stream()
                 .collect(Collectors.groupingBy(TbProductEnergyConsumption::getProductCode));
 
+            // 产品名称映射
+            Map<String, String> productNameMap = new HashMap<>();
+            List<Map<String, Object>> productNameList = productEnergyMapper.getProductNamesByCodes(productCodes);
+            if (productNameList != null) {
+                for (Map<String, Object> item : productNameList) {
+                    Object codeObj = item.get("code");
+                    Object nameObj = item.get("name");
+                    if (codeObj != null && nameObj != null) {
+                        productNameMap.put(codeObj.toString(), nameObj.toString());
+                    }
+                }
+            }
+
             // 提取时间轴
             List<String> xAxisData = list.stream()
-                .map(item -> {
-                    if ("month".equals(timeDimension)) {
-                        return item.getStatMonth();
-                    } else if ("year".equals(timeDimension)) {
-                        return item.getStatYear();
-                    } else {
-                        return item.getStatDate().toString();
-                    }
-                })
+                .map(item -> getTimeKey(item, timeDimension))
+                .filter(Objects::nonNull)
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
@@ -127,11 +133,23 @@ public class ProductEnergyServiceImpl implements IProductEnergyService {
                 List<TbProductEnergyConsumption> productData = groupedByProduct.get(productCode);
                 if (productData != null && !productData.isEmpty()) {
                     Map<String, Object> series = new HashMap<>();
-                    series.put("name", productData.get(0).getProductCode());
+                    String seriesName = productNameMap.getOrDefault(productCode, productCode);
+                    series.put("name", seriesName);
                     series.put("type", "line");
-                    series.put("data", productData.stream()
-                        .map(TbProductEnergyConsumption::getUnitConsumption)
-                        .collect(Collectors.toList()));
+
+                    Map<String, BigDecimal> valueMap = productData.stream()
+                        .filter(item -> getTimeKey(item, timeDimension) != null)
+                        .collect(Collectors.toMap(
+                            item -> getTimeKey(item, timeDimension),
+                            TbProductEnergyConsumption::getUnitConsumption,
+                            (first, second) -> first
+                        ));
+
+                    List<Object> seriesData = xAxisData.stream()
+                        .map(key -> valueMap.getOrDefault(key, null))
+                        .collect(Collectors.toList());
+
+                    series.put("data", seriesData);
                     seriesList.add(series);
                 }
             }
@@ -284,6 +302,17 @@ public class ProductEnergyServiceImpl implements IProductEnergyService {
             case 5: return "m³";
             default: return "kWh";
         }
+    }
+
+    private String getTimeKey(TbProductEnergyConsumption item, String timeDimension) {
+        if (item == null) return null;
+        if ("month".equals(timeDimension)) {
+            return item.getStatMonth();
+        }
+        if ("year".equals(timeDimension)) {
+            return item.getStatYear();
+        }
+        return item.getStatDate() != null ? item.getStatDate().toString() : null;
     }
 
     @Override

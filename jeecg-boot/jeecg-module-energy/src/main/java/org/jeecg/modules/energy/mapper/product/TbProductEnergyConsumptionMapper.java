@@ -150,6 +150,19 @@ public interface TbProductEnergyConsumptionMapper extends BaseMapper<TbProductEn
     List<String> getProductCodesByCategory(@Param("categoryId") String categoryId);
 
     /**
+     * 根据产品编码获取产品名称
+     */
+    @Select("<script>" +
+            "SELECT product_code as code, product_name as name " +
+            "FROM tb_product_info " +
+            "WHERE product_code IN " +
+            "<foreach collection='codes' item='code' open='(' separator=',' close=')'>" +
+            "#{code}" +
+            "</foreach>" +
+            "</script>")
+    List<Map<String, Object>> getProductNamesByCodes(@Param("codes") List<String> codes);
+
+    /**
      * 获取可用的能源类型列表
      */
     @Select("SELECT DISTINCT energy_type as value, energy_type_name as label, energy_unit as unit " +

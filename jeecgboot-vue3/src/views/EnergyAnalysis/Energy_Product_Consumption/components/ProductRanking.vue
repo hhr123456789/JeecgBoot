@@ -20,6 +20,7 @@ const props = defineProps<{
       data: number[];
     }[];
   };
+  unitLabel: string;
 }>();
 
 // 图表DOM引用
@@ -43,7 +44,8 @@ const initChart = () => {
       },
       formatter: (params: any) => {
         const item = params[0];
-        return `${item.name}<br/>${item.marker} ${item.value} kWh/件`;
+        const unit = props.unitLabel || 'kWh/件';
+        return `${item.name}<br/>${item.marker} ${item.value} ${unit}`;
       }
     },
     grid: {
@@ -55,7 +57,7 @@ const initChart = () => {
     },
     xAxis: {
       type: 'value',
-      name: 'kWh/件',
+      name: props.unitLabel || 'kWh/件',
       nameTextStyle: {
         color: '#666',
         fontSize: 12
@@ -123,12 +125,15 @@ const initChart = () => {
 
 // 监听数据变化
 watch(
-  () => props.chartData,
+  [() => props.chartData, () => props.unitLabel],
   () => {
     if (chartInstance) {
       chartInstance.setOption({
         yAxis: {
           data: props.chartData.yAxis.data
+        },
+        xAxis: {
+          name: props.unitLabel || 'kWh/件'
         },
         series: props.chartData.series.map(item => ({
           ...item,

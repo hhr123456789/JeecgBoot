@@ -20,6 +20,7 @@ const props = defineProps<{
       }[];
     }[];
   };
+  unitLabel: string;
 }>();
 
 // 图表DOM引用
@@ -38,7 +39,10 @@ const initChart = () => {
   const options: EChartsOption = {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} kWh ({d}%)'
+      formatter: (params: any) => {
+        const unit = props.unitLabel || 'kWh';
+        return `${params.seriesName} <br/>${params.name}: ${params.value} ${unit} (${params.percent}%)`;
+      }
     },
     legend: {
       orient: 'vertical',
@@ -74,14 +78,20 @@ const initChart = () => {
 
 // 监听数据变化
 watch(
-  () => props.chartData,
+  [() => props.chartData, () => props.unitLabel],
   () => {
     if (chartInstance) {
       chartInstance.setOption({
         series: props.chartData.series.map(item => ({
           ...item,
           data: item.data
-        }))
+        })),
+        tooltip: {
+          formatter: (params: any) => {
+            const unit = props.unitLabel || 'kWh';
+            return `${params.seriesName} <br/>${params.name}: ${params.value} ${unit} (${params.percent}%)`;
+          }
+        }
       });
     }
   },

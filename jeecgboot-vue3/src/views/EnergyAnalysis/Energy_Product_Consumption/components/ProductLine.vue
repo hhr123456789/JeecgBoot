@@ -20,6 +20,7 @@ const props = defineProps<{
       data: number[];
     }[];
   };
+  unitLabel: string;
 }>();
 
 // 图表DOM引用
@@ -45,10 +46,11 @@ const initChart = () => {
         }
       },
       formatter: (params: any) => {
+        const unit = props.unitLabel || 'kWh/件';
         let result = `<div style="font-size: 12px;">${params[0].axisValue}</div>`;
         params.forEach((item: any) => {
           result += `<div style="font-size: 12px; margin-top: 4px;">
-            ${item.marker} ${item.seriesName}: ${item.value} kWh/件
+            ${item.marker} ${item.seriesName}: ${item.value} ${unit}
           </div>`;
         });
         return result;
@@ -84,7 +86,7 @@ const initChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: '单耗(kWh/件)',
+      name: `单耗(${props.unitLabel || 'kWh/件'})`,
       nameTextStyle: {
         color: '#666',
         fontSize: 12
@@ -127,12 +129,15 @@ const initChart = () => {
 
 // 监听数据变化
 watch(
-  () => props.chartData,
+  [() => props.chartData, () => props.unitLabel],
   () => {
     if (chartInstance) {
       chartInstance.setOption({
         xAxis: {
           data: props.chartData.xAxis.data
+        },
+        yAxis: {
+          name: `单耗(${props.unitLabel || 'kWh/件'})`
         },
         series: props.chartData.series.map(item => ({
           ...item,

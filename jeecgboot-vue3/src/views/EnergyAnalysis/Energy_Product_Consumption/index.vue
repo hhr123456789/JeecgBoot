@@ -10,7 +10,7 @@
       <a-tree
         v-model:expandedKeys="expandedKeys"
         v-model:selectedKeys="selectedKeys"
-        :tree-data="treeData"
+        :tree-data="filteredTreeData"
         @select="handleSelect"
       />
     </div>
@@ -75,7 +75,7 @@
         </div>
         <!-- 单位产品能耗 -->
         <div class="bg-white rounded-lg p-3 shadow-sm">
-          <div class="text-gray-600 text-sm mb-2">单位产品能耗(kWh/件)</div>
+          <div class="text-gray-600 text-sm mb-2">单位产品能耗({{ unitConsumptionLabel }})</div>
           <div class="bg-red-50 rounded-lg py-2 px-3 text-base font-medium text-center text-red-600">
             {{ statisticsData.unitConsumption }}
           </div>
@@ -88,14 +88,14 @@
         <div class="bg-white rounded p-3">
           <div class="text-gray-600 text-sm font-medium mb-2">产品能耗分布</div>
           <div class="h-80">
-            <ProductPie :chartData="pieChartData" />
+            <ProductPie :chartData="pieChartData" :unitLabel="energyUnit" />
           </div>
         </div>
         <!-- 产品单耗趋势 -->
         <div class="bg-white rounded p-3">
           <div class="text-gray-600 text-sm font-medium mb-2">产品单耗趋势</div>
           <div class="h-80">
-            <ProductLine :chartData="lineChartData" />
+            <ProductLine :chartData="lineChartData" :unitLabel="unitConsumptionLabel" />
           </div>
         </div>
       </div>
@@ -111,9 +111,9 @@
         </div>
         <!-- 产品单耗排名 -->
         <div class="bg-white rounded p-3">
-          <div class="text-gray-600 text-sm font-medium mb-2">产品单耗排名(kWh/件)</div>
+          <div class="text-gray-600 text-sm font-medium mb-2">产品单耗排名({{ unitConsumptionLabel }})</div>
           <div class="h-80">
-            <ProductRanking :chartData="rankingChartData" />
+            <ProductRanking :chartData="rankingChartData" :unitLabel="unitConsumptionLabel" />
           </div>
         </div>
       </div>
@@ -138,11 +138,12 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, h } from 'vue';
 import type { TreeDataItem } from 'ant-design-vue/es/tree/Tree';
 import type { TableColumnsType } from 'ant-design-vue';
 import dayjs, { Dayjs } from 'dayjs';
 import { message } from 'ant-design-vue';
+import { downloadByData } from '/@/utils/file/download';
 import ProductPie from './components/ProductPie.vue';
 import ProductLine from './components/ProductLine.vue';
 import ProductBar from './components/ProductBar.vue';
@@ -166,9 +167,48 @@ const loading = ref(false);
 // 树形菜单展开和选中状态
 const expandedKeys = ref<string[]>([]);
 const selectedKeys = ref<string[]>([]);
+const selectedCategoryId = ref<string | null>(null);
 
 // 树形菜单数据 - 从后端加载
 const treeData = ref<TreeDataItem[]>([]);
+
+const normalizeText = (value: string) => value.trim().toLowerCase();
+
+const filterTreeData = (nodes: TreeDataItem[], keyword: string): TreeDataItem[] => {
+  const term = normalizeText(keyword);
+  if (!term) return nodes;
+
+  const loop = (items: TreeDataItem[]): TreeDataItem[] => {
+    const result: TreeDataItem[] = [];
+    items.forEach((item) => {
+      const title = String(item.title ?? '');
+      const children = Array.isArray(item.children) ? loop(item.children) : [];
+      if (normalizeText(title).includes(term) || children.length > 0) {
+        result.push({
+          ...item,
+          children: children.length > 0 ? children : undefined
+        });
+      }
+    });
+    return result;
+  };
+
+  return loop(nodes);
+};
+
+const collectKeys = (nodes: TreeDataItem[], keys: string[] = []) => {
+  nodes.forEach((node) => {
+    if (node.key != null) {
+      keys.push(String(node.key));
+    }
+    if (Array.isArray(node.children)) {
+      collectKeys(node.children, keys);
+    }
+  });
+  return keys;
+};
+
+const filteredTreeData = computed(() => filterTreeData(treeData.value, searchText.value));
 
 // 时间单位选择
 const timeUnit = ref('month');
@@ -177,8 +217,11 @@ const selectedDate = ref<Dayjs>(dayjs());
 // 能源类型选择
 const energyType = ref<number | null>(1); // 默认电
 
+const statisticsEnergyUnit = ref<string | null>(null);
+
 // 能源单位计算
 const energyUnit = computed(() => {
+  if (statisticsEnergyUnit.value) return statisticsEnergyUnit.value;
   const unitMap: Record<number, string> = {
     1: 'kWh',
     2: 'm³',
@@ -189,6 +232,8 @@ const energyUnit = computed(() => {
   return energyType.value ? unitMap[energyType.value] || 'kWh' : 'kWh';
 });
 
+const unitConsumptionLabel = computed(() => `${energyUnit.value}/件`);
+
 // 统计数据接口
 interface StatisticsData {
   totalConsumption: number;       // 总能耗
@@ -196,6 +241,7 @@ interface StatisticsData {
   qualifiedProduction: number;    // 合格产量
   qualificationRate: number;      // 合格率
   unitConsumption: number;        // 单位产品能耗
+  energyUnit?: string | null;      // 能源单位
 }
 
 // 静态统计数据 -> 改为动态数据
@@ -266,7 +312,7 @@ const rankingChartData = ref({
 });
 
 // 表格列定义
-const columns: TableColumnsType = [
+const columns = computed<TableColumnsType>(() => [
   {
     title: '时间',
     dataIndex: 'time',
@@ -296,13 +342,13 @@ const columns: TableColumnsType = [
     align: 'right',
   },
   {
-    title: '总能耗(kWh)',
+    title: `总能耗(${energyUnit.value})`,
     dataIndex: 'totalConsumption',
     width: 120,
     align: 'right',
   },
   {
-    title: '单位产品能耗(kWh/件)',
+    title: `单位产品能耗(${unitConsumptionLabel.value})`,
     dataIndex: 'unitConsumption',
     width: 150,
     align: 'right',
@@ -313,12 +359,13 @@ const columns: TableColumnsType = [
     width: 100,
     align: 'right',
     customRender: ({ text }) => {
-      const value = parseFloat(text);
+      const value = Number(text);
+      if (Number.isNaN(value)) return '-';
       const color = value >= 0 ? 'text-red-500' : 'text-green-500';
-      return `<span class="${color}">${value >= 0 ? '+' : ''}${text}%</span>`;
+      return h('span', { class: color }, `${value >= 0 ? '+' : ''}${value}%`);
     }
   }
-];
+]);
 
 // 表格数据
 const tableData = ref<any[]>([]);
@@ -355,7 +402,7 @@ const getQueryParams = () => {
     startDate,
     endDate,
     energyType: energyType.value,
-    categoryId: selectedKeys.value.length > 0 ? selectedKeys.value[0] : null
+    categoryId: selectedCategoryId.value
   };
 };
 
@@ -367,7 +414,7 @@ const loadCategoryTree = async () => {
       treeData.value = res;
       // 默认展开第一级
       if (res.length > 0) {
-        expandedKeys.value = res.map((item: any) => item.key);
+        expandedKeys.value = res.map((item: any) => String(item.key));
       }
     }
   } catch (error) {
@@ -386,8 +433,10 @@ const loadStatistics = async () => {
         totalProduction: res.totalProduction || 0,
         qualifiedProduction: res.qualifiedProduction || 0,
         qualificationRate: res.qualificationRate || 0,
-        unitConsumption: res.unitConsumption || 0
+        unitConsumption: res.unitConsumption || 0,
+        energyUnit: res.energyUnit || null
       };
+      statisticsEnergyUnit.value = res.energyUnit || null;
     }
   } catch (error) {
     console.error('加载统计数据失败:', error);
@@ -492,10 +541,26 @@ const loadAllData = async () => {
 
 // 处理树节点选择
 const handleSelect = (keys: string[], info: any) => {
-  console.log('selected', keys, info);
+  if (keys.length === 0) {
+    selectedCategoryId.value = null;
+  } else {
+    selectedCategoryId.value = info?.node?.id ?? null;
+  }
+  pagination.value.current = 1;
   // 选中节点后重新加载数据
   loadAllData();
 };
+
+watch(
+  () => searchText.value,
+  (value) => {
+    if (!value) {
+      expandedKeys.value = treeData.value.map((item: any) => String(item.key));
+      return;
+    }
+    expandedKeys.value = collectKeys(filteredTreeData.value);
+  }
+);
 
 // 处理查询
 const handleQuery = () => {
@@ -511,8 +576,66 @@ const handleTableChange = (pag: any) => {
 };
 
 // 处理导出
-const handleExport = () => {
-  message.info('导出功能开发中...');
+const handleExport = async () => {
+  try {
+    const params = {
+      ...getQueryParams(),
+      pageNo: 1,
+      pageSize: 100000
+    };
+    const res = await getProductDetailList(params);
+    const records = res?.records || [];
+    const total = res?.total || 0;
+    if (records.length === 0) {
+      message.warning('当前条件无可导出数据');
+      return;
+    }
+
+    const headers = [
+      '时间',
+      '产品名称',
+      '产量(件)',
+      '合格量(件)',
+      '合格率(%)',
+      `总能耗(${energyUnit.value})`,
+      `单位产品能耗(${unitConsumptionLabel.value})`
+    ];
+
+    const rows = records.map((item: any) => [
+      item.time ?? '',
+      item.productName ?? '',
+      item.production ?? 0,
+      item.qualified ?? 0,
+      item.qualificationRate ?? 0,
+      item.totalConsumption ?? 0,
+      item.unitConsumption ?? 0
+    ]);
+
+    const escapeCsv = (value: any) => {
+      const str = String(value ?? '');
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n');
+
+    const fileName = `产品单耗明细_${dayjs().format('YYYYMMDD_HHmmss')}.csv`;
+    const bom = '\ufeff';
+    downloadByData(csvContent, fileName, 'text/csv;charset=utf-8;', bom);
+
+    if (total > records.length) {
+      message.warning(`导出已截取前 ${records.length} 条，共 ${total} 条`);
+    } else {
+      message.success('导出成功');
+    }
+  } catch (error) {
+    console.error('导出失败:', error);
+    message.error('导出失败');
+  }
 };
 
 // 页面加载时初始化

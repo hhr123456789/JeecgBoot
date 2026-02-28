@@ -75,7 +75,7 @@ const initChart = () => {
     yAxis: [
       {
         type: 'value',
-        name: '产量(件)',
+        name: props.chartData.series[0]?.name || '产量(件)',
         position: 'left',
         nameTextStyle: {
           color: '#666',
@@ -100,7 +100,7 @@ const initChart = () => {
       },
       {
         type: 'value',
-        name: '能耗(万kWh)',
+        name: props.chartData.series[1]?.name || '能耗',
         position: 'right',
         nameTextStyle: {
           color: '#666',
@@ -144,6 +144,10 @@ watch(
         xAxis: {
           data: props.chartData.xAxis.data
         },
+        yAxis: [
+          { name: props.chartData.series[0]?.name || '产量(件)' },
+          { name: props.chartData.series[1]?.name || '能耗' }
+        ],
         series: props.chartData.series.map(item => ({
           ...item,
           data: item.data

@@ -40,7 +40,8 @@
     const prefixCls = inject('prefixCls');
     const props_type = defineProps({
       nowtype: { type: [String, Number], required: true },
-      selectLevel: { type: Number, default: 2 }
+      selectLevel: { type: Number, default: 2 },
+      selectedKey: { type: [String, Number], default: '' }
     });
     const emit = defineEmits(['select']);
     const { createMessage } = useMessage();
@@ -78,7 +79,10 @@
               console.log('处理后的树数据（带nodeType）:', treeData.value);
               userIdentity.value = res.message;
               //autoExpandParentNode();
-              autoExpandToTargetLevelNode(props_type.selectLevel);
+              const appliedExternalSelection = applyExternalSelectedKey();
+              if (!appliedExternalSelection) {
+                autoExpandToTargetLevelNode(props_type.selectLevel);
+              }
             }
           } else {
             createMessage.warning(res.message);
@@ -109,6 +113,19 @@
           // 重新加载树数据
           loadDepartTreeData();
         }
+      }
+    );
+
+    watch(
+      () => props_type.selectedKey,
+      (newVal, oldVal) => {
+        if (newVal === oldVal) {
+          return;
+        }
+        if (!newVal) {
+          return;
+        }
+        applyExternalSelectedKey();
       }
     );
 
@@ -196,6 +213,66 @@
       }
     }
     return undefined;
+  }
+
+  function findNodeByIdentity(treeData: any[], identity: string): any | undefined {
+    for (const node of treeData) {
+      const candidates = [node.key, node.id, node.orgCode, node.value]
+        .map((item) => (item === undefined || item === null ? '' : String(item)));
+      if (candidates.includes(identity)) {
+        return node;
+      }
+      if (node.children && node.children.length > 0) {
+        const foundNode = findNodeByIdentity(node.children, identity);
+        if (foundNode) {
+          return foundNode;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  function findPathByKey(treeData: any[], searchKey: any, path: any[] = []): any[] | null {
+    for (const node of treeData) {
+      const currentPath = [...path, node.key];
+      if (node.key === searchKey) {
+        return currentPath;
+      }
+      if (node.children && node.children.length > 0) {
+        const childPath = findPathByKey(node.children, searchKey, currentPath);
+        if (childPath) {
+          return childPath;
+        }
+      }
+    }
+    return null;
+  }
+
+  function applyExternalSelectedKey(): boolean {
+    const selectedIdentity = props_type.selectedKey;
+    if (selectedIdentity === undefined || selectedIdentity === null || selectedIdentity === '') {
+      return false;
+    }
+
+    const targetIdentity = String(selectedIdentity);
+    const targetNode = findNodeByIdentity(treeData.value, targetIdentity);
+    if (!targetNode) {
+      return false;
+    }
+
+    const targetKey = targetNode.key || targetNode.id || targetNode.orgCode || targetNode.value;
+    if (!targetKey) {
+      return false;
+    }
+
+    const expandPath = findPathByKey(treeData.value, targetKey);
+    if (expandPath && expandPath.length > 0) {
+      expandedKeys.value = expandPath;
+      autoExpandParent.value = true;
+    }
+
+    setSelectedKey(String(targetKey), targetNode);
+    return true;
   }
   //===================================================================
   

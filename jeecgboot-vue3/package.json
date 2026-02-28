@@ -84,6 +84,7 @@
     "xss": "^1.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@commitlint/cli": "^18.6.1",
     "@commitlint/config-conventional": "^18.6.2",
     "@iconify/json": "^2.2.185",

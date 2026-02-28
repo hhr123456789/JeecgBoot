@@ -4,17 +4,53 @@
 
 ### ✅ 已完成改进
 
-1. **告警规则设置** 
+1. **告警规则设置**
    - 文件: `jeecgboot-vue3/src/views/EnergyAlarm/Alarm_Rules_Settings/index.vue`
-   - 改进: 支持多能源类型 + 可视化规则配置
+   - 改进: 支持多能源类型 + 可视化规则配置 + 维度树选择监控对象
 
 2. **告警模板设置（改进版）**
    - 文件: `jeecgboot-vue3/src/views/EnergyAlarm/Alarm_Settings/index_improved.vue`
    - 改进: 模板分类 + 预设配置 + 标签管理
 
 3. **详细文档**
-   - 文件: `system_Remark/告警相关/告警系统改进说明.md`
+   - 文件: `system_Remark/告警相关/告警模板与规则_开发说明.md`
    - 包含: 完整设计说明 + 后端需求 + API文档
+
+4. **数据库更新脚本**
+   - 文件: `system_Remark/告警相关/alter_alarm_rule_table.sql`
+   - 包含: 新增维度树关联字段的 ALTER 语句
+
+---
+
+## 2026-02-18 更新：维度树集成
+
+### 新增功能
+1. **左侧维度树**：参考班组用能，使用带标签页的维度树组件
+   - 支持多维度切换（按部门、按线路、天然气、压缩空气、企业用水）
+   - 选中节点后自动关联到告警规则的监控对象
+
+2. **监控对象选择**：
+   - 显示当前选中的维度和节点
+   - 支持三种监控范围：仅选中节点、包含子节点、自定义选择
+   - 自定义选择时可通过树选择器多选节点
+
+3. **能源类型自动关联**：
+   - 切换维度标签页时自动设置对应的能源类型
+
+### 新增数据库字段
+| 字段 | 说明 |
+|------|------|
+| target_node_id | 监控节点ID（维度树选中的节点） |
+| target_node_name | 监控节点名称 |
+| target_node_ids | 自定义选择的节点ID列表JSON |
+| dimension_type | 维度类型：1-按部门,2-按线路,3-天然气,4-压缩空气,5-企业用水 |
+
+### 后端更新文件
+- `AlarmRule.java` - 实体类新增字段
+- `AlarmRuleMapper.java` - 查询方法新增参数
+- `IAlarmRuleService.java` - 接口新增参数
+- `AlarmRuleServiceImpl.java` - 实现类更新
+- `AlarmRuleController.java` - 控制器新增查询参数
 
 ---
 
